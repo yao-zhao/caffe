@@ -109,7 +109,6 @@ void ImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   const int batch_size = image_data_param.batch_size();
   const int new_height = image_data_param.new_height();
   const int new_width = image_data_param.new_width();
-<<<<<<< HEAD
   const bool is_color = image_data_param.is_color();
   string root_folder = image_data_param.root_folder();
 
@@ -127,27 +126,6 @@ void ImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
 
   Dtype* prefetch_data = batch->data_.mutable_cpu_data();
   Dtype* prefetch_label = batch->label_.mutable_cpu_data();
-=======
-  const int crop_size = this->layer_param_.transform_param().crop_size();
-  const int crop_h = this->layer_param_.transform_param().crop_h();
-  const int crop_w = this->layer_param_.transform_param().crop_w();
-  const bool needs_crop = crop_size != 0 || crop_h != 0 || crop_w != 0;
-  const bool is_color = image_data_param.is_color();
-  string root_folder = image_data_param.root_folder();
-
-  // Reshape on single input batches for inputs of varying dimension.
-  if (batch_size == 1 && !needs_crop && new_height == 0 && new_width == 0) {
-    cv::Mat cv_img = ReadImageToCVMat(root_folder + lines_[lines_id_].first,
-        0, 0, is_color);
-    this->prefetch_data_.Reshape(1, cv_img.channels(),
-        cv_img.rows, cv_img.cols);
-    this->transformed_data_.Reshape(1, cv_img.channels(),
-        cv_img.rows, cv_img.cols);
-  }
-
-  Dtype* prefetch_data = this->prefetch_data_.mutable_cpu_data();
-  Dtype* prefetch_label = this->prefetch_label_.mutable_cpu_data();
->>>>>>> crop
 
   // datum scales
   const int lines_size = lines_.size();
