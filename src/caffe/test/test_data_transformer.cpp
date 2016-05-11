@@ -47,11 +47,10 @@ class DataTransformTest : public ::testing::Test {
       crop_h = crop_w = crop_size;
     }
     Caffe::set_random_seed(seed_);
-    transformer->InitRand();
-    Blob<Dtype>* blob =
-        new Blob<Dtype>(1, datum.channels(), datum.height(), datum.width());
+    transformer.InitRand();
+    Blob<Dtype> blob(1, datum.channels(), datum.height(), datum.width());
     if (crop_h > 0 || crop_w > 0) {
-      blob->Reshape(1, datum.channels(), crop_h, crop_w);
+      blob.Reshape(1, datum.channels(), crop_h, crop_w);
     }
 
     vector<vector<Dtype> > crop_sequence;
