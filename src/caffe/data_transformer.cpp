@@ -179,7 +179,6 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
   CHECK_LE(width, datum_width);
   CHECK_GE(num, 1);
 
-  const int crop_size = param_.crop_size();
   int crop_h = param_.crop_h();
   int crop_w = param_.crop_w();
   if (crop_size > 0) {
@@ -259,7 +258,6 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
 
   CHECK(cv_img.depth() == CV_8U) << "Image data type must be unsigned byte";
 
-  const int crop_size = param_.crop_size();
   int crop_h = param_.crop_h();
   int crop_w = param_.crop_w();
   const Dtype scale = param_.scale();
@@ -379,7 +377,6 @@ void DataTransformer<Dtype>::Transform(Blob<Dtype>* input_blob,
   CHECK_GE(input_width, width);
 
 
-  const int crop_size = param_.crop_size();
   int crop_h= param_.crop_h();
   int crop_w= param_.crop_w();
   const Dtype scale = param_.scale();
