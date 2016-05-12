@@ -349,16 +349,26 @@ template<typename Dtype>
 void DataTransformer<Dtype>::Transform(Blob<Dtype>* input_blob,
                                        Blob<Dtype>* transformed_blob) {
   const int crop_size = param_.crop_size();
+  int crop_h = param_.crop_h();
+  int crop_w = param_.crop_w();
   const int input_num = input_blob->num();
   const int input_channels = input_blob->channels();
   const int input_height = input_blob->height();
   const int input_width = input_blob->width();
 
+  CHECK(param_.crop_size() == 0 ||
+        (param_.crop_h() == 0 && param_.crop_w() == 0))
+        << "Crop size is crop_size OR crop_h and crop_w; not both";
+  CHECK((param_.crop_h() != 0) == (param_.crop_w() != 0))
+        << "For non-square crops both crop_h and crop_w are required.";
   if (transformed_blob->count() == 0) {
     // Initialize transformed_blob with the right shape.
     if (crop_size) {
       transformed_blob->Reshape(input_num, input_channels,
                                 crop_size, crop_size);
+    } else if (crop_h>0 && crop_w>0){
+      transformed_blob->Reshape(input_num, input_channels,
+                                crop_h, crop_w);
     } else {
       transformed_blob->Reshape(input_num, input_channels,
                                 input_height, input_width);
@@ -377,8 +387,6 @@ void DataTransformer<Dtype>::Transform(Blob<Dtype>* input_blob,
   CHECK_GE(input_width, width);
 
 
-  int crop_h= param_.crop_h();
-  int crop_w= param_.crop_w();
   const Dtype scale = param_.scale();
   const bool do_mirror = param_.mirror() && Rand(2);
   const bool has_mean_file = param_.has_mean_file();
@@ -483,6 +491,8 @@ vector<int> DataTransformer<Dtype>::InferBlobShape(const Datum& datum) {
 #endif  // USE_OPENCV
   }
   const int crop_size = param_.crop_size();
+  const int crop_h = param_.crop_h();
+  const int crop_w = param_.crop_w();
   const int datum_channels = datum.channels();
   const int datum_height = datum.height();
   const int datum_width = datum.width();
@@ -490,12 +500,27 @@ vector<int> DataTransformer<Dtype>::InferBlobShape(const Datum& datum) {
   CHECK_GT(datum_channels, 0);
   CHECK_GE(datum_height, crop_size);
   CHECK_GE(datum_width, crop_size);
+  CHECK_GE(datum_height, crop_h);
+  CHECK_GE(datum_width, crop_w);
   // Build BlobShape.
   vector<int> shape(4);
   shape[0] = 1;
   shape[1] = datum_channels;
-  shape[2] = (crop_size)? crop_size: datum_height;
-  shape[3] = (crop_size)? crop_size: datum_width;
+  CHECK(param_.crop_size() == 0 ||
+        (param_.crop_h() == 0 && param_.crop_w() == 0))
+        << "Crop size is crop_size OR crop_h and crop_w; not both";
+  CHECK((param_.crop_h() != 0) == (param_.crop_w() != 0))
+        << "For non-square crops both crop_h and crop_w are required.";
+  if (crop_size) {
+    shape[2]=crop_size;
+    shape[3]=crop_size;
+  } else if (crop_h>0 && crop_w>0){
+    shape[2]=crop_h;
+    shape[3]=crop_w;
+  } else {
+    shape[2] = datum_height;
+    shape[3] = datum_width;
+  }
   return shape;
 }
 
@@ -515,19 +540,36 @@ vector<int> DataTransformer<Dtype>::InferBlobShape(
 template<typename Dtype>
 vector<int> DataTransformer<Dtype>::InferBlobShape(const cv::Mat& cv_img) {
   const int crop_size = param_.crop_size();
+  const int crop_h = param_.crop_h();  
+  const int crop_w = param_.crop_w();
   const int img_channels = cv_img.channels();
   const int img_height = cv_img.rows;
   const int img_width = cv_img.cols;
   // Check dimensions.
   CHECK_GT(img_channels, 0);
   CHECK_GE(img_height, crop_size);
-  CHECK_GE(img_width, crop_size);
+  CHECK_GE(img_width, crop_size);  
+  CHECK_GE(img_height, crop_h);
+  CHECK_GE(img_width, crop_w);
   // Build BlobShape.
   vector<int> shape(4);
   shape[0] = 1;
   shape[1] = img_channels;
-  shape[2] = (crop_size)? crop_size: img_height;
-  shape[3] = (crop_size)? crop_size: img_width;
+  CHECK(param_.crop_size() == 0 ||
+        (param_.crop_h() == 0 && param_.crop_w() == 0))
+        << "Crop size is crop_size OR crop_h and crop_w; not both";
+  CHECK((param_.crop_h() != 0) == (param_.crop_w() != 0))
+        << "For non-square crops both crop_h and crop_w are required.";
+  if (crop_size) {
+    shape[2]=crop_size;
+    shape[3]=crop_size;
+  } else if (crop_h>0 && crop_w>0){
+    shape[2]=crop_h;
+    shape[3]=crop_w;
+  } else {
+    shape[2] = img_height;
+    shape[3] = img_width;
+  }
   return shape;
 }
 
