@@ -1,5 +1,7 @@
 #ifdef USE_OPENCV
 #include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #endif  // USE_OPENCV
 
 #include <string>
@@ -52,13 +54,21 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
   const int datum_width = datum.width();
 
   const int crop_size = param_.crop_size();
-  int crop_h = param_.crop_h();
-  int crop_w = param_.crop_w();
   const Dtype scale = param_.scale();
   const bool do_mirror = param_.mirror() && Rand(2);
   const bool has_mean_file = param_.has_mean_file();
   const bool has_uint8 = data.size() > 0;
   const bool has_mean_values = mean_values_.size() > 0;
+  const bool has_rotation = param_.rotation_range()>0;
+  const bool has_perspective_transformation = param_.perspective_transformation_border()>0;
+  const bool random_crop_test = param_.random_crop_test();
+  
+  // Datum *newdatum = NULL;
+  cv::Mat cv_img;
+  bool use_new_data =false;
+
+  int crop_h = param_.crop_h();
+  int crop_w = param_.crop_w();
   if (crop_size > 0) {
     crop_h = crop_w = crop_size;
   }
@@ -84,6 +94,53 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
       }
     }
   }
+  if ((has_perspective_transformation || has_rotation) && has_uint8 ) {
+    // load the image
+    cv_img=cv::Mat(datum_height,datum_width,CV_8UC3);
+    for (int h = 0; h < datum_height; ++h) {
+      uchar* ptr = cv_img.ptr<uchar>(h);
+      int img_index = 0;
+      for (int w = 0; w < datum_width; ++w) {
+        for (int c = 0; c < datum_channels; ++c) {
+          int datum_index = (c * datum_height + h) * datum_width + w;
+          ptr[img_index++]=static_cast<uint8_t>(data[datum_index]);
+        }
+      }
+    }
+    // if has rotation
+    if (has_rotation) {
+      const int rotation_range = param_.rotation_range();
+      CHECK_GE(rotation_range,0);
+      CHECK_LE(rotation_range,180);
+      // rotate the image
+      cv::Point2f pt(datum_width/2,datum_height/2);
+      cv::Mat r = cv::getRotationMatrix2D(pt, Rand(rotation_range)-rotation_range/2+0.5, 1.0);
+      cv::warpAffine(cv_img,cv_img,r,cv::Size(datum_width, datum_height));
+    }
+    //perspective transform
+    if (has_perspective_transformation) {
+      const int perspective_transformation_border = param_.perspective_transformation_border();
+      CHECK_GE(perspective_transformation_border,0);
+      CHECK_LE(perspective_transformation_border,datum_height/2);
+      CHECK_LE(perspective_transformation_border,datum_width/2);
+      // get transformation matrix
+      cv::Point2f src_shape[4];
+      src_shape[0]=cv::Point2f(0+Rand(perspective_transformation_border),0+Rand(perspective_transformation_border));
+      src_shape[1]=cv::Point2f(0+Rand(perspective_transformation_border),cv_img.rows-Rand(perspective_transformation_border));
+      src_shape[2]=cv::Point2f(cv_img.cols-Rand(perspective_transformation_border),cv_img.rows-Rand(perspective_transformation_border));
+      src_shape[3]=cv::Point2f(cv_img.cols-Rand(perspective_transformation_border),0+Rand(perspective_transformation_border));
+      cv::Point2f dst_shape[4];
+      dst_shape[0]=cv::Point2f(0,0);
+      dst_shape[1]=cv::Point2f(0,cv_img.rows);
+      dst_shape[2]=cv::Point2f(cv_img.cols,cv_img.rows);
+      dst_shape[3]=cv::Point2f(cv_img.cols,0);
+      cv::Mat ptmatrix = cv::getPerspectiveTransform(src_shape,dst_shape);
+      cv::warpPerspective(cv_img,cv_img,ptmatrix,cv::Size(datum_width,datum_height),cv::INTER_LINEAR,cv::BORDER_CONSTANT);
+    }
+    // copy back to datum
+    // CVMatToDatum(cv_img, newdatum);
+    use_new_data = true;
+  }
 
   int height = datum_height;
   int width = datum_width;
@@ -94,7 +151,7 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
     height = crop_h;
     width = crop_w;
     // We only do random crop when we do training.
-    if (phase_ == TRAIN) {
+    if (phase_ == TRAIN || random_crop_test) {
       h_off = Rand(datum_height - crop_h + 1);
       w_off = Rand(datum_width - crop_w + 1);
     } else {
@@ -115,8 +172,13 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
           top_index = (c * height + h) * width + w;
         }
         if (has_uint8) {
-          datum_element =
-            static_cast<Dtype>(static_cast<uint8_t>(data[data_index]));
+          if (use_new_data) {
+            datum_element =
+              static_cast<Dtype>(cv_img.at<cv::Vec3b>(h+h_off,w+w_off)[c]);
+          } else {
+            datum_element =
+              static_cast<Dtype>(static_cast<uint8_t>(data[data_index]));
+          }
         } else {
           datum_element = datum.float_data(data_index);
         }
