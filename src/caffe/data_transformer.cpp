@@ -6,6 +6,7 @@
 
 #include <string>
 #include <vector>
+#include <math.h>
 
 #include "caffe/data_transformer.hpp"
 #include "caffe/util/io.hpp"
@@ -62,6 +63,8 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
   const bool has_rotation = param_.rotation_range()>0;
   const bool has_perspective_transformation = param_.perspective_transformation_border()>0;
   const bool random_crop_test = param_.random_crop_test();
+  const bool has_scale_jitter = param_.scale_jitter_range();
+  const bool has_contrast_jitter = param_.contrast_jitter_range();
   
   // Datum *newdatum = NULL;
   cv::Mat cv_img;
@@ -94,7 +97,13 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
       }
     }
   }
-  if ((has_perspective_transformation || has_rotation) && has_uint8 ) {
+  if (has_contrast_jitter) {
+    float contrast_jitter_range = param_.contrast_jitter_range();
+    CHECK_GE(contrast_jitter_range,0);
+    scale = scale * exp( contrast_jitter_range*(Rand(21)-10)/20);
+  }
+
+  if ((has_perspective_transformation || has_rotation || has_scale_jitter) && has_uint8 ) {
     // load the image
     cv_img=cv::Mat(datum_height,datum_width,CV_8UC3);
     for (int h = 0; h < datum_height; ++h) {
@@ -106,6 +115,11 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
           ptr[img_index++]=static_cast<uint8_t>(data[datum_index]);
         }
       }
+    }
+    // if has scale jitter
+    if (has_scale_jitter) {
+      float scale_jitter = exp (param_.scale_jitter_range()*(Rand(21)-10)/20);
+      cv::resize(cv_img,cv_img,cv_img.size(),scale_jitter,scale_jitter);
     }
     // if has rotation
     if (has_rotation) {
