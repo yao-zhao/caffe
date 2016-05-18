@@ -63,8 +63,8 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
   const bool has_rotation = param_.rotation_range()>0;
   const bool has_perspective_transformation = param_.perspective_transformation_border()>0;
   const bool random_crop_test = param_.random_crop_test();
-  const bool has_scale_jitter = param_.scale_jitter_range();
-  const bool has_contrast_jitter = param_.contrast_jitter_range();
+  const bool has_scale_jitter = param_.scale_jitter_range()>0;
+  const bool has_contrast_jitter = param_.contrast_jitter_range()>0;
   
   // Datum *newdatum = NULL;
   cv::Mat cv_img;
@@ -100,10 +100,10 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
   if (has_contrast_jitter) {
     float contrast_jitter_range = param_.contrast_jitter_range();
     CHECK_GE(contrast_jitter_range,0);
-    scale = scale * exp( contrast_jitter_range*(Rand(21)-10)/20);
+    scale = scale*exp(contrast_jitter_range*(float)(Rand(21)-10)/20.0);
   }
 
-  if ((has_perspective_transformation || has_rotation || has_scale_jitter) && has_uint8 ) {
+  if ((has_perspective_transformation || has_rotation || has_scale_jitter) ) {
     // load the image
     cv_img=cv::Mat(datum_height,datum_width,CV_8UC3);
     for (int h = 0; h < datum_height; ++h) {
@@ -119,12 +119,14 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
     // if has rotation or scale jitter
     if (has_rotation || has_scale_jitter) {
       const int rotation_range = param_.rotation_range();
-      const float scale_jitter = exp (param_.scale_jitter_range()*(Rand(21)-10)/20);
+      const float scale_jitter = exp(param_.scale_jitter_range()*(float)(Rand(21)-10)/20.0);
+      CHECK_GE(scale_jitter,0);
       CHECK_GE(rotation_range,0);
       CHECK_LE(rotation_range,180);
       // rotate the image
       cv::Point2f pt(cv_img.cols/2,cv_img.rows/2);
       cv::Mat r = cv::getRotationMatrix2D(pt, Rand(rotation_range)-rotation_range/2, scale_jitter);
+      // cv::Mat r = cv::getRotationMatrix2D(pt, 50.0, 0.10);
       cv::warpAffine(cv_img,cv_img,r,cv::Size(datum_width, datum_height));
     }
     //perspective transform
