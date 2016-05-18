@@ -436,9 +436,9 @@ message TransformationParameter {
   // the perspective transformation border cut
   optional uint32 perspective_transformation_border = 12 [default = 0];
   // the scale jitter
-  optional float scale_jitter_range = 13 [default = 0]
+  optional float scale_jitter_range = 13 [default = 0];
   // the contranst jitter
-  optional float contrast_jitter_range = 14 [default = 0]
+  optional float contrast_jitter_range = 14 [default = 0];
 }
 
 // Message that stores parameters shared by loss layers
