@@ -116,19 +116,15 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
         }
       }
     }
-    // if has scale jitter
-    if (has_scale_jitter) {
-      float scale_jitter = exp (param_.scale_jitter_range()*(Rand(21)-10)/20);
-      cv::resize(cv_img,cv_img,cv_img.size(),scale_jitter,scale_jitter);
-    }
-    // if has rotation
-    if (has_rotation) {
+    // if has rotation or scale jitter
+    if (has_rotation || has_scale_jitter) {
       const int rotation_range = param_.rotation_range();
+      const float scale_jitter = exp (param_.scale_jitter_range()*(Rand(21)-10)/20);
       CHECK_GE(rotation_range,0);
       CHECK_LE(rotation_range,180);
       // rotate the image
-      cv::Point2f pt(datum_width/2,datum_height/2);
-      cv::Mat r = cv::getRotationMatrix2D(pt, Rand(rotation_range)-rotation_range/2+0.5, 1.0);
+      cv::Point2f pt(cv_img.cols/2,cv_img.rows/2);
+      cv::Mat r = cv::getRotationMatrix2D(pt, Rand(rotation_range)-rotation_range/2, scale_jitter);
       cv::warpAffine(cv_img,cv_img,r,cv::Size(datum_width, datum_height));
     }
     //perspective transform
