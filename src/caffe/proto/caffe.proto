@@ -809,6 +809,8 @@ message ImageDataParameter {
   // data.
   optional bool mirror = 6 [default = false];
   optional string root_folder = 12 [default = ""];
+  // duplicate batch for the purpose of classification augmentation, do not use shuffle image for this
+  optional uint32 batch_duplicate = 13 [default = 0];
 }
 
 message InfogainLossParameter {
