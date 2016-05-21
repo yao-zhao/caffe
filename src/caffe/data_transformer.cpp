@@ -662,16 +662,16 @@ vector<int> DataTransformer<Dtype>::InferBlobShape(
 
 template <typename Dtype>
 void DataTransformer<Dtype>::InitRand() {
-  const bool needs_crop = param_.crop_size() > 0 ||
-      param_.crop_h() > 0 || param_.crop_w() > 0;
-  const bool needs_rand = param_.mirror() ||
-      (phase_ == TRAIN && needs_crop);
-  if (needs_rand) {
+  // const bool needs_crop = param_.crop_size() > 0 ||
+  //     param_.crop_h() > 0 || param_.crop_w() > 0;
+  // const bool needs_rand = param_.mirror() ||
+  //     (phase_ == TRAIN && needs_crop);
+  // if (needs_rand) {
     const unsigned int rng_seed = caffe_rng_rand();
     rng_.reset(new Caffe::RNG(rng_seed));
-  } else {
-    rng_.reset();
-  }
+  // } else {
+  //   rng_.reset();
+  // }
 }
 
 template <typename Dtype>
