@@ -25,6 +25,7 @@ DataLayer<Dtype>::~DataLayer() {
 template <typename Dtype>
 void DataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
+  batch_duplicate_ = this->layer_param_.data_param().batch_duplicate();
   const int batch_size = this->layer_param_.data_param().batch_size();
   // Read a data point, and use it to initialize the top blob.
   Datum& datum = *(reader_.full().peek());
@@ -79,23 +80,43 @@ void DataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   if (this->output_labels_) {
     top_label = batch->label_.mutable_cpu_data();
   }
-  for (int item_id = 0; item_id < batch_size; ++item_id) {
+  if (batch_duplicate_) {
     timer.Start();
     // get a datum
     Datum& datum = *(reader_.full().pop("Waiting for data"));
-    read_time += timer.MicroSeconds();
-    timer.Start();
-    // Apply data transformations (mirror, scale, crop...)
-    int offset = batch->data_.offset(item_id);
-    this->transformed_data_.set_cpu_data(top_data + offset);
-    this->data_transformer_->Transform(datum, &(this->transformed_data_));
-    // Copy label.
-    if (this->output_labels_) {
-      top_label[item_id] = datum.label();
+    for (int item_id = 0; item_id < batch_size; ++item_id) {
+      read_time += timer.MicroSeconds();
+      timer.Start();
+      // Apply data transformations (mirror, scale, crop...)
+      int offset = batch->data_.offset(item_id);
+      this->transformed_data_.set_cpu_data(top_data + offset);
+      this->data_transformer_->Transform(datum, &(this->transformed_data_));
+      // Copy label.
+      if (this->output_labels_) {
+        top_label[item_id] = datum.label();
+      }
+      trans_time += timer.MicroSeconds();
     }
-    trans_time += timer.MicroSeconds();
-
     reader_.free().push(const_cast<Datum*>(&datum));
+  } else {
+    for (int item_id = 0; item_id < batch_size; ++item_id) {
+      timer.Start();
+      // get a datum
+      Datum& datum = *(reader_.full().pop("Waiting for data"));
+      read_time += timer.MicroSeconds();
+      timer.Start();
+      // Apply data transformations (mirror, scale, crop...)
+      int offset = batch->data_.offset(item_id);
+      this->transformed_data_.set_cpu_data(top_data + offset);
+      this->data_transformer_->Transform(datum, &(this->transformed_data_));
+      // Copy label.
+      if (this->output_labels_) {
+        top_label[item_id] = datum.label();
+      }
+      trans_time += timer.MicroSeconds();
+
+      reader_.free().push(const_cast<Datum*>(&datum));
+    }
   }
   timer.Stop();
   batch_timer.Stop();

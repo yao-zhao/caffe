@@ -39,6 +39,8 @@ class ImageDataLayer : public BasePrefetchingDataLayer<Dtype> {
 
   vector<std::pair<std::string, int> > lines_;
   int lines_id_;
+  // int batch_duplicate_count_;
+  // int batch_duplicate_id_;
 };
 
 
