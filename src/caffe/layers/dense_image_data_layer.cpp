@@ -17,7 +17,7 @@ namespace caffe {
 
 template <typename Dtype>
 DenseImageDataLayer<Dtype>::~DenseImageDataLayer<Dtype>() {
-  this->JoinPrefetchThread();
+  this->StopInternalThread();
 }
 
 template <typename Dtype>
@@ -74,29 +74,50 @@ void DenseImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
   CHECK(cv_lab.rows == height && cv_lab.cols == width) << "Input and label "
       << "image heights and widths must match";
   // image
-    
-  const int crop_size = this->layer_param_.transform_param().crop_size();
-  const int batch_size = this->layer_param_.dense_image_data_param().batch_size();
-  if (crop_size > 0) {
-    top[0]->Reshape(batch_size, channels, crop_size, crop_size);
-    this->prefetch_data_.Reshape(batch_size, channels, crop_size, crop_size);
-    this->transformed_data_.Reshape(1, channels, crop_size, crop_size);
-    // similarly reshape label data blobs
-    top[1]->Reshape(batch_size, 1, crop_size, crop_size);
-    this->prefetch_label_.Reshape(batch_size, 1, crop_size, crop_size);
-    this->transformed_label_.Reshape(1, 1, crop_size, crop_size);
-  } else {
-    top[0]->Reshape(batch_size, channels, height, width);
-    this->prefetch_data_.Reshape(batch_size, channels, height, width);
-    this->transformed_data_.Reshape(1, channels, height, width);
-    // similarly reshape label data blobs
-    top[1]->Reshape(batch_size, 1, height, width);
-    this->prefetch_label_.Reshape(batch_size, 1, height, width);
-    this->transformed_label_.Reshape(1, 1, height, width);
+
+  // Use data_transformer to infer the expected blob shape from a cv_image.
+  vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
+  this->transformed_data_.Reshape(top_shape);
+  // Reshape prefetch_data and top[0] according to the batch_size.
+  const int batch_size = this->layer_param_.image_data_param().batch_size();
+  CHECK_GT(batch_size, 0) << "Positive batch size required";
+  top_shape[0] = batch_size;
+  for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
+    this->prefetch_[i].data_.Reshape(top_shape);
   }
+  top[0]->Reshape(top_shape);
+
   LOG(INFO) << "output data size: " << top[0]->num() << ","
       << top[0]->channels() << "," << top[0]->height() << ","
       << top[0]->width();
+  // label
+  top[1]->Reshape(top_shape);
+  for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
+    this->prefetch_[i].label_.Reshape(label_shape);
+  }
+    
+  // const int crop_size = this->layer_param_.transform_param().crop_size();
+  // const int batch_size = this->layer_param_.dense_image_data_param().batch_size();
+  // if (crop_size > 0) {
+  //   top[0]->Reshape(batch_size, channels, crop_size, crop_size);
+  //   this->prefetch_data_.Reshape(batch_size, channels, crop_size, crop_size);
+  //   this->transformed_data_.Reshape(1, channels, crop_size, crop_size);
+  //   // similarly reshape label data blobs
+  //   top[1]->Reshape(batch_size, 1, crop_size, crop_size);
+  //   this->prefetch_label_.Reshape(batch_size, 1, crop_size, crop_size);
+  //   this->transformed_label_.Reshape(1, 1, crop_size, crop_size);
+  // } else {
+  //   top[0]->Reshape(batch_size, channels, height, width);
+  //   this->prefetch_data_.Reshape(batch_size, channels, height, width);
+  //   this->transformed_data_.Reshape(1, channels, height, width);
+  //   // similarly reshape label data blobs
+  //   top[1]->Reshape(batch_size, 1, height, width);
+  //   this->prefetch_label_.Reshape(batch_size, 1, height, width);
+  //   this->transformed_label_.Reshape(1, 1, height, width);
+  // }
+  // LOG(INFO) << "output data size: " << top[0]->num() << ","
+  //     << top[0]->channels() << "," << top[0]->height() << ","
+  //     << top[0]->width();
 }
 
 template <typename Dtype>
@@ -114,8 +135,10 @@ void DenseImageDataLayer<Dtype>::InternalThreadEntry() {
   double read_time = 0;
   double trans_time = 0;
   CPUTimer timer;
-  CHECK(this->prefetch_data_.count());
+  CHECK(batch->data_.count());
   CHECK(this->transformed_data_.count());
+  // CHECK(this->prefetch_data_.count());
+  // CHECK(this->transformed_data_.count());
   DenseImageDataParameter dense_image_data_param = this->layer_param_.dense_image_data_param();
   const int batch_size = dense_image_data_param.batch_size();
   const int new_height = dense_image_data_param.new_height();
@@ -124,17 +147,17 @@ void DenseImageDataLayer<Dtype>::InternalThreadEntry() {
   const bool is_color = dense_image_data_param.is_color();
   string root_folder = dense_image_data_param.root_folder();
 
-  // Reshape on single input batches for inputs of varying dimension.
-  if (batch_size == 1 && crop_size == 0 && new_height == 0 && new_width == 0) {
-    cv::Mat cv_img = ReadImageToCVMat(root_folder + lines_[lines_id_].first,
-        0, 0, is_color);
-    this->prefetch_data_.Reshape(1, cv_img.channels(),
-        cv_img.rows, cv_img.cols);
-    this->transformed_data_.Reshape(1, cv_img.channels(),
-        cv_img.rows, cv_img.cols);
-    this->prefetch_label_.Reshape(1, 1, cv_img.rows, cv_img.cols);
-    this->transformed_label_.Reshape(1, 1, cv_img.rows, cv_img.cols);
-  }
+  // // Reshape on single input batches for inputs of varying dimension.
+  // if (batch_size == 1 && crop_size == 0 && new_height == 0 && new_width == 0) {
+  //   cv::Mat cv_img = ReadImageToCVMat(root_folder + lines_[lines_id_].first,
+  //       0, 0, is_color);
+  //   this->prefetch_data_.Reshape(1, cv_img.channels(),
+  //       cv_img.rows, cv_img.cols);
+  //   this->transformed_data_.Reshape(1, cv_img.channels(),
+  //       cv_img.rows, cv_img.cols);
+  //   this->prefetch_label_.Reshape(1, 1, cv_img.rows, cv_img.cols);
+  //   this->transformed_label_.Reshape(1, 1, cv_img.rows, cv_img.cols);
+  // }
   Dtype* prefetch_data = this->prefetch_data_.mutable_cpu_data();
   Dtype* prefetch_label = this->prefetch_label_.mutable_cpu_data();
   // datum scales
@@ -147,23 +170,24 @@ void DenseImageDataLayer<Dtype>::InternalThreadEntry() {
         new_height, new_width, is_color);
     CHECK(cv_img.data) << "Could not load " << lines_[lines_id_].first;
     cv::Mat cv_lab = ReadImageToCVMat(root_folder + lines_[lines_id_].second,
-        new_height, new_width, false, true);
+        new_height, new_width, false);
     CHECK(cv_lab.data) << "Could not load " << lines_[lines_id_].second;
     read_time += timer.MicroSeconds();
     timer.Start();
     // Apply transformations (mirror, crop...) to the image
     int offset = this->prefetch_data_.offset(item_id);
     this->transformed_data_.set_cpu_data(prefetch_data + offset);
-    this->data_transformer_->Transform(cv_img, &(this->transformed_data_));
+    // this->data_transformer_->Transform(cv_img, &(this->transformed_data_));
     // transform label the same way
     int label_offset = this->prefetch_label_.offset(item_id);
     this->transformed_label_.set_cpu_data(prefetch_label + label_offset);
-    
-    this->data_transformer_->Transform(cv_lab, &this->transformed_label_, true);
-    CHECK(!this->layer_param_.transform_param().mirror() &&
-        this->layer_param_.transform_param().crop_size() == 0) 
-        << "FIXME: Any stochastic transformation will break layer due to "
-        << "the need to transform input and label images in the same way";
+    // this->data_transformer_->Transform(cv_lab, &this->transformed_label_, true);
+    this->data_transformer_->Transform(cv_img, &(this->transformed_data_),
+                                        cv_lab, &(this->transformed_label_));    
+    // CHECK(!this->layer_param_.transform_param().mirror() &&
+    //     this->layer_param_.transform_param().crop_size() == 0) 
+    //     << "FIXME: Any stochastic transformation will break layer due to "
+    //     << "the need to transform input and label images in the same way";
     trans_time += timer.MicroSeconds();
 
     // go to the next iter
