@@ -204,7 +204,7 @@ void DenseImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
     this->transformed_data_.set_cpu_data(prefetch_data + image_offset);
     // this->data_transformer_->Transform(cv_img, &(this->transformed_data_));
     // transform label the same way
-    int label_offset = batch->data_.offset(item_id);
+    int label_offset = batch->label_.offset(item_id);
     this->transformed_label_.set_cpu_data(prefetch_label + label_offset);
     // this->data_transformer_->Transform(cv_lab, &this->transformed_label_, true);
     this->data_transformer_->Transform(cv_img, &(this->transformed_data_),
