@@ -26,7 +26,6 @@ void SoftmaxWithLossLayer<Dtype>::LayerSetUp(
   if (has_ignore_label_) {
     ignore_label_ = this->layer_param_.loss_param().ignore_label();
   }
-<<<<<<< HEAD
   if (!this->layer_param_.loss_param().has_normalization() &&
       this->layer_param_.loss_param().has_normalize()) {
     normalization_ = this->layer_param_.loss_param().normalize() ?
@@ -34,21 +33,6 @@ void SoftmaxWithLossLayer<Dtype>::LayerSetUp(
                      LossParameter_NormalizationMode_BATCH_SIZE;
   } else {
     normalization_ = this->layer_param_.loss_param().normalization();
-=======
-  normalize_ = this->layer_param_.loss_param().normalize();
-  weight_by_label_freqs_ =
-    this->layer_param_.loss_param().weight_by_label_freqs();
-  
-  if (weight_by_label_freqs_) {
-    vector<int> count_shape(1, this->layer_param_.loss_param().class_weighting_size());
-    label_counts_.Reshape(count_shape);
-    CHECK_EQ(this->layer_param_.loss_param().class_weighting_size(), bottom[0]->channels())
-		<< "Number of class weight values does not match the number of classes.";
-    float* label_count_data = label_counts_.mutable_cpu_data();
-    for (int i = 0; i < this->layer_param_.loss_param().class_weighting_size(); i++) {
-        label_count_data[i] = this->layer_param_.loss_param().class_weighting(i);
-    }
->>>>>>> ccd56fa20d139f57b2e94a7ebef836de791e597f
   }
 }
 
