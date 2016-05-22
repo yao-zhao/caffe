@@ -1,3 +1,4 @@
+#ifdef USE_OPENCV
 #include <opencv2/core/core.hpp>
 
 #include <fstream>  // NOLINT(readability/streams)
@@ -7,11 +8,12 @@
 #include <vector>
 
 #include "caffe/layers/dense_image_data_layer.hpp"
-#include "caffe/layer.hpp"
+#include "caffe/layers/base_data_layer.hpp"
 #include "caffe/util/benchmark.hpp"
 #include "caffe/util/io.hpp"
 #include "caffe/util/math_functions.hpp"
 #include "caffe/util/rng.hpp"
+#include "caffe/data_transformer.hpp"
 
 namespace caffe {
 
@@ -63,7 +65,7 @@ void DenseImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
   // Read an image, and use it to initialize the top blobs.
   cv::Mat cv_img = ReadImageToCVMat(root_folder + lines_[lines_id_].first,
                                     new_height, new_width, is_color);
-  const int channels = cv_img.channels();
+ // const int channels = cv_img.channels();
   const int height = cv_img.rows;
   const int width = cv_img.cols;
 
@@ -91,7 +93,9 @@ void DenseImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
       << top[0]->channels() << "," << top[0]->height() << ","
       << top[0]->width();
   // label
-  top[1]->Reshape(top_shape);
+  vector<int> label_shape = top_shape;
+  label_shape[1]=1;
+  top[1]->Reshape(label_shape);
   for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
     this->prefetch_[i].label_.Reshape(label_shape);
   }
@@ -129,7 +133,7 @@ void DenseImageDataLayer<Dtype>::ShuffleImages() {
 
 // This function is used to create a thread that prefetches the data.
 template <typename Dtype>
-void DenseImageDataLayer<Dtype>::InternalThreadEntry() {
+void DenseImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   CPUTimer batch_timer;
   batch_timer.Start();
   double read_time = 0;
@@ -143,7 +147,7 @@ void DenseImageDataLayer<Dtype>::InternalThreadEntry() {
   const int batch_size = dense_image_data_param.batch_size();
   const int new_height = dense_image_data_param.new_height();
   const int new_width = dense_image_data_param.new_width();
-  const int crop_size = this->layer_param_.transform_param().crop_size();
+//  const int crop_size = this->layer_param_.transform_param().crop_size();
   const bool is_color = dense_image_data_param.is_color();
   string root_folder = dense_image_data_param.root_folder();
 
@@ -158,8 +162,29 @@ void DenseImageDataLayer<Dtype>::InternalThreadEntry() {
   //   this->prefetch_label_.Reshape(1, 1, cv_img.rows, cv_img.cols);
   //   this->transformed_label_.Reshape(1, 1, cv_img.rows, cv_img.cols);
   // }
-  Dtype* prefetch_data = this->prefetch_data_.mutable_cpu_data();
-  Dtype* prefetch_label = this->prefetch_label_.mutable_cpu_data();
+
+  cv::Mat cv_img = ReadImageToCVMat(root_folder + lines_[lines_id_].first,
+      new_height, new_width, is_color);
+  CHECK(cv_img.data) << "Could not load " << lines_[lines_id_].first;
+  cv::Mat cv_lab = ReadImageToCVMat(root_folder + lines_[lines_id_].second,
+      new_height, new_width, false);
+  CHECK(cv_lab.data) << "Could not load " << lines_[lines_id_].second;
+  CHECK(cv_lab.channels() == 1) << "Can only handle grayscale label images";
+  CHECK(cv_lab.rows == cv_img.rows && cv_lab.cols == cv_img.cols) << "Input and label "
+      << "image heights and widths must match";
+  // Use data_transformer to infer the expected blob shape from a cv_img.
+  vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
+  vector<int> top_shape_label = this->data_transformer_->InferBlobShape(cv_lab);
+  this->transformed_data_.Reshape(top_shape);
+  this->transformed_label_.Reshape(top_shape_label);
+  // Reshape batch according to the batch_size.
+  top_shape[0] = batch_size;
+  top_shape_label[0] = batch_size;
+  batch->data_.Reshape(top_shape);
+  batch->label_.Reshape(top_shape_label);
+
+  Dtype* prefetch_data = batch->data_.mutable_cpu_data();
+  Dtype* prefetch_label = batch->data_.mutable_cpu_data();
   // datum scales
   const int lines_size = lines_.size();
   for (int item_id = 0; item_id < batch_size; ++item_id) {
@@ -175,11 +200,11 @@ void DenseImageDataLayer<Dtype>::InternalThreadEntry() {
     read_time += timer.MicroSeconds();
     timer.Start();
     // Apply transformations (mirror, crop...) to the image
-    int offset = this->prefetch_data_.offset(item_id);
-    this->transformed_data_.set_cpu_data(prefetch_data + offset);
+    int image_offset = batch->data_.offset(item_id);
+    this->transformed_data_.set_cpu_data(prefetch_data + image_offset);
     // this->data_transformer_->Transform(cv_img, &(this->transformed_data_));
     // transform label the same way
-    int label_offset = this->prefetch_label_.offset(item_id);
+    int label_offset = batch->data_.offset(item_id);
     this->transformed_label_.set_cpu_data(prefetch_label + label_offset);
     // this->data_transformer_->Transform(cv_lab, &this->transformed_label_, true);
     this->data_transformer_->Transform(cv_img, &(this->transformed_data_),
@@ -211,3 +236,4 @@ INSTANTIATE_CLASS(DenseImageDataLayer);
 REGISTER_LAYER_CLASS(DenseImageData);
 
 }  // namespace caffe
+#endif  // USE_OPENCV

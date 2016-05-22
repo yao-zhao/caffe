@@ -432,10 +432,10 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   CHECK(cv_lab.rows == img_height && cv_lab.cols == img_width) << "Input and label "
       << "image heights and widths must match";
   // Check dimensions.
-  const int channels = transformed_blob->channels();
-  const int height = transformed_blob->height();
-  const int width = transformed_blob->width();
-  const int num = transformed_blob->num();
+  const int channels = transformed_blob_img->channels();
+  const int height = transformed_blob_img->height();
+  const int width = transformed_blob_img->width();
+  const int num = transformed_blob_img->num();
 
   CHECK_EQ(channels, img_channels);
   CHECK_LE(height, img_height);
@@ -454,7 +454,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   CHECK_GE(img_width, crop_size);
 
   Dtype* mean = NULL;
-  if (has_mean_file && !preserve_pixel_vals) {
+  if (has_mean_file ) {
     CHECK_EQ(img_channels, data_mean_.channels());
     CHECK_EQ(img_height, data_mean_.height());
     CHECK_EQ(img_width, data_mean_.width());
@@ -523,7 +523,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
             transformed_data_img[top_index] = pixel_img * scale;
           }
         }
-        transformed_blob_lab[top_index] = pixel_lab;
+        transformed_data_lab[top_index] = pixel_lab;
       }
     }
   }

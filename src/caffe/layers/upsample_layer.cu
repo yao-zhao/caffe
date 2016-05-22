@@ -4,7 +4,7 @@
 
 #include "caffe/layer.hpp"
 #include "caffe/util/math_functions.hpp"
-#include "caffe/layers/unsample_layer.hpp"
+#include "caffe/layers/upsample_layer.hpp"
 
 namespace caffe {
 
