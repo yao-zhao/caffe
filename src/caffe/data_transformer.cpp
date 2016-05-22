@@ -474,6 +474,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   int h_off = 0;
   int w_off = 0;
   cv::Mat cv_cropped_img = cv_img;
+  cv::Mat cv_cropped_label = cv_lab;
   if (crop_size) {
     CHECK_EQ(crop_size, height);
     CHECK_EQ(crop_size, width);
@@ -487,30 +488,34 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
     }
     cv::Rect roi(w_off, h_off, crop_size, crop_size);
     cv_cropped_img = cv_img(roi);
+    cv_cropped_label = cv_lab(roi);
   } else {
     CHECK_EQ(img_height, height);
     CHECK_EQ(img_width, width);
   }
 
   CHECK(cv_cropped_img.data);
+  CHECK(cv_cropped_label.data);
 
   Dtype* transformed_data_img = transformed_blob_img->mutable_cpu_data();
   Dtype* transformed_data_lab = transformed_blob_lab->mutable_cpu_data();
   int top_index;
   for (int h = 0; h < height; ++h) {
     const uchar* ptr_img = cv_cropped_img.ptr<uchar>(h);
-    const uchar* ptr_lab = cv_cropped_img.ptr<uchar>(h);
+    const uchar* ptr_lab = cv_cropped_label.ptr<uchar>(h);
     int img_index = 0;
     for (int w = 0; w < width; ++w) {
       for (int c = 0; c < img_channels; ++c) {
+        CHECK(img_channels==1)<<"only support single channel images for not, fix it for color images";
         if (do_mirror) {
           top_index = (c * height + h) * width + (width - 1 - w);
         } else {
           top_index = (c * height + h) * width + w;
         }
         // int top_index = (c * height + h) * width + w;
-        Dtype pixel_img = static_cast<Dtype>(ptr_img[img_index++]);
-        Dtype pixel_lab = static_cast<Dtype>(ptr_lab[img_index++]);
+        Dtype pixel_img = static_cast<Dtype>(ptr_img[img_index]);
+        Dtype pixel_lab = static_cast<Dtype>(ptr_lab[img_index]);
+        img_index++;
         if (has_mean_file) {
           int mean_index = (c * img_height + h_off + h) * img_width + w_off + w;
           transformed_data_img[top_index] =

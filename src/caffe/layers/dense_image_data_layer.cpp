@@ -184,7 +184,7 @@ void DenseImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   batch->label_.Reshape(top_shape_label);
 
   Dtype* prefetch_data = batch->data_.mutable_cpu_data();
-  Dtype* prefetch_label = batch->data_.mutable_cpu_data();
+  Dtype* prefetch_label = batch->label_.mutable_cpu_data();
   // datum scales
   const int lines_size = lines_.size();
   for (int item_id = 0; item_id < batch_size; ++item_id) {
