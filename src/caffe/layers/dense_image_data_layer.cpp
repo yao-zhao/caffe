@@ -69,7 +69,7 @@ void DenseImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
 
   // sanity check label image
   cv::Mat cv_lab = ReadImageToCVMat(root_folder + lines_[lines_id_].second,
-                                    new_height, new_width, false, true);
+                                    new_height, new_width, false);
   CHECK(cv_lab.channels() == 1) << "Can only handle grayscale label images";
   CHECK(cv_lab.rows == height && cv_lab.cols == width) << "Input and label "
       << "image heights and widths must match";
