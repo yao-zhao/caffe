@@ -75,6 +75,20 @@ class DataTransformer {
    *    set_cpu_data() is used. See image_data_layer.cpp for an example.
    */
   void Transform(const cv::Mat& cv_img, Blob<Dtype>* transformed_blob);
+    /**
+   * @brief Applies the transformation defined in the data layer's
+   * transform_param block to a cv::Mat
+   * works for data and its pixel label
+   * mirror and crop operations apply the same time
+   *
+   * @param cv_img
+   *    cv::Mat containing the data to be transformed.
+   * @param transformed_blob_img
+   *    This is destination blob. It can be part of top blob's data if
+   *    set_cpu_data() is used. See image_data_layer.cpp for an example.
+   */
+  void Transform(const cv::Mat& cv_img, Blob<Dtype>* transformed_blob_img,
+      const cv::Mat& cv_lab, Blob<Dtype>* transformed_blob_lab);
 #endif  // USE_OPENCV
 
   /**
