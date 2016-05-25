@@ -200,6 +200,7 @@ ifeq ($(USE_OPENCV), 1)
 		
 endif
 PYTHON_LIBRARIES ?= boost_python python2.7
+#PYTHON_LIBRARIES ?= boost_python3 python3.5m
 WARNINGS := -Wall -Wno-sign-compare
 
 ##############################
