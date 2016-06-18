@@ -3,8 +3,15 @@
 
 #include "caffe/layers/vanilla_ladder_combinator_layer.hpp"
 #include "caffe/util/math_functions.hpp"
+#include "caffe/filler.hpp"
+#include "caffe/layer_factory.hpp"
 
 namespace caffe {
+
+template <typename Dtype>
+inline Dtype sigmoid(Dtype x) {
+  return 1. / (1. + exp(-x));
+}
 
 template <typename Dtype>
 void VanillaLadderCombinatorLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
@@ -107,134 +114,191 @@ void VanillaLadderCombinatorLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>&
 }
 
 template <typename Dtype>
-void EltwiseLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
+void VanillaLadderCombinatorLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
-  // check if the bottom layers have the same dimension
-  for (int i = 1; i < bottom.size(); ++i) {
-    CHECK(bottom[i]->shape() == bottom[0]->shape());
-  }
+  // check to make sure that the input blobs have the same size
+  CHECK(bottom[0]->shape() == bottom[1]->shape());
   top[0]->ReshapeLike(*bottom[0]);
-  // If max operation, we will initialize the vector index part.
-  if (this->layer_param_.eltwise_param().operation() ==
-      EltwiseParameter_EltwiseOp_MAX && top.size() == 1) {
-    max_idx_.Reshape(bottom[0]->shape());
+  // set axis information
+  for (int i = 0; i < this->blobs_[0]->num_axes(); ++i) {
+    CHECK_EQ(bottom[0]->shape(axis_ + i), this->blobs_[0]->shape(i))
+        << "dimension mismatch between bottom[0]->shape(" << axis_ + i
+        << ") and scale->shape(" << i << ")";
   }
+  // set the inner and outer dimension
+  outer_dim_ = bottom[0]->count(0, axis_);
+  inner_dim_ = bottom[0]->count(axis_ + 1);
+  comb_dim_ = bottom[0]->count(axis_ );
+
+  // initialize temp
+  temp_.ReshapeLike(*this->blobs_[0]);
+  tempmul_.ReshapeLike(*bottom[0]);
+  tempsig_.ReshapeLike(*bottom[0]);
 }
 
 template <typename Dtype>
-void EltwiseLayer<Dtype>::Forward_cpu(
+void VanillaLadderCombinatorLayer<Dtype>::Forward_cpu(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
-  int* mask = NULL;
-  const Dtype* bottom_data_a = NULL;
-  const Dtype* bottom_data_b = NULL;
-  const int count = top[0]->count();
+  // init
+  const Dtype* bottom_data_z = bottom[0]->cpu_data();
+  const Dtype* bottom_data_u = bottom[1]->cpu_data();
   Dtype* top_data = top[0]->mutable_cpu_data();
-  switch (op_) {
-  case EltwiseParameter_EltwiseOp_PROD:
-    caffe_mul(count, bottom[0]->cpu_data(), bottom[1]->cpu_data(), top_data);
-    for (int i = 2; i < bottom.size(); ++i) {
-      caffe_mul(count, top_data, bottom[i]->cpu_data(), top_data);
+  const Dtype* weight_b0 = this->blobs_[0]->cpu_data();
+  const Dtype* weight_w0z = this->blobs_[1]->cpu_data();
+  const Dtype* weight_w0u = this->blobs_[2]->cpu_data();
+  const Dtype* weight_w0zu = this->blobs_[3]->cpu_data();
+  const Dtype* weight_wsigma = this->blobs_[4]->cpu_data();
+  const Dtype* weight_b1 = this->blobs_[5]->cpu_data();
+  const Dtype* weight_w1z = this->blobs_[6]->cpu_data();
+  const Dtype* weight_w1u = this->blobs_[7]->cpu_data();
+  const Dtype* weight_w1zu = this->blobs_[8]->cpu_data();
+  Dtype* temp_data = temp_.mutable_cpu_data();
+  Dtype* tempsig_data = tempsig_.mutable_cpu_data();
+  Dtype* tempmul_data = tempmul_.mutable_cpu_data();
+  // currently does not support in-place
+  CHECK(bottom[0] == top[0]) << "currently does not support in-place for this ladder layer";
+  CHECK(bottom[1] == top[0]) << "currently does not support in-place for this ladder layer";
+  for (int n = 0; n < outer_dim_; ++n) {
+    // temp mult
+    caffe_mul<Dtype>(comb_dim_, bottom_data_z, bottom_data_u, tempmul_data);
+    // copy bias
+    caffe_copy(comb_dim_, weight_b0, top_data);
+    caffe_copy(comb_dim_, weight_b1, tempsig_data);
+    // add to combination
+    caffe_mul<Dtype>(comb_dim_, weight_w0z, bottom_data_z, temp_data);
+    caffe_add<Dtype>(comb_dim_, top_data, temp_data, top_data);
+    caffe_mul<Dtype>(comb_dim_, weight_w0u, bottom_data_u, temp_data);
+    caffe_add<Dtype>(comb_dim_, top_data, temp_data, top_data);
+    caffe_mul<Dtype>(comb_dim_, weight_w0zu, tempmul_data, temp_data);
+    caffe_add<Dtype>(comb_dim_, top_data, temp_data, top_data);    
+    // add to sigmoid
+    caffe_mul<Dtype>(comb_dim_, weight_w1z, bottom_data_z, tempsig_data);
+    caffe_add<Dtype>(comb_dim_, tempsig_data, temp_data, tempsig_data);
+    caffe_mul<Dtype>(comb_dim_, weight_w1u, bottom_data_u, temp_data);
+    caffe_add<Dtype>(comb_dim_, tempsig_data, temp_data, tempsig_data);
+    caffe_mul<Dtype>(comb_dim_, weight_w1zu, tempmul_data, temp_data);
+    caffe_add<Dtype>(comb_dim_, tempsig_data, temp_data, tempsig_data);
+    // sigmod function
+    for (int i = 0; i < comb_dim_; ++i) {
+      tempsig_data[i] = sigmoid(tempsig_data[i]);
     }
-    break;
-  case EltwiseParameter_EltwiseOp_SUM:
-    caffe_set(count, Dtype(0), top_data);
-    // TODO(shelhamer) does BLAS optimize to sum for coeff = 1?
-    for (int i = 0; i < bottom.size(); ++i) {
-      caffe_axpy(count, coeffs_[i], bottom[i]->cpu_data(), top_data);
-    }
-    break;
-  case EltwiseParameter_EltwiseOp_MAX:
-    // Initialize
-    mask = max_idx_.mutable_cpu_data();
-    caffe_set(count, -1, mask);
-    caffe_set(count, Dtype(-FLT_MAX), top_data);
-    // bottom 0 & 1
-    bottom_data_a = bottom[0]->cpu_data();
-    bottom_data_b = bottom[1]->cpu_data();
-    for (int idx = 0; idx < count; ++idx) {
-      if (bottom_data_a[idx] > bottom_data_b[idx]) {
-        top_data[idx] = bottom_data_a[idx];  // maxval
-        mask[idx] = 0;  // maxid
-      } else {
-        top_data[idx] = bottom_data_b[idx];  // maxval
-        mask[idx] = 1;  // maxid
-      }
-    }
-    // bottom 2++
-    for (int blob_idx = 2; blob_idx < bottom.size(); ++blob_idx) {
-      bottom_data_b = bottom[blob_idx]->cpu_data();
-      for (int idx = 0; idx < count; ++idx) {
-        if (bottom_data_b[idx] > top_data[idx]) {
-          top_data[idx] = bottom_data_b[idx];  // maxval
-          mask[idx] = blob_idx;  // maxid
-        }
-      }
-    }
-    break;
-  default:
-    LOG(FATAL) << "Unknown elementwise operation.";
+    // final
+    caffe_mul<Dtype>(comb_dim_, weight_wsigma, tempsig_data, tempsig_data);
+    caffe_add<Dtype>(comb_dim_, tempsig_data, top_data, top_data);
+    // iterate
+    bottom_data_z += comb_dim_;
+    bottom_data_u += comb_dim_;
+    top_data += comb_dim_;
+    tempmul_data += comb_dim_;
+    tempsig_data += comb_dim_;
   }
 }
 
 template <typename Dtype>
-void EltwiseLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
+void VanillaLadderCombinatorLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
-  const int* mask = NULL;
-  const int count = top[0]->count();
-  const Dtype* top_data = top[0]->cpu_data();
-  const Dtype* top_diff = top[0]->cpu_diff();
-  for (int i = 0; i < bottom.size(); ++i) {
-    if (propagate_down[i]) {
-      const Dtype* bottom_data = bottom[i]->cpu_data();
-      Dtype* bottom_diff = bottom[i]->mutable_cpu_diff();
-      switch (op_) {
-      case EltwiseParameter_EltwiseOp_PROD:
-        if (stable_prod_grad_) {
-          bool initialized = false;
-          for (int j = 0; j < bottom.size(); ++j) {
-            if (i == j) { continue; }
-            if (!initialized) {
-              caffe_copy(count, bottom[j]->cpu_data(), bottom_diff);
-              initialized = true;
-            } else {
-              caffe_mul(count, bottom[j]->cpu_data(), bottom_diff,
-                        bottom_diff);
-            }
-          }
-        } else {
-          caffe_div(count, top_data, bottom_data, bottom_diff);
-        }
-        caffe_mul(count, bottom_diff, top_diff, bottom_diff);
-        break;
-      case EltwiseParameter_EltwiseOp_SUM:
-        if (coeffs_[i] == Dtype(1)) {
-          caffe_copy(count, top_diff, bottom_diff);
-        } else {
-          caffe_cpu_scale(count, coeffs_[i], top_diff, bottom_diff);
-        }
-        break;
-      case EltwiseParameter_EltwiseOp_MAX:
-        mask = max_idx_.cpu_data();
-        for (int index = 0; index < count; ++index) {
-          Dtype gradient = 0;
-          if (mask[index] == i) {
-            gradient += top_diff[index];
-          }
-          bottom_diff[index] = gradient;
-        }
-        break;
-      default:
-        LOG(FATAL) << "Unknown elementwise operation.";
+  if (propagate_down[0]) {
+    // init
+    const Dtype* top_diff = top[0]->cpu_diff();
+    const Dtype* bottom_data_z = bottom[0]->cpu_data();
+    const Dtype* bottom_data_u = bottom[1]->cpu_data();
+    const Dtype* weight_w0z = this->blobs_[1]->cpu_data();
+    const Dtype* weight_w0u = this->blobs_[2]->cpu_data();
+    const Dtype* weight_w0zu = this->blobs_[3]->cpu_data();
+    const Dtype* weight_wsigma = this->blobs_[4]->cpu_data();
+    const Dtype* weight_w1z = this->blobs_[6]->cpu_data();
+    const Dtype* weight_w1u = this->blobs_[7]->cpu_data();
+    const Dtype* weight_w1zu = this->blobs_[8]->cpu_data();
+    Dtype* bottom_diff_z = bottom[0]->mutable_cpu_diff();
+    Dtype* bottom_diff_u = bottom[1]->mutable_cpu_diff();
+    Dtype* weight_diff_b0 = this->blobs_[0]->mutable_cpu_data();    
+    Dtype* weight_diff_w0z = this->blobs_[1]->mutable_cpu_data();
+    Dtype* weight_diff_w0u = this->blobs_[2]->mutable_cpu_data();
+    Dtype* weight_diff_w0zu = this->blobs_[3]->mutable_cpu_data();
+    Dtype* weight_diff_wsigma = this->blobs_[4]->mutable_cpu_data();
+    Dtype* weight_diff_b1 = this->blobs_[5]->mutable_cpu_data();
+    Dtype* weight_diff_w1z = this->blobs_[6]->mutable_cpu_data();
+    Dtype* weight_diff_w1u = this->blobs_[7]->mutable_cpu_data();
+    Dtype* weight_diff_w1zu = this->blobs_[8]->mutable_cpu_data();
+    Dtype* temp_data = temp_.mutable_cpu_data();
+    Dtype* tempsig_data = tempsig_.mutable_cpu_data();
+    Dtype* tempmul_data = tempmul_.mutable_cpu_data();
+    // set weight to zeros
+    caffe_set(comb_dim_, Dtype(0), weight_diff_b0);
+    caffe_set(comb_dim_, Dtype(0), weight_diff_w0z);
+    caffe_set(comb_dim_, Dtype(0), weight_diff_w0u);
+    caffe_set(comb_dim_, Dtype(0), weight_diff_w0zu);
+    caffe_set(comb_dim_, Dtype(0), weight_diff_wsigma);
+    caffe_set(comb_dim_, Dtype(0), weight_diff_b1);
+    caffe_set(comb_dim_, Dtype(0), weight_diff_w1z);
+    caffe_set(comb_dim_, Dtype(0), weight_diff_w1u);
+    caffe_set(comb_dim_, Dtype(0), weight_diff_w1zu);
+    for (int n = 0; n < outer_dim_; ++n) {
+      // add diff to b0
+      caffe_add<Dtype>(comb_dim_, top_diff, weight_diff_b0, weight_diff_b0);
+      // add diff to w0z
+      caffe_mul<Dtype>(comb_dim_, bottom_data_z, top_diff, temp_data);
+      caffe_add<Dtype>(comb_dim_, temp_data, weight_diff_w0z, weight_diff_w0z);
+      // add diff to w0u
+      caffe_mul<Dtype>(comb_dim_, bottom_data_u, top_diff, temp_data);
+      caffe_add<Dtype>(comb_dim_, temp_data, weight_diff_w0u, weight_diff_w0u);
+      // add diff to w0zu
+      caffe_mul<Dtype>(comb_dim_, tempmul_data, top_diff, temp_data);
+      caffe_add<Dtype>(comb_dim_, temp_data, weight_diff_w0zu, weight_diff_w0zu);
+      // add diff to wsigma
+      caffe_mul<Dtype>(comb_dim_, top_diff, tempsig_data, temp_data);
+      caffe_add<Dtype>(comb_dim_, temp_data, weight_diff_wsigma, weight_diff_wsigma);
+      // store sigmoid diff in tempsig_data S*(1-S)*wsigma*Z, override tempsig_data
+      // caution: override tempsig_data, dont use it afterwards
+      for (int i = 0; i < comb_dim_; ++i) {
+        tempsig_data[i] = (1- tempsig_data[i]) * tempsig_data[i];
       }
+      caffe_mul<Dtype>(comb_dim_, weight_wsigma, tempsig_data, tempsig_data);
+      caffe_mul<Dtype>(comb_dim_, top_diff, tempsig_data, tempsig_data);
+      // add diff to b1
+      caffe_add<Dtype>(comb_dim_, tempsig_data, weight_diff_b1, weight_diff_b1);
+      // diff w1z
+      caffe_mul<Dtype>(comb_dim_, tempsig_data, bottom_data_z, temp_data);
+      caffe_add<Dtype>(comb_dim_, temp_data, weight_diff_w1z, weight_diff_w1z);
+      // diff w1u
+      caffe_mul<Dtype>(comb_dim_, tempsig_data, bottom_data_u, temp_data);
+      caffe_add<Dtype>(comb_dim_, temp_data, weight_diff_w1u, weight_diff_w1u);
+      // diff w1zu
+      caffe_mul<Dtype>(comb_dim_, tempsig_data, tempmul_data, temp_data);
+      caffe_add<Dtype>(comb_dim_, temp_data, weight_diff_w1zu, weight_diff_w1zu);
+      // calculate bottom diff z
+      caffe_mul<Dtype>(comb_dim_, weight_w1zu, bottom_data_u, bottom_diff_z);
+      caffe_add<Dtype>(comb_dim_, weight_w1z, bottom_diff_z, bottom_diff_z);
+      caffe_mul<Dtype>(comb_dim_, tempsig_data, bottom_diff_z, bottom_diff_z);
+      caffe_mul<Dtype>(comb_dim_, weight_w0zu, bottom_data_u, temp_data);
+      caffe_add<Dtype>(comb_dim_, weight_w0z, temp_data, temp_data);
+      caffe_mul<Dtype>(comb_dim_, top_diff, temp_data, temp_data);
+      caffe_add<Dtype>(comb_dim_, temp_data, bottom_diff_z, bottom_diff_z);
+      // calculate bottom diff u
+      caffe_mul<Dtype>(comb_dim_, weight_w1zu, bottom_data_z, bottom_diff_u);
+      caffe_add<Dtype>(comb_dim_, weight_w1u, bottom_diff_u, bottom_diff_u);
+      caffe_mul<Dtype>(comb_dim_, tempsig_data, bottom_diff_u, bottom_diff_u);
+      caffe_mul<Dtype>(comb_dim_, weight_w0zu, bottom_data_z, temp_data);
+      caffe_add<Dtype>(comb_dim_, weight_w0u, temp_data, temp_data);
+      caffe_mul<Dtype>(comb_dim_, top_diff, temp_data, temp_data);
+      caffe_add<Dtype>(comb_dim_, temp_data, bottom_diff_u, bottom_diff_u);
+      // iterate
+      bottom_data_z += comb_dim_;
+      bottom_data_u += comb_dim_;
+      bottom_diff_z += comb_dim_;
+      bottom_diff_u += comb_dim_;
+      top_diff += comb_dim_;
+      tempmul_data += comb_dim_;
+      tempsig_data += comb_dim_;
     }
   }
 }
 
 #ifdef CPU_ONLY
-STUB_GPU(EltwiseLayer);
+STUB_GPU(VanillaLadderCombinatorLayer);
 #endif
 
-INSTANTIATE_CLASS(EltwiseLayer);
-REGISTER_LAYER_CLASS(Eltwise);
+INSTANTIATE_CLASS(VanillaLadderCombinatorLayer);
+REGISTER_LAYER_CLASS(VanillaLadderCombinator);
 
 }  // namespace caffe

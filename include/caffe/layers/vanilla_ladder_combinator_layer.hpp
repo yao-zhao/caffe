@@ -43,6 +43,11 @@ class VanillaLadderCombinatorLayer : public Layer<Dtype> {
   // EltwiseParameter_EltwiseOp op_;
   // vector<Dtype> coeffs_;
   // Blob<int> max_idx_;
+  int axis_;
+  int outer_dim_, inner_dim_, comb_dim_;
+  Blob<Dtype> temp_;
+  Blob<Dtype> tempmul_;
+  Blob<Dtype> tempsig_;
 
   // bool stable_prod_grad_;
 };
