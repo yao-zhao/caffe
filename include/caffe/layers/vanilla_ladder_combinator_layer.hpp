@@ -40,16 +40,17 @@ class VanillaLadderCombinatorLayer : public Layer<Dtype> {
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
 
-  // EltwiseParameter_EltwiseOp op_;
-  // vector<Dtype> coeffs_;
-  // Blob<int> max_idx_;
   int axis_;
   int outer_dim_, inner_dim_, comb_dim_;
+  // temp_, used to store temporary result
+  // temsig_, used to store sigmoid function result in forward run, will be used in backward
+  // tempmul_, used to store pairwise product
+  // sum_mul_, a vector of 1s with fixed length for cublasSgemv function
+  // TODO: use of meomory is not optimal consider not using temp_ and tempmul_ for gpu version
   Blob<Dtype> temp_;
   Blob<Dtype> tempmul_;
   Blob<Dtype> tempsig_;
-
-  // bool stable_prod_grad_;
+  Blob<Dtype> sum_multiplier_;
 };
 
 }  // namespace caffe

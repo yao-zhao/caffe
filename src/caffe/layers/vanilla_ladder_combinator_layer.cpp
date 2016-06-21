@@ -134,6 +134,12 @@ void VanillaLadderCombinatorLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bo
   temp_.ReshapeLike(*this->blobs_[0]);
   tempmul_.ReshapeLike(*bottom[0]);
   tempsig_.ReshapeLike(*bottom[0]);
+
+  // initialize sum multiplier
+  sum_multiplier_.Reshape(vector<int>(1, outer_dim_));
+  if (sum_multiplier_.cpu_data()[outer_dim_ - 1] != Dtype(1)) {
+    caffe_set(outer_dim_, Dtype(1), sum_multiplier_.mutable_cpu_data()); // does it matter if I use cpu or gpu data?
+  }
 }
 
 template <typename Dtype>
@@ -197,7 +203,6 @@ void VanillaLadderCombinatorLayer<Dtype>::Forward_cpu(
 template <typename Dtype>
 void VanillaLadderCombinatorLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
-  if (propagate_down[0]) {
     // init
     const Dtype* top_diff = top[0]->cpu_diff();
     const Dtype* bottom_data_z = bottom[0]->cpu_data();
@@ -223,7 +228,8 @@ void VanillaLadderCombinatorLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*
     Dtype* temp_data = temp_.mutable_cpu_data();
     Dtype* tempsig_data = tempsig_.mutable_cpu_data();
     Dtype* tempmul_data = tempmul_.mutable_cpu_data();
-    // set weight to zeros
+    // set weight to zeros, 
+    // TO DO: add if clause to make it faster for cases that no prop is needed
     caffe_set(comb_dim_, Dtype(0), weight_diff_b0);
     caffe_set(comb_dim_, Dtype(0), weight_diff_w0z);
     caffe_set(comb_dim_, Dtype(0), weight_diff_w0u);
@@ -234,54 +240,78 @@ void VanillaLadderCombinatorLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*
     caffe_set(comb_dim_, Dtype(0), weight_diff_w1u);
     caffe_set(comb_dim_, Dtype(0), weight_diff_w1zu);
     for (int n = 0; n < outer_dim_; ++n) {
+      if (this->param_propagate_down_[0]) {
       // add diff to b0
-      caffe_add<Dtype>(comb_dim_, top_diff, weight_diff_b0, weight_diff_b0);
+        caffe_add<Dtype>(comb_dim_, top_diff, weight_diff_b0, weight_diff_b0);
+      }
+      if (this->param_propagate_down_[1]) {
       // add diff to w0z
-      caffe_mul<Dtype>(comb_dim_, bottom_data_z, top_diff, temp_data);
-      caffe_add<Dtype>(comb_dim_, temp_data, weight_diff_w0z, weight_diff_w0z);
+        caffe_mul<Dtype>(comb_dim_, bottom_data_z, top_diff, temp_data);
+        caffe_add<Dtype>(comb_dim_, temp_data, weight_diff_w0z, weight_diff_w0z);
+      }
+      if (this->param_propagate_down_[2]) {
       // add diff to w0u
-      caffe_mul<Dtype>(comb_dim_, bottom_data_u, top_diff, temp_data);
-      caffe_add<Dtype>(comb_dim_, temp_data, weight_diff_w0u, weight_diff_w0u);
+        caffe_mul<Dtype>(comb_dim_, bottom_data_u, top_diff, temp_data);
+        caffe_add<Dtype>(comb_dim_, temp_data, weight_diff_w0u, weight_diff_w0u);
+      }
+      if (this->param_propagate_down_[3]) {
       // add diff to w0zu
-      caffe_mul<Dtype>(comb_dim_, tempmul_data, top_diff, temp_data);
-      caffe_add<Dtype>(comb_dim_, temp_data, weight_diff_w0zu, weight_diff_w0zu);
+        caffe_mul<Dtype>(comb_dim_, tempmul_data, top_diff, temp_data);
+        caffe_add<Dtype>(comb_dim_, temp_data, weight_diff_w0zu, weight_diff_w0zu);
+      }
+      if (this->param_propagate_down_[4]) {
       // add diff to wsigma
-      caffe_mul<Dtype>(comb_dim_, top_diff, tempsig_data, temp_data);
-      caffe_add<Dtype>(comb_dim_, temp_data, weight_diff_wsigma, weight_diff_wsigma);
+        caffe_mul<Dtype>(comb_dim_, top_diff, tempsig_data, temp_data);
+        caffe_add<Dtype>(comb_dim_, temp_data, weight_diff_wsigma, weight_diff_wsigma);
+      }
       // store sigmoid diff in tempsig_data S*(1-S)*wsigma*Z, override tempsig_data
       // caution: override tempsig_data, dont use it afterwards
       for (int i = 0; i < comb_dim_; ++i) {
         tempsig_data[i] = (1- tempsig_data[i]) * tempsig_data[i];
       }
-      caffe_mul<Dtype>(comb_dim_, weight_wsigma, tempsig_data, tempsig_data);
-      caffe_mul<Dtype>(comb_dim_, top_diff, tempsig_data, tempsig_data);
+      if (this->param_propagate_down_[5]) {
+        caffe_mul<Dtype>(comb_dim_, weight_wsigma, tempsig_data, tempsig_data);
+        caffe_mul<Dtype>(comb_dim_, top_diff, tempsig_data, tempsig_data);
+      }
+      if (this->param_propagate_down_[6]) {
       // add diff to b1
-      caffe_add<Dtype>(comb_dim_, tempsig_data, weight_diff_b1, weight_diff_b1);
+        caffe_add<Dtype>(comb_dim_, tempsig_data, weight_diff_b1, weight_diff_b1);
+      }
+      if (this->param_propagate_down_[7]) {
       // diff w1z
-      caffe_mul<Dtype>(comb_dim_, tempsig_data, bottom_data_z, temp_data);
-      caffe_add<Dtype>(comb_dim_, temp_data, weight_diff_w1z, weight_diff_w1z);
+        caffe_mul<Dtype>(comb_dim_, tempsig_data, bottom_data_z, temp_data);
+        caffe_add<Dtype>(comb_dim_, temp_data, weight_diff_w1z, weight_diff_w1z);
+      }
+      if (this->param_propagate_down_[8]) {
       // diff w1u
-      caffe_mul<Dtype>(comb_dim_, tempsig_data, bottom_data_u, temp_data);
-      caffe_add<Dtype>(comb_dim_, temp_data, weight_diff_w1u, weight_diff_w1u);
+        caffe_mul<Dtype>(comb_dim_, tempsig_data, bottom_data_u, temp_data);
+        caffe_add<Dtype>(comb_dim_, temp_data, weight_diff_w1u, weight_diff_w1u);
+      }
+      if (this->param_propagate_down_[9]) {
       // diff w1zu
-      caffe_mul<Dtype>(comb_dim_, tempsig_data, tempmul_data, temp_data);
-      caffe_add<Dtype>(comb_dim_, temp_data, weight_diff_w1zu, weight_diff_w1zu);
+        caffe_mul<Dtype>(comb_dim_, tempsig_data, tempmul_data, temp_data);
+        caffe_add<Dtype>(comb_dim_, temp_data, weight_diff_w1zu, weight_diff_w1zu);
+      }
+      if (propagate_down[0]) {
       // calculate bottom diff z
-      caffe_mul<Dtype>(comb_dim_, weight_w1zu, bottom_data_u, bottom_diff_z);
-      caffe_add<Dtype>(comb_dim_, weight_w1z, bottom_diff_z, bottom_diff_z);
-      caffe_mul<Dtype>(comb_dim_, tempsig_data, bottom_diff_z, bottom_diff_z);
-      caffe_mul<Dtype>(comb_dim_, weight_w0zu, bottom_data_u, temp_data);
-      caffe_add<Dtype>(comb_dim_, weight_w0z, temp_data, temp_data);
-      caffe_mul<Dtype>(comb_dim_, top_diff, temp_data, temp_data);
-      caffe_add<Dtype>(comb_dim_, temp_data, bottom_diff_z, bottom_diff_z);
+        caffe_mul<Dtype>(comb_dim_, weight_w1zu, bottom_data_u, bottom_diff_z);
+        caffe_add<Dtype>(comb_dim_, weight_w1z, bottom_diff_z, bottom_diff_z);
+        caffe_mul<Dtype>(comb_dim_, tempsig_data, bottom_diff_z, bottom_diff_z);
+        caffe_mul<Dtype>(comb_dim_, weight_w0zu, bottom_data_u, temp_data);
+        caffe_add<Dtype>(comb_dim_, weight_w0z, temp_data, temp_data);
+        caffe_mul<Dtype>(comb_dim_, top_diff, temp_data, temp_data);
+        caffe_add<Dtype>(comb_dim_, temp_data, bottom_diff_z, bottom_diff_z);
+      }
+      if (propagate_down[1]) {
       // calculate bottom diff u
-      caffe_mul<Dtype>(comb_dim_, weight_w1zu, bottom_data_z, bottom_diff_u);
-      caffe_add<Dtype>(comb_dim_, weight_w1u, bottom_diff_u, bottom_diff_u);
-      caffe_mul<Dtype>(comb_dim_, tempsig_data, bottom_diff_u, bottom_diff_u);
-      caffe_mul<Dtype>(comb_dim_, weight_w0zu, bottom_data_z, temp_data);
-      caffe_add<Dtype>(comb_dim_, weight_w0u, temp_data, temp_data);
-      caffe_mul<Dtype>(comb_dim_, top_diff, temp_data, temp_data);
-      caffe_add<Dtype>(comb_dim_, temp_data, bottom_diff_u, bottom_diff_u);
+        caffe_mul<Dtype>(comb_dim_, weight_w1zu, bottom_data_z, bottom_diff_u);
+        caffe_add<Dtype>(comb_dim_, weight_w1u, bottom_diff_u, bottom_diff_u);
+        caffe_mul<Dtype>(comb_dim_, tempsig_data, bottom_diff_u, bottom_diff_u);
+        caffe_mul<Dtype>(comb_dim_, weight_w0zu, bottom_data_z, temp_data);
+        caffe_add<Dtype>(comb_dim_, weight_w0u, temp_data, temp_data);
+        caffe_mul<Dtype>(comb_dim_, top_diff, temp_data, temp_data);
+        caffe_add<Dtype>(comb_dim_, temp_data, bottom_diff_u, bottom_diff_u);
+      }
       // iterate
       bottom_data_z += comb_dim_;
       bottom_data_u += comb_dim_;
@@ -292,7 +322,6 @@ void VanillaLadderCombinatorLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*
       tempsig_data += comb_dim_;
     }
   }
-}
 
 #ifdef CPU_ONLY
 STUB_GPU(VanillaLadderCombinatorLayer);
