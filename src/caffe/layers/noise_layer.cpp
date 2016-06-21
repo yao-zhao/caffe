@@ -12,7 +12,7 @@ void NoiseLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   sigma_ = this->layer_param_.noise_param().sigma();
   CHECK(sigma_ > 0.) << "noise level has to be greater than zero";
-  CHECK(sigma_ < 3.) << "noise level has to be lesser than 3";
+//  CHECK(sigma_ < 3.) << "noise level has to be lesser than 3";
 }
 
 template <typename Dtype>

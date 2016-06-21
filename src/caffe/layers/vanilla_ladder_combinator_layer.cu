@@ -130,61 +130,62 @@ void VanillaLadderCombinatorLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*
   // update param for backprop
   // hack: use tempmul_ to hold temporary result
   // hack: use tempsig_ to hold temporary sig result, tempsig = top_diff* wsig * Sig
-  
+  // weights should be accumulated, they will be cleared every step by solver
+
   // b0
   if (this->param_propagate_down_[0]) {
     caffe_gpu_gemv<Dtype>(CblasTrans, outer_dim_, comb_dim_,
-      Dtype(1), top_diff, sum_mult, Dtype(0), weight_diff_b0);
+      Dtype(1), top_diff, sum_mult, Dtype(1), weight_diff_b0);
   }
   // w0z 
   if (this->param_propagate_down_[1]) {
     caffe_gpu_mul<Dtype>(count, top_diff, bottom_data_z, tempmul_data);
     caffe_gpu_gemv<Dtype>(CblasTrans, outer_dim_, comb_dim_,
-      Dtype(1), tempmul_data, sum_mult, Dtype(0), weight_diff_w0z);
+      Dtype(1), tempmul_data, sum_mult, Dtype(1), weight_diff_w0z);
   }
   // w0u 
   if (this->param_propagate_down_[2]) {
     caffe_gpu_mul<Dtype>(count, top_diff, bottom_data_u, tempmul_data);
     caffe_gpu_gemv<Dtype>(CblasTrans, outer_dim_, comb_dim_,
-      Dtype(1), tempmul_data, sum_mult, Dtype(0), weight_diff_w0u);
+      Dtype(1), tempmul_data, sum_mult, Dtype(1), weight_diff_w0u);
   }
   // w0zu 
   if (this->param_propagate_down_[3]) {
     caffe_gpu_mul<Dtype>(count, top_diff, bottom_data_z, tempmul_data);
     caffe_gpu_mul<Dtype>(count, bottom_data_u, tempmul_data, tempmul_data);
     caffe_gpu_gemv<Dtype>(CblasTrans, outer_dim_, comb_dim_,
-      Dtype(1), tempmul_data, sum_mult, Dtype(0), weight_diff_w0zu);
+      Dtype(1), tempmul_data, sum_mult, Dtype(1), weight_diff_w0zu);
   }
   // wsigma
   caffe_gpu_mul<Dtype>(count, top_diff, tempsig_data, tempsig_data);
   if (this->param_propagate_down_[4]) {
     caffe_gpu_gemv<Dtype>(CblasTrans, outer_dim_, comb_dim_,
-      Dtype(1), tempsig_data, sum_mult, Dtype(0), weight_diff_wsigma);    
+      Dtype(1), tempsig_data, sum_mult, Dtype(1), weight_diff_wsigma);    
   }
   caffe_gpu_mul<Dtype>(count, weight_wsigma, tempsig_data, tempsig_data);
   // b1
   if (this->param_propagate_down_[5]) {
     caffe_gpu_gemv<Dtype>(CblasTrans, outer_dim_, comb_dim_,
-      Dtype(1), tempsig_data, sum_mult, Dtype(0), weight_diff_b1);
+      Dtype(1), tempsig_data, sum_mult, Dtype(1), weight_diff_b1);
   }
   // w0z 
   if (this->param_propagate_down_[6]) {
     caffe_gpu_mul<Dtype>(count, tempsig_data, bottom_data_z, tempmul_data);
     caffe_gpu_gemv<Dtype>(CblasTrans, outer_dim_, comb_dim_,
-      Dtype(1), tempmul_data, sum_mult, Dtype(0), weight_diff_w1z);
+      Dtype(1), tempmul_data, sum_mult, Dtype(1), weight_diff_w1z);
   }
   // w0u 
   if (this->param_propagate_down_[7]) {
     caffe_gpu_mul<Dtype>(count, tempsig_data, bottom_data_u, tempmul_data);
     caffe_gpu_gemv<Dtype>(CblasTrans, outer_dim_, comb_dim_,
-      Dtype(1), tempmul_data, sum_mult, Dtype(0), weight_diff_w1u);
+      Dtype(1), tempmul_data, sum_mult, Dtype(1), weight_diff_w1u);
   }
   // w0zu 
   if (this->param_propagate_down_[8]) {
     caffe_gpu_mul<Dtype>(count, tempsig_data, bottom_data_z, tempmul_data);
     caffe_gpu_mul<Dtype>(count, bottom_data_u, tempmul_data, tempmul_data);
     caffe_gpu_gemv<Dtype>(CblasTrans, outer_dim_, comb_dim_,
-      Dtype(1), tempmul_data, sum_mult, Dtype(0), weight_diff_w1zu);
+      Dtype(1), tempmul_data, sum_mult, Dtype(1), weight_diff_w1zu);
   }
 
 }

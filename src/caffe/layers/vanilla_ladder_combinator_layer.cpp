@@ -230,15 +230,16 @@ void VanillaLadderCombinatorLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*
     Dtype* tempmul_data = tempmul_.mutable_cpu_data();
     // set weight to zeros, 
     // TO DO: add if clause to make it faster for cases that no prop is needed
-    caffe_set(comb_dim_, Dtype(0), weight_diff_b0);
-    caffe_set(comb_dim_, Dtype(0), weight_diff_w0z);
-    caffe_set(comb_dim_, Dtype(0), weight_diff_w0u);
-    caffe_set(comb_dim_, Dtype(0), weight_diff_w0zu);
-    caffe_set(comb_dim_, Dtype(0), weight_diff_wsigma);
-    caffe_set(comb_dim_, Dtype(0), weight_diff_b1);
-    caffe_set(comb_dim_, Dtype(0), weight_diff_w1z);
-    caffe_set(comb_dim_, Dtype(0), weight_diff_w1u);
-    caffe_set(comb_dim_, Dtype(0), weight_diff_w1zu);
+    // weight diff should not be initialize here, because they maybe shared, weight clearning is done at every step in solver
+    // caffe_set(comb_dim_, Dtype(0), weight_diff_b0);
+    // caffe_set(comb_dim_, Dtype(0), weight_diff_w0z);
+    // caffe_set(comb_dim_, Dtype(0), weight_diff_w0u);
+    // caffe_set(comb_dim_, Dtype(0), weight_diff_w0zu);
+    // caffe_set(comb_dim_, Dtype(0), weight_diff_wsigma);
+    // caffe_set(comb_dim_, Dtype(0), weight_diff_b1);
+    // caffe_set(comb_dim_, Dtype(0), weight_diff_w1z);
+    // caffe_set(comb_dim_, Dtype(0), weight_diff_w1u);
+    // caffe_set(comb_dim_, Dtype(0), weight_diff_w1zu);
     for (int n = 0; n < outer_dim_; ++n) {
       if (this->param_propagate_down_[0]) {
       // add diff to b0
