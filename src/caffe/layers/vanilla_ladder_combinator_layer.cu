@@ -103,15 +103,15 @@ void VanillaLadderCombinatorLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*
   const Dtype* weight_w1zu = this->blobs_[8]->gpu_data();
   Dtype* bottom_diff_z = bottom[0]->mutable_gpu_diff();
   Dtype* bottom_diff_u = bottom[1]->mutable_gpu_diff();
-  Dtype* weight_diff_b0 = this->blobs_[0]->mutable_gpu_data();    
-  Dtype* weight_diff_w0z = this->blobs_[1]->mutable_gpu_data();
-  Dtype* weight_diff_w0u = this->blobs_[2]->mutable_gpu_data();
-  Dtype* weight_diff_w0zu = this->blobs_[3]->mutable_gpu_data();
-  Dtype* weight_diff_wsigma = this->blobs_[4]->mutable_gpu_data();
-  Dtype* weight_diff_b1 = this->blobs_[5]->mutable_gpu_data();
-  Dtype* weight_diff_w1z = this->blobs_[6]->mutable_gpu_data();
-  Dtype* weight_diff_w1u = this->blobs_[7]->mutable_gpu_data();
-  Dtype* weight_diff_w1zu = this->blobs_[8]->mutable_gpu_data();
+  Dtype* weight_diff_b0 = this->blobs_[0]->mutable_gpu_diff();    
+  Dtype* weight_diff_w0z = this->blobs_[1]->mutable_gpu_diff();
+  Dtype* weight_diff_w0u = this->blobs_[2]->mutable_gpu_diff();
+  Dtype* weight_diff_w0zu = this->blobs_[3]->mutable_gpu_diff();
+  Dtype* weight_diff_wsigma = this->blobs_[4]->mutable_gpu_diff();
+  Dtype* weight_diff_b1 = this->blobs_[5]->mutable_gpu_diff();
+  Dtype* weight_diff_w1z = this->blobs_[6]->mutable_gpu_diff();
+  Dtype* weight_diff_w1u = this->blobs_[7]->mutable_gpu_diff();
+  Dtype* weight_diff_w1zu = this->blobs_[8]->mutable_gpu_diff();
   const int count = bottom[0]->count();
   
   // make sure calculate this first before param diff and make sure that tempsig_ is not modified during calculation
