@@ -73,7 +73,8 @@ void BatchNormLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   // reshape the second top
   if (top.size()>1) {
     vector<int> sz2;
-    sz2.push_back(channels_*2);
+    sz2.push_back(2);
+    sz2.push_back(channels_);
     top[1]->Reshape(sz2);
   }
 }
