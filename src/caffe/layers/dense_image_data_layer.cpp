@@ -99,29 +99,6 @@ void DenseImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
   for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
     this->prefetch_[i].label_.Reshape(label_shape);
   }
-    
-  // const int crop_size = this->layer_param_.transform_param().crop_size();
-  // const int batch_size = this->layer_param_.dense_image_data_param().batch_size();
-  // if (crop_size > 0) {
-  //   top[0]->Reshape(batch_size, channels, crop_size, crop_size);
-  //   this->prefetch_data_.Reshape(batch_size, channels, crop_size, crop_size);
-  //   this->transformed_data_.Reshape(1, channels, crop_size, crop_size);
-  //   // similarly reshape label data blobs
-  //   top[1]->Reshape(batch_size, 1, crop_size, crop_size);
-  //   this->prefetch_label_.Reshape(batch_size, 1, crop_size, crop_size);
-  //   this->transformed_label_.Reshape(1, 1, crop_size, crop_size);
-  // } else {
-  //   top[0]->Reshape(batch_size, channels, height, width);
-  //   this->prefetch_data_.Reshape(batch_size, channels, height, width);
-  //   this->transformed_data_.Reshape(1, channels, height, width);
-  //   // similarly reshape label data blobs
-  //   top[1]->Reshape(batch_size, 1, height, width);
-  //   this->prefetch_label_.Reshape(batch_size, 1, height, width);
-  //   this->transformed_label_.Reshape(1, 1, height, width);
-  // }
-  // LOG(INFO) << "output data size: " << top[0]->num() << ","
-  //     << top[0]->channels() << "," << top[0]->height() << ","
-  //     << top[0]->width();
 }
 
 template <typename Dtype>
@@ -141,27 +118,13 @@ void DenseImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   CPUTimer timer;
   CHECK(batch->data_.count());
   CHECK(this->transformed_data_.count());
-  // CHECK(this->prefetch_data_.count());
-  // CHECK(this->transformed_data_.count());
+
   DenseImageDataParameter dense_image_data_param = this->layer_param_.dense_image_data_param();
   const int batch_size = dense_image_data_param.batch_size();
   const int new_height = dense_image_data_param.new_height();
   const int new_width = dense_image_data_param.new_width();
-//  const int crop_size = this->layer_param_.transform_param().crop_size();
   const bool is_color = dense_image_data_param.is_color();
   string root_folder = dense_image_data_param.root_folder();
-
-  // // Reshape on single input batches for inputs of varying dimension.
-  // if (batch_size == 1 && crop_size == 0 && new_height == 0 && new_width == 0) {
-  //   cv::Mat cv_img = ReadImageToCVMat(root_folder + lines_[lines_id_].first,
-  //       0, 0, is_color);
-  //   this->prefetch_data_.Reshape(1, cv_img.channels(),
-  //       cv_img.rows, cv_img.cols);
-  //   this->transformed_data_.Reshape(1, cv_img.channels(),
-  //       cv_img.rows, cv_img.cols);
-  //   this->prefetch_label_.Reshape(1, 1, cv_img.rows, cv_img.cols);
-  //   this->transformed_label_.Reshape(1, 1, cv_img.rows, cv_img.cols);
-  // }
 
   cv::Mat cv_img = ReadImageToCVMat(root_folder + lines_[lines_id_].first,
       new_height, new_width, is_color);
@@ -194,6 +157,8 @@ void DenseImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
     cv::Mat cv_img = ReadImageToCVMat(root_folder + lines_[lines_id_].first,
         new_height, new_width, is_color);
     CHECK(cv_img.data) << "Could not load " << lines_[lines_id_].first;
+    // TODO: this way of interp label image is wrong!!!! only works for 0-1 cases
+    // fix it in the future
     cv::Mat cv_lab = ReadImageToCVMat(root_folder + lines_[lines_id_].second,
         new_height, new_width, false);
     CHECK(cv_lab.data) << "Could not load " << lines_[lines_id_].second;
@@ -209,10 +174,7 @@ void DenseImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
     // this->data_transformer_->Transform(cv_lab, &this->transformed_label_, true);
     this->data_transformer_->Transform(cv_img, &(this->transformed_data_),
                                         cv_lab, &(this->transformed_label_));    
-    // CHECK(!this->layer_param_.transform_param().mirror() &&
-    //     this->layer_param_.transform_param().crop_size() == 0) 
-    //     << "FIXME: Any stochastic transformation will break layer due to "
-    //     << "the need to transform input and label images in the same way";
+
     trans_time += timer.MicroSeconds();
 
     // go to the next iter
