@@ -83,7 +83,7 @@ void LadderLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   caffe_sub(count, z, diff_data, diff_data);
   // calculate the loss
   Dtype dot = caffe_cpu_dot(count, diff_data, diff_data);
-  Dtype loss = dot / bottom[0]->num() / Dtype(2);
+  Dtype loss = dot / bottom[0]->count() / Dtype(2);
   top[0]->mutable_cpu_data()[0] = loss;
 }
 
@@ -95,14 +95,14 @@ void LadderLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   Dtype alpha;
     // propagate to z
     if (propagate_down[0]) {
-      alpha = top[0]->cpu_diff()[0] / bottom[0]->num();
+      alpha = top[0]->cpu_diff()[0] / bottom[0]->count();
       caffe_cpu_scale(count, alpha, diff_data, bottom[0]->mutable_cpu_diff());
     }
     // propagate to z hat
     if (propagate_down[1]) {
       // div the diff by variance
       caffe_div(count, diff_data, tempvar_.cpu_data(), diff_data);
-      alpha = - top[0]->cpu_diff()[0] / bottom[0]->num();
+      alpha = - top[0]->cpu_diff()[0] / bottom[0]->count();
       caffe_cpu_scale(count, alpha, diff_data, bottom[1]->mutable_cpu_diff());
     }
     // dont propagate to varibles
