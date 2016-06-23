@@ -69,6 +69,14 @@ void BatchNormLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
     caffe_set(batch_sum_multiplier_.count(), Dtype(1),
         batch_sum_multiplier_.mutable_cpu_data());
   }
+
+  // reshape the second top
+  if (top.size()>1) {
+    vector<int> sz2;
+    sz2.push_back(2);
+    sz2.push_back(channels_);
+    top[1]->Reshape(sz2);
+  }
 }
 
 template <typename Dtype>
@@ -151,6 +159,14 @@ void BatchNormLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   //                 might clobber the data.  Can we skip this if they won't?
   caffe_copy(x_norm_.count(), top_data,
       x_norm_.mutable_cpu_data());
+
+  // output top 2
+  if (top.size()>1) {
+    Dtype* param_data = top[1]->mutable_cpu_data();
+    caffe_copy(channels_, mean_.cpu_data(), param_data);
+    param_data += channels_;
+    caffe_copy(channels_, variance_.cpu_data(), param_data);
+  }
 }
 
 template <typename Dtype>
