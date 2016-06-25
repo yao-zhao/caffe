@@ -454,9 +454,16 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   const bool has_mean_file = param_.has_mean_file();
   const bool has_mean_values = mean_values_.size() > 0;
 
+  // add crop h and w 
+  int crop_h = param_.crop_h();
+  int crop_w = param_.crop_w();
+  if (crop_size > 0) {
+    crop_h = crop_w = crop_size;
+  }
+
   CHECK_GT(img_channels, 0);
-  CHECK_GE(img_height, crop_size);
-  CHECK_GE(img_width, crop_size);
+  CHECK_GE(img_height, crop_h);
+  CHECK_GE(img_width, crop_w);
 
   Dtype* mean = NULL;
   if (has_mean_file ) {
@@ -477,21 +484,21 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   }
 
   int h_off = 0;
-  int w_off = 0;
+  int w_off = 0;  
   cv::Mat cv_cropped_img = cv_img;
   cv::Mat cv_cropped_label = cv_lab;
-  if (crop_size) {
-    CHECK_EQ(crop_size, height);
-    CHECK_EQ(crop_size, width);
+  if (crop_h > 0 || crop_w > 0) {
+    CHECK_EQ(crop_h, height);
+    CHECK_EQ(crop_w, width);
     // We only do random crop when we do training.
     if (phase_ == TRAIN) {
-      h_off = Rand(img_height - crop_size + 1);
-      w_off = Rand(img_width - crop_size + 1);
+      h_off = Rand(img_height - crop_h + 1);
+      w_off = Rand(img_width - crop_w + 1);
     } else {
-      h_off = (img_height - crop_size) / 2;
-      w_off = (img_width - crop_size) / 2;
+      h_off = (img_height - crop_h) / 2;
+      w_off = (img_width - crop_w) / 2;
     }
-    cv::Rect roi(w_off, h_off, crop_size, crop_size);
+    cv::Rect roi(w_off, h_off, crop_w, crop_h);
     cv_cropped_img = cv_img(roi);
     cv_cropped_label = cv_lab(roi);
   } else {
