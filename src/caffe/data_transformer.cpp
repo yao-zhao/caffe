@@ -125,7 +125,12 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
       CHECK_LE(rotation_range,180);
       // rotate the image
       cv::Point2f pt(cv_img.cols/2,cv_img.rows/2);
-      cv::Mat r = cv::getRotationMatrix2D(pt, Rand(rotation_range)-rotation_range/2, scale_jitter);
+      cv::Mat r;
+      if (has_rotation) {
+        r = cv::getRotationMatrix2D(pt, Rand(rotation_range)-rotation_range/2, scale_jitter);
+      } else {
+        r = cv::getRotationMatrix2D(pt, 0, scale_jitter);
+      }
       // cv::Mat r = cv::getRotationMatrix2D(pt, 50.0, 0.10);
       cv::warpAffine(cv_img,cv_img,r,cv::Size(datum_width, datum_height));
     }
