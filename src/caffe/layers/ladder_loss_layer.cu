@@ -44,7 +44,7 @@ void LadderLossLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   Dtype dot;
   caffe_gpu_dot(count, diff_.gpu_data(), diff_.gpu_data(), &dot);
   Dtype loss = dot / bottom[0]->count() / Dtype(2);
-  top[0]->mutable_gpu_data()[0] = loss;
+  top[0]->mutable_cpu_data()[0] = loss;
 }
 
 template <typename Dtype>
@@ -55,14 +55,14 @@ void LadderLossLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   Dtype alpha;
     // propagate to z
   if (propagate_down[0]) {
-    alpha = top[0]->gpu_diff()[0] / bottom[0]->count();
+    alpha = top[0]->cpu_diff()[0] / bottom[0]->count();
     caffe_gpu_scale(count, alpha, diff_data, bottom[0]->mutable_gpu_diff());
   }
     // propagate to z hat
   if (propagate_down[1]) {
       // div the diff by variance, modified the diff, cant be used further
     caffe_gpu_div(count, diff_data, tempvar_.gpu_data(), diff_data);
-    alpha = - top[0]->gpu_diff()[0] / bottom[0]->count();
+    alpha = - top[0]->cpu_diff()[0] / bottom[0]->count();
     caffe_gpu_scale(count, alpha, diff_data, bottom[1]->mutable_gpu_diff());
   }
     // dont propagate to varibles
