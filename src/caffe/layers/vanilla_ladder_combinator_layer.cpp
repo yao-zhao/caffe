@@ -29,7 +29,7 @@ void VanillaLadderCombinatorLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>&
     << "starting with bottom[0] axis = " << axis_;
   }
   // initiallized 9 blobs
-  this->blobs_.resize(8);
+  this->blobs_.resize(9);
   const vector<int>::const_iterator& shape_start =
       bottom[0]->shape().begin() + axis_;
   const vector<int>::const_iterator& shape_end =
