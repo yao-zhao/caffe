@@ -55,6 +55,32 @@ __global__ void VanillaLadderCombinatorBackward(const int n,
       (weight_w1u[comb_index] + weight_w1zu[comb_index] * bottom_data_z[index]) );    
   }
 }
+// only backpropagate to the second blob, not the first blob
+template <typename Dtype>
+__global__ void VanillaLadderCombinatorBackward_u(const int n, 
+    const Dtype* top_diff, Dtype* tempsig_data, 
+    const Dtype* bottom_data_z, 
+    const Dtype* weight_w0u, 
+    const Dtype* weight_w0zu, const Dtype* weight_wsigma,
+    const Dtype* weight_w1u,
+    const Dtype* weight_w1zu, 
+    const int comb_dim, Dtype* bottom_diff_u) {
+    // Dtype* weight_diff_b0, Dtype* weight_diff_w0z, Dtype* weight_diff_w0u, 
+    // Dtype* weight_diff_w0zu, Dtype* weight_diff_wsigma,
+    // Dtype* weight_diff_b1, Dtype* weight_diff_w1z, Dtype* weight_diff_w1u,
+    // Dtype* weight_diff_w1zu, 
+  CUDA_KERNEL_LOOP(index, n) {
+    const int comb_index = index % comb_dim;
+    // using prestored temsig, assuming that forward is called before backward
+    // here tempsig is not modified, inconsistent with cpu version
+    bottom_diff_u[index] = top_diff[index] * ( weight_w0u[comb_index] + 
+      weight_w0zu[comb_index] * bottom_data_z[index] +
+      weight_wsigma[comb_index] * tempsig_data[index] * (1. - tempsig_data[index]) * 
+      (weight_w1u[comb_index] + weight_w1zu[comb_index] * bottom_data_z[index]) );    
+  }
+}
+
+
 
 template <typename Dtype>
 void VanillaLadderCombinatorLayer<Dtype>::Forward_gpu(
@@ -115,10 +141,11 @@ void VanillaLadderCombinatorLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*
   const int count = bottom[0]->count();
   
   // make sure calculate this first before param diff and make sure that tempsig_ is not modified during calculation
-  CHECK(propagate_down[0] && propagate_down[1]) <<
-   "currently only support propagate down to both bottoms"
+  CHECK(!(propagate_down[0]==1 && propagate_down[1]==0)) <<
+   "currently only support propagate down to at least the second bottoms"
    << " propagate_down[0]="<<propagate_down[0]
-   << " propagate_down[1]="<<propagate_down[1];
+   << " propagate_down[1]="<<propagate_down[1]
+   << " current layer name: "<<this->layer_param_.name();
   if (propagate_down[0] && propagate_down[1]) {
     VanillaLadderCombinatorBackward<Dtype>
     <<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
@@ -128,6 +155,14 @@ void VanillaLadderCombinatorLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*
       weight_w1z, weight_w1u, weight_w1zu,
       comb_dim_, bottom_diff_z, bottom_diff_u);
     CUDA_POST_KERNEL_CHECK;
+  } else if (propagate_down[1]) {
+    VanillaLadderCombinatorBackward_u<Dtype>
+    <<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
+      count, top_diff, tempsig_data, 
+      bottom_data_z, 
+      weight_w0u, weight_w0zu, weight_wsigma,
+      weight_w1u, weight_w1zu,
+      comb_dim_, bottom_diff_u);
   }
 
   // update param for backprop
