@@ -115,7 +115,10 @@ void VanillaLadderCombinatorLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*
   const int count = bottom[0]->count();
   
   // make sure calculate this first before param diff and make sure that tempsig_ is not modified during calculation
-  CHECK(propagate_down[0] && propagate_down[1]) << "currently only support propagate down to both bottoms";
+  CHECK(propagate_down[0] && propagate_down[1]) <<
+   "currently only support propagate down to both bottoms"
+   << " propagate_down[0]="<<propagate_down[0]
+   << " propagate_down[1]="<<propagate_down[1];
   if (propagate_down[0] && propagate_down[1]) {
     VanillaLadderCombinatorBackward<Dtype>
     <<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
