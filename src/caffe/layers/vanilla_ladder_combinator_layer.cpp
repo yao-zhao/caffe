@@ -35,7 +35,7 @@ void VanillaLadderCombinatorLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>&
   const vector<int>::const_iterator& shape_end =
       (num_axes == -1) ? bottom[0]->shape().end() : (shape_start + num_axes);
   vector<int> scale_shape(shape_start, shape_end);
-  for (int iblob=0; iblob<8; iblob++) {
+  for (int iblob=0; iblob<9; iblob++) {
     this->blobs_[iblob].reset(new Blob<Dtype>(scale_shape));
   }
   // fill each layer with default
