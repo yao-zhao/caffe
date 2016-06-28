@@ -526,20 +526,32 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
         }
         // int top_index = (c * height + h) * width + w;
         Dtype pixel_img = static_cast<Dtype>(ptr_img[img_index]);
-        Dtype pixel_lab = static_cast<Dtype>(ptr_lab[img_index]);
+        // Dtype pixel_lab = static_cast<Dtype>(ptr_lab[img_index]);
         img_index++;
         if (has_mean_file) {
           int mean_index = (c * img_height + h_off + h) * img_width + w_off + w;
           transformed_data_img[top_index] =
-            (pixel_img - mean[mean_index]) * scale;
+          (pixel_img - mean[mean_index]) * scale;
         } else {
           if (has_mean_values) {
             transformed_data_img[top_index] =
-              (pixel_img - mean_values_[c]) * scale;
+            (pixel_img - mean_values_[c]) * scale;
           } else {
             transformed_data_img[top_index] = pixel_img * scale;
           }
         }
+        // transformed_data_lab[top_index] = pixel_lab;
+      }
+    }
+    for (int w = 0; w < width; ++w) {
+      for (int c = 0; c < img_channels; ++c) {
+        if (do_mirror) {
+          top_index = (c * height + h) * width + (width - 1 - w);
+        } else {
+          top_index = (c * height + h) * width + w;
+        }
+        Dtype pixel_lab = static_cast<Dtype>(ptr_lab[img_index]);
+        img_index++;
         transformed_data_lab[top_index] = pixel_lab;
       }
     }
