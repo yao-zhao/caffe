@@ -56,7 +56,7 @@ void NoiseLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
       const Dtype* top_diff = top[0]->cpu_diff();
       Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
       const int count = bottom[0]->count();
-      caffe_copy(count, top_diff, bottom_diff);
+      caffe_add(count, top_diff, bottom_diff, bottom_diff);
     }
   }
 }
