@@ -432,6 +432,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   const int img_channels = cv_img.channels();
   const int img_height = cv_img.rows;
   const int img_width = cv_img.cols;
+  const int lab_channels =  cv_lab.channels();
 
   CHECK(cv_lab.channels() == 1) << "Can only handle grayscale label images";
   CHECK(cv_lab.rows == img_height && cv_lab.cols == img_width) << "Input and label "
@@ -518,7 +519,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
     int img_index = 0;
     for (int w = 0; w < width; ++w) {
       for (int c = 0; c < img_channels; ++c) {
-        CHECK(img_channels==1)<<"only support single channel images for not, fix it for color images";
+        // CHECK(img_channels==1)<<"only support single channel images for not, fix it for color images";
         if (do_mirror) {
           top_index = (c * height + h) * width + (width - 1 - w);
         } else {
@@ -543,8 +544,9 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
         // transformed_data_lab[top_index] = pixel_lab;
       }
     }
+    img_index = 0;
     for (int w = 0; w < width; ++w) {
-      for (int c = 0; c < img_channels; ++c) {
+      for (int c = 0; c < lab_channels; ++c) {
         if (do_mirror) {
           top_index = (c * height + h) * width + (width - 1 - w);
         } else {
