@@ -33,7 +33,7 @@ void NoiseLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
       const Dtype* top_diff = top[0]->gpu_diff();
       Dtype* bottom_diff = bottom[0]->mutable_gpu_diff();
       const int count = bottom[0]->count();
-      caffe_gpu_add(count, top_diff, bottom_diff, bottom_diff);
+      caffe_copy(count, top_diff, bottom_diff);
     }
   }
 }

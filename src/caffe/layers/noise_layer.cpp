@@ -11,7 +11,7 @@ template <typename Dtype>
 void NoiseLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   sigma_ = this->layer_param_.noise_param().sigma();
-  CHECK(sigma_ > 0.) << "noise level has to be greater than zero";
+  CHECK(sigma_ >= 0.) << "noise level has to be greater than zero";
 //  CHECK(sigma_ < 3.) << "noise level has to be lesser than 3";
 }
 
@@ -37,11 +37,15 @@ void NoiseLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   // create gaussian noise and add to top, in-place/ or not the same
   if (sigma_> 0) {
     caffe_rng_gaussian(count, Dtype(0), sigma_, rand_vec_data);
-    caffe_add(count, rand_vec_data, bottom_data, top_data);
-  } else if (bottom[0]==top[0]) {
-  } else {
-    caffe_copy(count, bottom_data, top_data);
   }
+  // else  
+  else if (bottom[0]==top[0]) {
+  } else {
+    caffe_set(count, Dtype(0), rand_vec_data);
+  }
+  // use copy not add
+  caffe_add(count, rand_vec_data, bottom_data, top_data);
+
 }
 
 template <typename Dtype>
@@ -56,7 +60,7 @@ void NoiseLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
       const Dtype* top_diff = top[0]->cpu_diff();
       Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
       const int count = bottom[0]->count();
-      caffe_add(count, top_diff, bottom_diff, bottom_diff);
+      caffe_copy(count, top_diff, bottom_diff);
     }
   }
 }
