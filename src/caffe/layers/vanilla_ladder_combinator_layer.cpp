@@ -17,7 +17,6 @@ template <typename Dtype>
 void VanillaLadderCombinatorLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   const LadderCombinatorParameter& param = this->layer_param_.ladder_combinator_param();
-
   // check axis, default starting axis is 1 and default num_axes is -1
   axis_ = bottom[0]->CanonicalAxisIndex(param.axis());
   const int num_axes = param.num_axes();
@@ -47,14 +46,6 @@ void VanillaLadderCombinatorLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>&
   }
   shared_ptr<Filler<Dtype> > filler_0b(GetFiller<Dtype>(filler_0b_param));
   filler_0b->Fill(this->blobs_[0].get());
-  // 0u matrix
-  FillerParameter filler_0u_param(param.filler_0u());
-  if (!param.has_filler_0u()) {
-    filler_0u_param.set_type("constant");
-    filler_0u_param.set_value(0);  
-  }
-  shared_ptr<Filler<Dtype> > filler_0u(GetFiller<Dtype>(filler_0u_param));
-  filler_0u->Fill(this->blobs_[1].get());
   // 0z matrix
   FillerParameter filler_0z_param(param.filler_0z());
   if (!param.has_filler_0z()) {
@@ -62,7 +53,15 @@ void VanillaLadderCombinatorLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>&
     filler_0z_param.set_value(1);  
   }
   shared_ptr<Filler<Dtype> > filler_0z(GetFiller<Dtype>(filler_0z_param));
-  filler_0z->Fill(this->blobs_[2].get());
+  filler_0z->Fill(this->blobs_[1].get());
+  // 0u matrix
+  FillerParameter filler_0u_param(param.filler_0u());
+  if (!param.has_filler_0u()) {
+    filler_0u_param.set_type("constant");
+    filler_0u_param.set_value(0);  
+  }
+  shared_ptr<Filler<Dtype> > filler_0u(GetFiller<Dtype>(filler_0u_param));
+  filler_0u->Fill(this->blobs_[2].get());
   // 0zu matrix
   FillerParameter filler_0zu_param(param.filler_0zu());
   if (!param.has_filler_0zu()) {
@@ -87,14 +86,6 @@ void VanillaLadderCombinatorLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>&
   }
   shared_ptr<Filler<Dtype> > filler_1b(GetFiller<Dtype>(filler_1b_param));
   filler_1b->Fill(this->blobs_[5].get());
-  // 1u matrix
-  FillerParameter filler_1u_param(param.filler_1u());
-  if (!param.has_filler_1u()) {
-    filler_1u_param.set_type("constant");
-    filler_1u_param.set_value(0);  
-  }
-  shared_ptr<Filler<Dtype> > filler_1u(GetFiller<Dtype>(filler_1u_param));
-  filler_1u->Fill(this->blobs_[6].get());
   // 1z matrix
   FillerParameter filler_1z_param(param.filler_1z());
   if (!param.has_filler_1z()) {
@@ -102,7 +93,15 @@ void VanillaLadderCombinatorLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>&
     filler_1z_param.set_value(1);  
   }
   shared_ptr<Filler<Dtype> > filler_1z(GetFiller<Dtype>(filler_1z_param));
-  filler_1z->Fill(this->blobs_[7].get());
+  filler_1z->Fill(this->blobs_[6].get());
+  // 1u matrix
+  FillerParameter filler_1u_param(param.filler_1u());
+  if (!param.has_filler_1u()) {
+    filler_1u_param.set_type("constant");
+    filler_1u_param.set_value(0);  
+  }
+  shared_ptr<Filler<Dtype> > filler_1u(GetFiller<Dtype>(filler_1u_param));
+  filler_1u->Fill(this->blobs_[7].get());
   // 1zu matrix
   FillerParameter filler_1zu_param(param.filler_1zu());
   if (!param.has_filler_1zu()) {
@@ -158,46 +157,61 @@ void VanillaLadderCombinatorLayer<Dtype>::Forward_cpu(
   const Dtype* weight_w1z = this->blobs_[6]->cpu_data();
   const Dtype* weight_w1u = this->blobs_[7]->cpu_data();
   const Dtype* weight_w1zu = this->blobs_[8]->cpu_data();
-  Dtype* temp_data = temp_.mutable_cpu_data();
+  // Dtype* temp_data = temp_.mutable_cpu_data();
   Dtype* tempsig_data = tempsig_.mutable_cpu_data();
   Dtype* tempmul_data = tempmul_.mutable_cpu_data();
+  int count = bottom[0]->count();
+  int inner_id;
   // currently does not support in-place
-  CHECK(bottom[0] == top[0]) << "currently does not support in-place for this ladder layer";
-  CHECK(bottom[1] == top[0]) << "currently does not support in-place for this ladder layer";
-  for (int n = 0; n < outer_dim_; ++n) {
-    // temp mult
-    caffe_mul<Dtype>(comb_dim_, bottom_data_z, bottom_data_u, tempmul_data);
-    // copy bias
-    caffe_copy(comb_dim_, weight_b0, top_data);
-    caffe_copy(comb_dim_, weight_b1, tempsig_data);
-    // add to combination
-    caffe_mul<Dtype>(comb_dim_, weight_w0z, bottom_data_z, temp_data);
-    caffe_add<Dtype>(comb_dim_, top_data, temp_data, top_data);
-    caffe_mul<Dtype>(comb_dim_, weight_w0u, bottom_data_u, temp_data);
-    caffe_add<Dtype>(comb_dim_, top_data, temp_data, top_data);
-    caffe_mul<Dtype>(comb_dim_, weight_w0zu, tempmul_data, temp_data);
-    caffe_add<Dtype>(comb_dim_, top_data, temp_data, top_data);    
-    // add to sigmoid
-    caffe_mul<Dtype>(comb_dim_, weight_w1z, bottom_data_z, tempsig_data);
-    caffe_add<Dtype>(comb_dim_, tempsig_data, temp_data, tempsig_data);
-    caffe_mul<Dtype>(comb_dim_, weight_w1u, bottom_data_u, temp_data);
-    caffe_add<Dtype>(comb_dim_, tempsig_data, temp_data, tempsig_data);
-    caffe_mul<Dtype>(comb_dim_, weight_w1zu, tempmul_data, temp_data);
-    caffe_add<Dtype>(comb_dim_, tempsig_data, temp_data, tempsig_data);
-    // sigmod function
-    for (int i = 0; i < comb_dim_; ++i) {
-      tempsig_data[i] = sigmoid(tempsig_data[i]);
-    }
-    // final
-    caffe_mul<Dtype>(comb_dim_, weight_wsigma, tempsig_data, tempsig_data);
-    caffe_add<Dtype>(comb_dim_, tempsig_data, top_data, top_data);
-    // iterate
-    bottom_data_z += comb_dim_;
-    bottom_data_u += comb_dim_;
-    top_data += comb_dim_;
-    tempmul_data += comb_dim_;
-    tempsig_data += comb_dim_;
+  CHECK(bottom[0] != top[0]) << "currently does not support in-place for this ladder layer for bottom 0";
+  CHECK(bottom[1] != top[0]) << "currently does not support in-place for this ladder layer for bottom 1";
+  for (int i=0; i < count; ++i) {
+    inner_id = i%comb_dim_;
+    tempmul_data[i] = bottom_data_z[i] * bottom_data_u[i];
+    tempsig_data[i] = sigmoid( weight_b1[inner_id] +
+      weight_w1z[inner_id] * bottom_data_z[i] + weight_w1u[inner_id] * bottom_data_u[i] +
+      weight_w1zu[inner_id] * tempmul_data[i] );
+    top_data[i] = tempsig_data[i] * weight_wsigma[inner_id] +
+      weight_b0[inner_id] + 
+      weight_w0z[inner_id] * bottom_data_z[i] + weight_w0u[inner_id] * bottom_data_u[i] + 
+      weight_w0zu[inner_id] * tempmul_data[i];
   }
+
+
+  // for (int n = 0; n < outer_dim_; ++n) {
+  //   // temp mult
+  //   caffe_mul<Dtype>(comb_dim_, bottom_data_z, bottom_data_u, tempmul_data);
+  //   // copy bias
+  //   caffe_copy(comb_dim_, weight_b0, top_data);
+  //   caffe_copy(comb_dim_, weight_b1, tempsig_data);
+  //   // add to combination
+  //   caffe_mul<Dtype>(comb_dim_, weight_w0z, bottom_data_z, temp_data);
+  //   caffe_add<Dtype>(comb_dim_, top_data, temp_data, top_data);
+  //   caffe_mul<Dtype>(comb_dim_, weight_w0u, bottom_data_u, temp_data);
+  //   caffe_add<Dtype>(comb_dim_, top_data, temp_data, top_data);
+  //   caffe_mul<Dtype>(comb_dim_, weight_w0zu, tempmul_data, temp_data);
+  //   caffe_add<Dtype>(comb_dim_, top_data, temp_data, top_data);    
+  //   // add to sigmoid
+  //   caffe_mul<Dtype>(comb_dim_, weight_w1z, bottom_data_z, tempsig_data);
+  //   caffe_add<Dtype>(comb_dim_, tempsig_data, temp_data, tempsig_data);
+  //   caffe_mul<Dtype>(comb_dim_, weight_w1u, bottom_data_u, temp_data);
+  //   caffe_add<Dtype>(comb_dim_, tempsig_data, temp_data, tempsig_data);
+  //   caffe_mul<Dtype>(comb_dim_, weight_w1zu, tempmul_data, temp_data);
+  //   caffe_add<Dtype>(comb_dim_, tempsig_data, temp_data, tempsig_data);
+  //   // sigmod function
+  //   for (int i = 0; i < comb_dim_; ++i) {
+  //     tempsig_data[i] = sigmoid(tempsig_data[i]);
+  //   }
+  //   // final
+  //   caffe_mul<Dtype>(comb_dim_, weight_wsigma, tempsig_data, tempsig_data);
+  //   caffe_add<Dtype>(comb_dim_, tempsig_data, top_data, top_data);
+  //   // iterate
+  //   bottom_data_z += comb_dim_;
+  //   bottom_data_u += comb_dim_;
+  //   top_data += comb_dim_;
+  //   tempmul_data += comb_dim_;
+  //   tempsig_data += comb_dim_;
+  // }
 }
 
 template <typename Dtype>
