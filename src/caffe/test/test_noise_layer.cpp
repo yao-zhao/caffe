@@ -130,7 +130,7 @@ TYPED_TEST(NoiseLayerTest, TestGradientEltwise) {
     this->blob_top_vec_);
 }
 
-
+// this will not work, because in-place calculation changes the bottom data
 // TYPED_TEST(NoiseLayerTest, TestGradientEltwiseInPlace) {
 //   typedef typename TypeParam::Dtype Dtype;
 //    // setup
