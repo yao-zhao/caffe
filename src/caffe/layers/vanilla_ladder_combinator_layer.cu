@@ -235,24 +235,27 @@ void VanillaLadderCombinatorLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*
   diff_sigmoid<Dtype>
   <<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>
   (count, tempsig_data);
-  caffe_gpu_mul<Dtype>(count, weight_wsigma, tempsig_data, tempsig_data);
   caffe_gpu_mul<Dtype>(count, top_diff, tempsig_data, tempsig_data);
   // b1
   caffe_gpu_gemv<Dtype>(CblasTrans, outer_dim_, comb_dim_,
     Dtype(1), tempsig_data, sum_mult, Dtype(1), weight_diff_b1);
+  caffe_gpu_mul<Dtype>(comb_dim_, weight_wsigma, weight_diff_b1, weight_diff_b1);
     // w0z 
   caffe_gpu_mul<Dtype>(count, tempsig_data, bottom_data_z, tempmul_data);
   caffe_gpu_gemv<Dtype>(CblasTrans, outer_dim_, comb_dim_,
     Dtype(1), tempmul_data, sum_mult, Dtype(1), weight_diff_w1z);
+  caffe_gpu_mul<Dtype>(comb_dim_, weight_wsigma, weight_diff_w1z, weight_diff_w1z);
     // w0u 
   caffe_gpu_mul<Dtype>(count, tempsig_data, bottom_data_u, tempmul_data);
   caffe_gpu_gemv<Dtype>(CblasTrans, outer_dim_, comb_dim_,
     Dtype(1), tempmul_data, sum_mult, Dtype(1), weight_diff_w1u);
+  caffe_gpu_mul<Dtype>(comb_dim_, weight_wsigma, weight_diff_w1u, weight_diff_w1u);
     // w0zu 
   caffe_gpu_mul<Dtype>(count, tempsig_data, bottom_data_z, tempmul_data);
   caffe_gpu_mul<Dtype>(count, bottom_data_u, tempmul_data, tempmul_data);
   caffe_gpu_gemv<Dtype>(CblasTrans, outer_dim_, comb_dim_,
     Dtype(1), tempmul_data, sum_mult, Dtype(1), weight_diff_w1zu);
+  caffe_gpu_mul<Dtype>(comb_dim_, weight_wsigma, weight_diff_w1zu, weight_diff_w1zu);
 
 }
 
