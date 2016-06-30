@@ -200,7 +200,7 @@ TYPED_TEST(VanillaLadderCombinatorLayerTest, TestBottomGradient) {
     }
     // check estimated and computed
     for (int j=0; j<count; ++j) {
-      scale = std::max<Dtype>(step_size, std::max( 
+      scale = std::max<Dtype>(Dtype(0.1), std::max( 
         fabs(gradient_estimated_data[j]), fabs(gradient_computed_data[j]) ) );
       EXPECT_NEAR(gradient_estimated_data[j], gradient_computed_data[j], 
         threshold * scale );
@@ -246,7 +246,7 @@ TYPED_TEST(VanillaLadderCombinatorLayerTest, TestWeightGradient) {
   Dtype scale;
   Dtype threshold = 1e-2;
   Dtype obj_positive, obj_negative;
-  for (int iblob=0; iblob<6; ++iblob) {
+  for (int iblob=0; iblob<9; ++iblob) {
     for (int j=0; j<blobs[iblob]->count(); ++j) { //blobs[iblob]->count()
       // increase
       blobs[iblob]->mutable_cpu_data()[j] += step_size;
@@ -280,7 +280,7 @@ TYPED_TEST(VanillaLadderCombinatorLayerTest, TestWeightGradient) {
 
       Dtype gradient_computed_data = blobs[iblob]->cpu_diff()[j];
       // compare
-      scale = std::max<Dtype>(step_size, std::max( 
+      scale = std::max<Dtype>(Dtype(0.1), std::max( 
         fabs(gradient_estimated_data), fabs(gradient_computed_data) ) );
       EXPECT_NEAR(gradient_estimated_data, gradient_computed_data, 
         threshold * scale );
