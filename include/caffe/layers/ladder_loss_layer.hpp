@@ -48,7 +48,9 @@ class LadderLossLayer : public LossLayer<Dtype> {
     return bottom_index != 2;
   }
 
-  virtual inline int ExactNumBottomBlobs() const { return 3; }
+  // virtual inline int ExactNumBottomBlobs() const { return 3; }
+  virtual inline int MaxBottomBlobs() const { return 3; }
+  virtual inline int MinBottomBlobs() const { return 2; }
   virtual inline int ExactTopBlobs() const { return 1; }
 
 
