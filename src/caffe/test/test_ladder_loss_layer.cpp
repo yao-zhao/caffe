@@ -59,10 +59,23 @@ protected:
     	blob_bottom_param_data[i+shape[1]] = 10+i;
     }
     // push to vec 
+    blob_bottom_vec_.clear();
     blob_bottom_vec_.push_back(blob_bottom_clean_);
     blob_bottom_vec_.push_back(blob_bottom_recon_);
     blob_bottom_vec_.push_back(blob_bottom_param_);
+    blob_top_vec_.clear();
     blob_top_vec_.push_back(blob_top_);
+  }
+    // change to two bottom
+  void SetTwoBottoms() {
+    // remove batchnorm
+    blob_bottom_vec_.pop_back();
+    // reset second blob data
+    Dtype* blob_bottom_clean_data = blob_bottom_clean_->mutable_cpu_data();
+    Dtype* blob_bottom_recon_data = blob_bottom_recon_->mutable_cpu_data();
+    for (int i=0; i<blob_bottom_clean_->count(); ++i) {
+      blob_bottom_recon_data[i] = blob_bottom_clean_data[i] + 2*(i%2)-1; 
+    }
   }
   // destructor
   virtual ~LadderLossLayerTest() {
@@ -82,7 +95,8 @@ protected:
 
 TYPED_TEST_CASE(LadderLossLayerTest, TestDtypesAndDevices);
 
-TYPED_TEST(LadderLossLayerTest, TestSetup) {
+TYPED_TEST(LadderLossLayerTest, TestThreeBottomsSetup) {
+  this->SetUp();
   typedef typename TypeParam::Dtype Dtype;
   LayerParameter layer_param;
   LadderLossLayer<Dtype> layer(layer_param);
@@ -90,7 +104,29 @@ TYPED_TEST(LadderLossLayerTest, TestSetup) {
   EXPECT_EQ(this->blob_top_vec_[0]->count(),1);
 }
 
-TYPED_TEST(LadderLossLayerTest, TestForward) {
+TYPED_TEST(LadderLossLayerTest, TestTwoBottomsSetup) {
+  this->SetUp();
+  this->SetTwoBottoms();
+  typedef typename TypeParam::Dtype Dtype;
+  LayerParameter layer_param;
+  LadderLossLayer<Dtype> layer(layer_param);
+  layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
+  EXPECT_EQ(this->blob_top_vec_[0]->count(),1);
+}
+
+TYPED_TEST(LadderLossLayerTest, TestThreeBottomsForward) {
+  typedef typename TypeParam::Dtype Dtype;
+  this->SetUp();
+  LayerParameter layer_param;
+  LadderLossLayer<Dtype> layer(layer_param);
+  layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
+  Dtype loss = layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
+  EXPECT_NEAR(loss, 0.5, 1e-12);
+}
+
+TYPED_TEST(LadderLossLayerTest, TestTwoBottomsForward) {
+  this->SetUp();
+  this->SetTwoBottoms();
   typedef typename TypeParam::Dtype Dtype;
   LayerParameter layer_param;
   LadderLossLayer<Dtype> layer(layer_param);
@@ -99,9 +135,10 @@ TYPED_TEST(LadderLossLayerTest, TestForward) {
   EXPECT_NEAR(loss, 0.5, 1e-12);
 }
 
-TYPED_TEST(LadderLossLayerTest, TestGradient) {
+TYPED_TEST(LadderLossLayerTest, TestThreeBottomsGradient) {
   typedef typename TypeParam::Dtype Dtype;
    // setup
+  this->SetUp();
   LayerParameter layer_param;
   LadderLossLayer<Dtype> layer(layer_param);
   // check gradient, only test agains bottom 0 and 1
@@ -111,5 +148,22 @@ TYPED_TEST(LadderLossLayerTest, TestGradient) {
   checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
   	this->blob_top_vec_, 1);
 }
+
+TYPED_TEST(LadderLossLayerTest, TestTwoBottomsGradient) {
+  typedef typename TypeParam::Dtype Dtype;
+   // setup
+  this->SetUp();
+  this->SetTwoBottoms();
+  LayerParameter layer_param;
+  LadderLossLayer<Dtype> layer(layer_param);
+  // check gradient, only test agains bottom 0 and 1
+  GradientChecker<Dtype> checker(1e-2, 1e-2);
+  checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
+    this->blob_top_vec_, 0);
+  checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
+    this->blob_top_vec_, 1);
+}
+
+
 
 }
