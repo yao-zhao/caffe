@@ -75,6 +75,7 @@ void VanillaLadderCombinatorLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>&
   FillerParameter filler_sigma_param(param.filler_sigma());
   if (!param.has_filler_sigma()) {
     filler_sigma_param.set_type("constant");
+    // filler_sigma_param.set_value(0);  
     filler_sigma_param.set_value(1);  
   }
   shared_ptr<Filler<Dtype> > filler_sigma(GetFiller<Dtype>(filler_sigma_param));
