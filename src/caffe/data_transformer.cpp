@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <math.h>
+#include <iostream>
 
 #include "caffe/data_transformer.hpp"
 #include "caffe/util/io.hpp"
@@ -100,12 +101,15 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
   if (has_contrast_jitter) {
     float contrast_jitter_range = param_.contrast_jitter_range();
     CHECK_GE(contrast_jitter_range,0);
-    scale = scale*exp(contrast_jitter_range*(float)(Rand(21)-10)/20.0);
+    scale = scale*exp(contrast_jitter_range*(float)(Rand(201)-100)/200.0);
   }
 
   if ((has_perspective_transformation || has_rotation || has_scale_jitter) ) {
     // load the image
-    cv_img=cv::Mat(datum_height,datum_width,CV_8UC3);
+    // in ReadImageToCVMat which is used in convert_imageset.cpp, 
+    // if not converted, will convert here
+    // images are automatically converted to 8U
+    cv_img=cv::Mat(datum_height,datum_width,CV_8UC(datum_channels));
     for (int h = 0; h < datum_height; ++h) {
       uchar* ptr = cv_img.ptr<uchar>(h);
       int img_index = 0;
@@ -116,10 +120,11 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
         }
       }
     }
+
     // if has rotation or scale jitter
     if (has_rotation || has_scale_jitter) {
       const int rotation_range = param_.rotation_range();
-      const float scale_jitter = exp(param_.scale_jitter_range()*(float)(Rand(21)-10)/20.0);
+      const float scale_jitter = exp(param_.scale_jitter_range()*(float)(Rand(201)-100)/200.0);
       CHECK_GE(scale_jitter,0);
       CHECK_GE(rotation_range,0);
       CHECK_LE(rotation_range,180);
@@ -131,8 +136,7 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
       } else {
         r = cv::getRotationMatrix2D(pt, 0, scale_jitter);
       }
-      // cv::Mat r = cv::getRotationMatrix2D(pt, 50.0, 0.10);
-      cv::warpAffine(cv_img,cv_img,r,cv::Size(datum_width, datum_height));
+      cv::warpAffine(cv_img,cv_img,r,cv::Size(cv_img.cols, cv_img.rows));
     }
     //perspective transform
     if (has_perspective_transformation) {
@@ -190,8 +194,18 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
         }
         if (has_uint8) {
           if (use_new_data) {
-            datum_element =
-              static_cast<Dtype>(cv_img.at<cv::Vec3b>(h+h_off,w+w_off)[c]);
+            switch (datum_channels) {
+              case 1: 
+                datum_element =
+                static_cast<Dtype>(cv_img.at<uchar>(h+h_off,w+w_off));
+                break;
+              case 3: 
+                datum_element =
+                static_cast<Dtype>(cv_img.at<cv::Vec3b>(h+h_off,w+w_off)[c]);
+                break;
+              default: 
+                CHECK(0)<<"wrong number of channels";
+            }
           } else {
             datum_element =
               static_cast<Dtype>(static_cast<uint8_t>(data[data_index]));
@@ -339,7 +353,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
 
   int crop_h = param_.crop_h();
   int crop_w = param_.crop_w();
-  const Dtype scale = param_.scale();
+  Dtype scale = param_.scale();
   const bool do_mirror = param_.mirror() && Rand(2);
   const bool has_mean_file = param_.has_mean_file();
   const bool has_mean_values = mean_values_.size() > 0;
@@ -369,6 +383,57 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
     }
   }
 
+  const bool has_rotation = param_.rotation_range()>0;
+  const bool has_perspective_transformation = param_.perspective_transformation_border()>0;
+  const bool random_crop_test = param_.random_crop_test();
+  const bool has_scale_jitter = param_.scale_jitter_range()>0;
+  const bool has_contrast_jitter = param_.contrast_jitter_range()>0;
+
+  if (has_contrast_jitter) {
+    float contrast_jitter_range = param_.contrast_jitter_range();
+    CHECK_GE(contrast_jitter_range,0);
+    scale = scale*exp(contrast_jitter_range*(float)(Rand(201)-100)/200.0);
+  }
+
+  if ((has_perspective_transformation || has_rotation || has_scale_jitter) ) {
+    // if has rotation or scale jitter
+    if (has_rotation || has_scale_jitter) {
+      const int rotation_range = param_.rotation_range();
+      const float scale_jitter = exp(param_.scale_jitter_range()*(float)(Rand(201)-100)/200.0);
+      CHECK_GE(scale_jitter,0);
+      CHECK_GE(rotation_range,0);
+      CHECK_LE(rotation_range,180);
+      // rotate the image
+      cv::Point2f pt(cv_img.cols/2,cv_img.rows/2);
+      cv::Mat r;
+      if (has_rotation) {
+        r = cv::getRotationMatrix2D(pt, Rand(rotation_range)-rotation_range/2, scale_jitter);
+      } else {
+        r = cv::getRotationMatrix2D(pt, 0, scale_jitter);
+      }
+      cv::warpAffine(cv_img,cv_img,r,cv::Size(cv_img.cols, cv_img.rows));
+    }
+    //perspective transform
+    if (has_perspective_transformation) {
+      const int perspective_transformation_border = param_.perspective_transformation_border();
+      CHECK_GE(perspective_transformation_border,0);
+      CHECK_LE(perspective_transformation_border,cv_img.rows/2);
+      CHECK_LE(perspective_transformation_border,cv_img.cols/2);
+      // get transformation matrix
+      cv::Point2f src_shape[4];
+      src_shape[0]=cv::Point2f(0+Rand(perspective_transformation_border),0+Rand(perspective_transformation_border));
+      src_shape[1]=cv::Point2f(0+Rand(perspective_transformation_border),cv_img.rows-Rand(perspective_transformation_border));
+      src_shape[2]=cv::Point2f(cv_img.cols-Rand(perspective_transformation_border),cv_img.rows-Rand(perspective_transformation_border));
+      src_shape[3]=cv::Point2f(cv_img.cols-Rand(perspective_transformation_border),0+Rand(perspective_transformation_border));
+      cv::Point2f dst_shape[4];
+      dst_shape[0]=cv::Point2f(0,0);
+      dst_shape[1]=cv::Point2f(0,cv_img.rows);
+      dst_shape[2]=cv::Point2f(cv_img.cols,cv_img.rows);
+      dst_shape[3]=cv::Point2f(cv_img.cols,0);
+      cv::Mat ptmatrix = cv::getPerspectiveTransform(src_shape,dst_shape);
+      cv::warpPerspective(cv_img,cv_img,ptmatrix,cv::Size(cv_img.cols,cv_img.rows),cv::INTER_LINEAR,cv::BORDER_CONSTANT);
+    }
+  }
   int h_off = 0;
   int w_off = 0;
   cv::Mat cv_cropped_img = cv_img;
@@ -376,7 +441,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
     CHECK_EQ(crop_h, height);
     CHECK_EQ(crop_w, width);
     // We only do random crop when we do training.
-    if (phase_ == TRAIN) {
+    if (phase_ == TRAIN || random_crop_test) {
       h_off = Rand(img_height - crop_h + 1);
       w_off = Rand(img_width - crop_w + 1);
     } else {
