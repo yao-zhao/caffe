@@ -541,6 +541,8 @@ message BatchNormParameter {
   // Small value to add to the variance estimate so that we don't divide by
   // zero.
   optional float eps = 3 [default = 1e-5];
+  // if true, will accumulating global mean /varaince while using global stats
+  optional bool update_global_stats = 4 [default  =  false];
 }
 
 message BiasParameter {

@@ -70,7 +70,7 @@ class BatchNormLayer : public Layer<Dtype> {
   Dtype moving_average_fraction_;
   int channels_;
   Dtype eps_;
-
+  bool update_global_stats_;
   // extra temporarary variables is used to carry out sums/broadcasting
   // using BLAS
   Blob<Dtype> batch_sum_multiplier_;
