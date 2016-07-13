@@ -50,8 +50,8 @@ namespace caffe {
     LayerParameter layer_param;
     CyclicSliceLayer<Dtype> layer(layer_param);
     layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
-    EXPECT_EQ(this->blob_top_vec_[0]->shape(0),this->blob_bottom_vec_[0]->shape(0));
-    EXPECT_EQ(this->blob_top_vec_[0]->shape(1),this->blob_bottom_vec_[0]->shape(1)*4);
+    EXPECT_EQ(this->blob_top_vec_[0]->shape(0),this->blob_bottom_vec_[0]->shape(0)*4);
+    EXPECT_EQ(this->blob_top_vec_[0]->shape(1),this->blob_bottom_vec_[0]->shape(1));
     EXPECT_EQ(this->blob_top_vec_[0]->shape(2),this->blob_bottom_vec_[0]->shape(2));
     EXPECT_EQ(this->blob_top_vec_[0]->shape(3),this->blob_bottom_vec_[0]->shape(3));
   }

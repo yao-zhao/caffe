@@ -17,7 +17,7 @@ template <typename Dtype>
 void CyclicSliceLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   vector<int> shape = bottom[0]->shape();
-  shape[1] *= 4;
+  shape[0] *= 4;
   top[0]->Reshape(shape);
 }
 

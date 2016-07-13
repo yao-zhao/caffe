@@ -23,7 +23,7 @@ template <typename Dtype>
 void CyclicPoolLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   vector<int> shape = bottom[0]->shape();
-  shape[1] /= 4;
+  shape[0] /= 4;
   top[0]->Reshape(shape);
   // If max pooling, we will initialize the vector index part.
   if (this->layer_param_.pooling_param().pool() ==
@@ -47,7 +47,7 @@ void CyclicPoolLayer<Dtype>::Forward_cpu(
     caffe_set(top_count, Dtype(0), top_data);
     for (int i=0; i<num; ++i) {
       for (int j=0; j<batch_dim; ++j){
-        top_data[i/4*batch_dim+j] += bottom_data[i*batch_dim+j]/4;
+        top_data[i/4*batch_dim+j] += bottom_data[i*batch_dim+j]/4.;
       }
     }
     break;
@@ -81,18 +81,19 @@ void CyclicPoolLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     return;
   }
   const int num = bottom[0]->shape(0);
-  const int batch_dim = bottom[0]->count(1);
+  const int batch_dim = top[0]->count(1);
   const int top_count = top[0]->count();
   const Dtype* top_diff = top[0]->cpu_diff();
   Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
   const int* mask = max_idx_.cpu_data();
-
+  // clear bottom diff
+  caffe_set(bottom[0]->count(), Dtype(0), bottom_diff);
   // different pooling method
   switch (this->layer_param_.cyclic_pool_param().pool()) {
     case CyclicPoolParameter_PoolMethod_AVE:
     for (int i=0; i<num; ++i) {
       for (int j=0; j<batch_dim; ++j){
-        bottom_diff[i*batch_dim+j] += top_diff[i/4*batch_dim+j]/4;
+        bottom_diff[i*batch_dim+j] += top_diff[i/4*batch_dim+j]/Dtype(4);
       }
     }
     break;
