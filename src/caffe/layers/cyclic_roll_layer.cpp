@@ -39,10 +39,11 @@ void CyclicRollLayer<Dtype>::Forward_cpu(
   int bottom_batch_rotid, rotation, top_channel_id,
     bottom_index, top_index, top_batch_id;
   for (int i=0; i<num; ++i) {
-    bottom_batch_rotid = num%4;
+    bottom_batch_rotid = i%4;
     for (int bottom_channel_id=0; bottom_channel_id<bottom_channels; ++bottom_channel_id) {
       for (int top_batch_rotid=0; top_batch_rotid<4; ++top_batch_rotid) {
         rotation = (bottom_batch_rotid-top_batch_rotid)%4;
+        rotation = (rotation>=0)?rotation:(4+rotation);
         top_channel_id = 4*bottom_channel_id+ rotation;
         top_batch_id = i - bottom_batch_rotid + top_batch_rotid;
         for (int h=0; h<size; ++h) {
@@ -53,7 +54,7 @@ void CyclicRollLayer<Dtype>::Forward_cpu(
               case 1: top_index = ((top_batch_id*top_channels+top_channel_id)*size+size-1-w)*size+h; break;
               case 2: top_index = ((top_batch_id*top_channels+top_channel_id)*size+size-1-h)*size+size-1-w; break;
               case 3: top_index = ((top_batch_id*top_channels+top_channel_id)*size+w)*size+size-1-h; break;
-              default : top_index=-1; break;
+              default : top_index=0;CHECK(0)<<"rotation not supported"; break;
             }
             top_data[top_index] = bottom_data[bottom_index];
           }
@@ -80,10 +81,11 @@ void CyclicRollLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   // clear bottom diff
   caffe_set(bottom[0]->count(), Dtype(0), bottom_diff);
   for (int i=0; i<num; ++i) {
-    bottom_batch_rotid = num%4;
+    bottom_batch_rotid = i%4;
     for (int bottom_channel_id=0; bottom_channel_id<bottom_channels; ++bottom_channel_id) {
       for (int top_batch_rotid=0; top_batch_rotid<4; ++top_batch_rotid) {
         rotation = (bottom_batch_rotid-top_batch_rotid)%4;
+        rotation = (rotation>=0)?rotation:(4+rotation);
         top_channel_id = 4*bottom_channel_id+ rotation;
         top_batch_id = i - bottom_batch_rotid + top_batch_rotid;
         for (int h=0; h<size; ++h) {
@@ -94,7 +96,7 @@ void CyclicRollLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
               case 1: top_index = ((top_batch_id*top_channels+top_channel_id)*size+size-1-w)*size+h; break;
               case 2: top_index = ((top_batch_id*top_channels+top_channel_id)*size+size-1-h)*size+size-1-w; break;
               case 3: top_index = ((top_batch_id*top_channels+top_channel_id)*size+w)*size+size-1-h; break;
-              default : top_index=-1; break;
+              default : top_index=0;CHECK(0)<<"rotation not supported"; break;
             }
             bottom_diff[bottom_index] += top_diff[top_index] ;
           }

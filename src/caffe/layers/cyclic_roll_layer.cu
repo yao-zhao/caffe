@@ -23,6 +23,7 @@ __global__ void CyclicRollForward(const int n,
     int top_channels = bottom_channels*4;
     for (int top_batch_rotid=0; top_batch_rotid<4; ++top_batch_rotid) {
         int rotation = (bottom_batch_rotid-top_batch_rotid)%4;
+        rotation = (rotation>=0)?rotation:(4+rotation);
         int top_channel_id = 4*bottom_channel_id+ rotation;
         int top_batch_id = bottom_batch_id - bottom_batch_rotid + top_batch_rotid;
         switch (rotation) {
@@ -54,6 +55,7 @@ __global__ void CyclicRollBackward(const int n,
     int top_channels = bottom_channels*4;
     for (int top_batch_rotid=0; top_batch_rotid<4; ++top_batch_rotid) {
         int rotation = (bottom_batch_rotid-top_batch_rotid)%4;
+        rotation = (rotation>=0)?rotation:(4+rotation);
         int top_channel_id = 4*bottom_channel_id+ rotation;
         int top_batch_id = bottom_batch_id - bottom_batch_rotid + top_batch_rotid;
         switch (rotation) {
