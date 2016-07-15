@@ -363,6 +363,7 @@ message LayerParameter {
   optional ArgMaxParameter argmax_param = 103;
   optional ArrayDataParameter array_data_param = 207;
   optional BatchNormParameter batch_norm_param = 139;
+  optional BellLossParameter bell_loss_param = 209;
   optional BiasParameter bias_param = 141;
   optional BNParameter bn_param = 45;
   optional ConcatParameter concat_param = 104;
@@ -566,6 +567,11 @@ message BatchNormParameter {
   optional float eps = 3 [default = 1e-5];
   // if true, will accumulating global mean /varaince while using global stats
   optional bool update_global_stats = 4 [default  =  false];
+}
+
+message BellLossParameter {
+  optional int32 power = 1 [default = 2];
+  optional float threshold = 2 [default = 1.0];
 }
 
 message BiasParameter {
