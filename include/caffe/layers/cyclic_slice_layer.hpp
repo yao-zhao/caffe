@@ -9,7 +9,7 @@
 
 namespace caffe {
 
-// cyclic pooling increase the number of batches by 4 folds
+// cyclic slicing increase the number of batches by 4 folds
 // and rotate the feature map clockwise 90 degree on each rotation
 // the feature map has to be equal in height and width
 // because this usually operate on the datalayer, so no backprop is done
