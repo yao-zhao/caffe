@@ -61,7 +61,7 @@ void CyclicSliceLayer<Dtype>::Forward_cpu(
 
 
 #ifdef CPU_ONLY
-STUB_GPU_FORWARD(CyclicSliceLayer);
+STUB_GPU_FORWARD(CyclicSliceLayer,Forward);
 #endif
 
 INSTANTIATE_CLASS(CyclicSliceLayer);
