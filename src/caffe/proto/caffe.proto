@@ -361,11 +361,9 @@ message LayerParameter {
   // The default for the engine is set by the ENGINE switch at compile-time.
   optional AccuracyParameter accuracy_param = 102;
   optional ArgMaxParameter argmax_param = 103;
-  optional ArrayDataParameter array_data_param = 207;
   optional BatchNormParameter batch_norm_param = 139;
   optional BellLossParameter bell_loss_param = 209;
   optional BiasParameter bias_param = 141;
-  optional BNParameter bn_param = 45;
   optional ConcatParameter concat_param = 104;
   optional ContrastiveLossParameter contrastive_loss_param = 105;
   optional ConvolutionParameter convolution_param = 106;
@@ -512,37 +510,6 @@ message ArgMaxParameter {
   optional int32 axis = 3;
 }
 
-// array type parameter
-message ArrayDataParameter {
-  enum DB {
-    LEVELDB = 0;
-    LMDB = 1;
-  }
-  // Specify the data source.
-  optional string source = 1;
-  // Specify the batch size.
-  optional uint32 batch_size = 4;
-  // engine
-  optional DB backend = 8 [default = LEVELDB];
-  // data access bandwidth varies).
-  optional uint32 prefetch = 10 [default = 4];
-  enum DataType {
-    UINT8 = 0;
-    FLOAT = 1;
-  }
-  optional DataType data_type = 11 [default = UINT8];
-}
-
-// Message that stores parameters used by BN (Batch Normalization)  layer
-message BNParameter {
-  enum BNMode {
-    LEARN = 0;
-    INFERENCE = 1;
-  }
-  optional BNMode bn_mode = 3 [default = LEARN];
-  optional FillerParameter scale_filler = 1;  // The filler for the scale
-  optional FillerParameter shift_filler = 2;  // The filler for the shift
-}
 
 message ConcatParameter {
   // The axis along which to concatenate -- may be negative to index from the
