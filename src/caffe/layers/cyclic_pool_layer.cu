@@ -1,5 +1,5 @@
-#include <vector>
 #include <cfloat>
+#include <vector>
 
 #include "caffe/layers/cyclic_pool_layer.hpp"
 #include "caffe/util/math_functions.hpp"
@@ -7,38 +7,37 @@
 namespace caffe {
 
 template <typename Dtype>
-__global__ void CyclicPoolAVEForward(const int n, 
-    const Dtype* bottom_data, 
+__global__ void CyclicPoolAVEForward(const int n,
+    const Dtype* bottom_data,
     const int batch_dim, Dtype* top_data) {
   // each kernel moves one
   CUDA_KERNEL_LOOP(index, n) {
-  	int inner_index = index%batch_dim;
-  	int batch_num = index/batch_dim;
-  	top_data[index] = (bottom_data[4*batch_num*batch_dim+inner_index] 
-  		+ bottom_data[(4*batch_num+1)*batch_dim+inner_index] 
-  		+ bottom_data[(4*batch_num+2)*batch_dim+inner_index] 
-  		+ bottom_data[(4*batch_num+3)*batch_dim+inner_index] 
-  		)/4;
+    int inner_index = index%batch_dim;
+    int batch_num = index/batch_dim;
+    top_data[index] = (bottom_data[4*batch_num*batch_dim+inner_index]
+      + bottom_data[(4*batch_num+1)*batch_dim+inner_index]
+      + bottom_data[(4*batch_num+2)*batch_dim+inner_index]
+      + bottom_data[(4*batch_num+3)*batch_dim+inner_index])/4;
   }
 }
 
 template <typename Dtype>
-__global__ void CyclicPoolMAXForward(const int n, 
-    const Dtype* bottom_data, 
+__global__ void CyclicPoolMAXForward(const int n,
+    const Dtype* bottom_data,
     const int batch_dim, Dtype* top_data, int* maxidx_data) {
   // each kernel moves one
   CUDA_KERNEL_LOOP(index, n) {
-  	int inner_index = index%batch_dim;
-  	int batch_num = index/batch_dim;
-  	Dtype maxval = -FLT_MAX;
+    int inner_index = index%batch_dim;
+    int batch_num = index/batch_dim;
+    Dtype maxval = -FLT_MAX;
     int maxidx = -1;
     int bottom_index;
-    for (int i=0; i<4; ++i) {
-    	bottom_index = (4*batch_num+i)*batch_dim+inner_index;
-    	if (bottom_data[bottom_index]>maxval) {
-    		maxval = bottom_data[bottom_index];
-    		maxidx = bottom_index;
-    	} 
+    for (int i = 0; i < 4; ++i) {
+      bottom_index = (4*batch_num+i)*batch_dim+inner_index;
+      if (bottom_data[bottom_index] > maxval) {
+        maxval = bottom_data[bottom_index];
+        maxidx = bottom_index;
+      }
     }
     top_data[index] = maxval;
     maxidx_data[index] = maxidx;
@@ -46,27 +45,27 @@ __global__ void CyclicPoolMAXForward(const int n,
 }
 
 template <typename Dtype>
-__global__ void CyclicPoolAVEBackward(const int n, 
-    const Dtype* top_diff, 
+__global__ void CyclicPoolAVEBackward(const int n,
+    const Dtype* top_diff,
     const int batch_dim, Dtype* bottom_diff) {
   // each kernel moves one
   CUDA_KERNEL_LOOP(index, n) {
-  	int inner_index = index%batch_dim;
-  	int batch_num = index/batch_dim;
-  	bottom_diff[4*batch_num*batch_dim+inner_index] += top_diff[index]/4;
-  	bottom_diff[(4*batch_num+1)*batch_dim+inner_index] += top_diff[index]/4;
-  	bottom_diff[(4*batch_num+2)*batch_dim+inner_index] += top_diff[index]/4;
-  	bottom_diff[(4*batch_num+3)*batch_dim+inner_index] += top_diff[index]/4;
+    int inner_index = index%batch_dim;
+    int batch_num = index/batch_dim;
+    bottom_diff[4*batch_num*batch_dim+inner_index] += top_diff[index]/4;
+    bottom_diff[(4*batch_num+1)*batch_dim+inner_index] += top_diff[index]/4;
+    bottom_diff[(4*batch_num+2)*batch_dim+inner_index] += top_diff[index]/4;
+    bottom_diff[(4*batch_num+3)*batch_dim+inner_index] += top_diff[index]/4;
   }
 }
 
 template <typename Dtype>
-__global__ void CyclicPoolMAXBackward(const int n, 
+__global__ void CyclicPoolMAXBackward(const int n,
     const Dtype* top_diff, const int* maxidx_data,
     Dtype* bottom_diff) {
   // each kernel moves one
   CUDA_KERNEL_LOOP(index, n) {
-  	bottom_diff[maxidx_data[index]] += top_diff[index];
+    bottom_diff[maxidx_data[index]] += top_diff[index];
   }
 }
 
@@ -80,22 +79,22 @@ void CyclicPoolLayer<Dtype>::Forward_gpu(
   Dtype* top_data = top[0]->mutable_gpu_data();
   int* mask = max_idx_.mutable_gpu_data();
 
-   // different pooling method
+  // different pooling method
   switch (this->layer_param_.cyclic_pool_param().pool()) {
     case CyclicPoolParameter_PoolMethod_AVE:
-    CyclicPoolAVEForward<Dtype>  
-	<<<CAFFE_GET_BLOCKS(top_count), CAFFE_CUDA_NUM_THREADS>>>(top_count, 
-		bottom_data, batch_dim, top_data);
-	CUDA_POST_KERNEL_CHECK;
+    CyclicPoolAVEForward<Dtype> <<<CAFFE_GET_BLOCKS(top_count),
+      CAFFE_CUDA_NUM_THREADS>>>(top_count,
+      bottom_data, batch_dim, top_data);
+    CUDA_POST_KERNEL_CHECK;
     break;
     case CyclicPoolParameter_PoolMethod_MAX:
-    CyclicPoolMAXForward<Dtype>  
-	<<<CAFFE_GET_BLOCKS(top_count), CAFFE_CUDA_NUM_THREADS>>>(top_count, 
-		bottom_data, batch_dim, top_data, mask);
-	CUDA_POST_KERNEL_CHECK;
-	break;
+    CyclicPoolMAXForward<Dtype> <<<CAFFE_GET_BLOCKS(top_count),
+      CAFFE_CUDA_NUM_THREADS>>>(top_count,
+      bottom_data, batch_dim, top_data, mask);
+    CUDA_POST_KERNEL_CHECK;
+    break;
     case CyclicPoolParameter_PoolMethod_RMS:
-    CHECK(0)<<"currently not supported";
+    CHECK(0) << "currently not supported";
     break;
     default:
     break;
@@ -118,19 +117,19 @@ void CyclicPoolLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   // different pooling method
   switch (this->layer_param_.cyclic_pool_param().pool()) {
     case CyclicPoolParameter_PoolMethod_AVE:
-    CyclicPoolAVEBackward<Dtype>  
-	<<<CAFFE_GET_BLOCKS(top_count), CAFFE_CUDA_NUM_THREADS>>>(top_count, 
-		top_diff, batch_dim, bottom_diff);
-	CUDA_POST_KERNEL_CHECK;
+    CyclicPoolAVEBackward<Dtype> <<<CAFFE_GET_BLOCKS(top_count),
+      CAFFE_CUDA_NUM_THREADS>>>(top_count,
+      top_diff, batch_dim, bottom_diff);
+    CUDA_POST_KERNEL_CHECK;
     break;
     case CyclicPoolParameter_PoolMethod_MAX:
-    CyclicPoolMAXBackward<Dtype>  
-	<<<CAFFE_GET_BLOCKS(top_count), CAFFE_CUDA_NUM_THREADS>>>(top_count, 
-		top_diff, mask, bottom_diff);
-	CUDA_POST_KERNEL_CHECK;
+    CyclicPoolMAXBackward<Dtype> <<<CAFFE_GET_BLOCKS(top_count),
+      CAFFE_CUDA_NUM_THREADS>>>(top_count,
+      top_diff, mask, bottom_diff);
+    CUDA_POST_KERNEL_CHECK;
     break;
     case CyclicPoolParameter_PoolMethod_RMS:
-    CHECK(0)<<"currently not supported";
+    CHECK(0) << "currently not supported";
     break;
     default:
     break;
@@ -139,4 +138,4 @@ void CyclicPoolLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
 
 INSTANTIATE_LAYER_GPU_FUNCS(CyclicPoolLayer);
 
-}
+}  // namespace caffe
