@@ -39,10 +39,10 @@ void ImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
   std::ifstream infile(source.c_str());
   string line;
   size_t pos;
-  int label;
+  float label;
   while (std::getline(infile, line)) {
     pos = line.find_last_of(' ');
-    label = atoi(line.substr(pos + 1).c_str());
+    label = atof(line.substr(pos + 1).c_str());
     lines_.push_back(std::make_pair(line.substr(0, pos), label));
   }
 
