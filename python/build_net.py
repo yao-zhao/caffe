@@ -7,18 +7,22 @@ collection of quick helper to build layers
 import os
 import caffe
 from caffe import layers as L, params as P
+from caffe.proto import caffe_pb2
 
 class BuildNet:
         
     # ini def
-    def __init__(self, func, name = ''):
+    def __init__(self, func, name = 'net', savepath = 'models/'):
         self.index = 1
         self.bottom = None
         self.label = None
         self.net = caffe.NetSpec()
         self.phase = 'train'
         self.func = func
-        
+        self.solver = None
+        self.model_path = savepath + name +'/'
+        self.name = name
+
     # increase index
     def increase_index(self):
         self.index += 1
@@ -165,6 +169,22 @@ class BuildNet:
         self.add_scale(lr = lr)
         self.add_relu()
         self.index += 1
+        
+    # add a typical block       
+    def add_normal_prelu_block(self, num_output, lr = 1):
+        self.add_conv(num_output, lr = lr)
+        self.add_batchnorm()
+        self.add_scale(lr = lr)
+        self.add_prelu()
+        self.index += 1
+    
+    # add a typical block       
+    def add_normal_nopool_block(self, num_output, lr = 1):
+        self.add_conv(num_output, lr = lr, stride = 2)
+        self.add_batchnorm()
+        self.add_scale(lr = lr)
+        self.add_relu()
+        self.index += 1
     
     # add batch normalization
     def add_batchnorm(self):
@@ -208,19 +228,56 @@ class BuildNet:
               param=[dict(lr_mult= lr)])
         setattr(self.net, 'prelu'+str(self.index), self.bottom)
         
-    # save
-    def save(self, name = 'net', savepath = 'models/'):
-        if not os.path.exists(savepath):
-            os.mkdir(savepath)
+    ### define solver
+    def set_solver_sdg(self, test_interval = 100, test_iter = 1,
+                max_iter = 6e3, base_lr = 0.01, momentum = 0.9,
+                weight_decay = 1e-5, gamma = 0.1, stepsize = 2e3,
+                display = 10, snapshot = 1e3):
+        self.solver = None
+        self.solver = caffe_pb2.SolverParameter()
+        self.solver.random_seed = 0xCAFFE
+        self.solver.train_net = self.model_path+'train.prototxt'
+        self.solver.test_net.append(self.model_path+'test.prototxt')
+        self.solver.test_interval = test_interval
+        self.solver.test_iter.append(test_iter)
+        self.solver.max_iter = int(max_iter)
+        self.solver.type = "SGD"
+        self.solver.base_lr = base_lr
+        self.solver.momentum = momentum
+        self.solver.weight_decay = weight_decay
+        self.solver.lr_policy = 'step'
+        self.solver.gamma = gamma
+        self.solver.stepsize  = int(stepsize)
+        self.solver.display = int(display)
+        self.solver.snapshot = int(snapshot)
+        self.solver.snapshot_prefix = self.model_path+self.name
+        self.solver.solver_mode = caffe_pb2.SolverParameter.GPU
+
+    # write solver
+    def save_solver(self):
+        if self.solver:
+            self.solver.test_initialization = False
+            with open(self.model_path+'solver.prototxt', 'w+') as f:
+                f.write(str(self.solver))
+            self.solver.test_initialization = True
+            self.solver.max_iter = 1
+            with open(self.model_path+'solver_preload.prototxt', 'w+') as f:
+                f.write(str(self.solver))
+            print 'solver writing finished'        
+        
+    # save net
+    def save_net(self):
+        if not os.path.exists(self.model_path):
+            os.mkdir(self.model_path)
         for phase in ['train','test','deploy']:
             self.reset()            
             self.phase = phase
             self.func(self)
-            with open(savepath+name+'/'+self.phase+'.prototxt', 'w+') as f:
-                f.write('name: \"'+name+'\"\n')
+            with open(self.model_path+self.phase+'.prototxt', 'w+') as f:
+                f.write('name: \"'+self.name+'\"\n')
                 if phase == 'deploy':
                     numbatch, numchannel, height, width = caffe.Net(
-                        savepath+name+'/train.prototxt',
+                        self.model_path+'train.prototxt',
                         caffe.TRAIN).blobs['data'].shape
                     f.write('input: \"data\"\n')
                     f.write('input_dim: '+str(numbatch)+'\n')
@@ -229,3 +286,8 @@ class BuildNet:
                     f.write('input_dim: '+str(width)+'\n')
                 f.write(str(self.net.to_proto() ))
                 print self.phase+' net writing finished!' 
+    
+    # save
+    def save(self):
+        self.save_net()
+        self.save_solver()
