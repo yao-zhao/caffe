@@ -39,6 +39,7 @@ void CyclicSliceLayer<Dtype>::Forward_gpu(
   const int count = bottom[0]->count();
   const Dtype* bottom_data = bottom[0]->gpu_data();
   Dtype* top_data = top[0]->mutable_gpu_data();
+  // NOLINT_NEXT_LINE(whitespace/operators)
   CyclicSliceForward<Dtype> <<<CAFFE_GET_BLOCKS(count),
     CAFFE_CUDA_NUM_THREADS>>>(count,
     bottom_data, inner_dim, channels, size, top_data);

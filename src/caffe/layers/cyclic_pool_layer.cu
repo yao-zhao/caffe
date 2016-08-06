@@ -82,12 +82,14 @@ void CyclicPoolLayer<Dtype>::Forward_gpu(
   // different pooling method
   switch (this->layer_param_.cyclic_pool_param().pool()) {
     case CyclicPoolParameter_PoolMethod_AVE:
+    // NOLINT_NEXT_LINE(whitespace/operators)
     CyclicPoolAVEForward<Dtype> <<<CAFFE_GET_BLOCKS(top_count),
       CAFFE_CUDA_NUM_THREADS>>>(top_count,
       bottom_data, batch_dim, top_data);
     CUDA_POST_KERNEL_CHECK;
     break;
     case CyclicPoolParameter_PoolMethod_MAX:
+    // NOLINT_NEXT_LINE(whitespace/operators)
     CyclicPoolMAXForward<Dtype> <<<CAFFE_GET_BLOCKS(top_count),
       CAFFE_CUDA_NUM_THREADS>>>(top_count,
       bottom_data, batch_dim, top_data, mask);
@@ -117,12 +119,14 @@ void CyclicPoolLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   // different pooling method
   switch (this->layer_param_.cyclic_pool_param().pool()) {
     case CyclicPoolParameter_PoolMethod_AVE:
+    // NOLINT_NEXT_LINE(whitespace/operators)
     CyclicPoolAVEBackward<Dtype> <<<CAFFE_GET_BLOCKS(top_count),
       CAFFE_CUDA_NUM_THREADS>>>(top_count,
       top_diff, batch_dim, bottom_diff);
     CUDA_POST_KERNEL_CHECK;
     break;
     case CyclicPoolParameter_PoolMethod_MAX:
+    // NOLINT_NEXT_LINE(whitespace/operators)
     CyclicPoolMAXBackward<Dtype> <<<CAFFE_GET_BLOCKS(top_count),
       CAFFE_CUDA_NUM_THREADS>>>(top_count,
       top_diff, mask, bottom_diff);

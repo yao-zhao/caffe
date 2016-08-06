@@ -25,7 +25,7 @@ __global__ void CyclicRollForward(const int n,
         int rotation = (bottom_batch_rotid-top_batch_rotid)%4;
         rotation = (rotation >= 0)?rotation:(4+rotation);
         int top_channel_id = 4*bottom_channel_id+ rotation;
-        int top_batch_id = bottom_batch_id - bottom_batch_rotid + top_batch_rotid;
+        int top_batch_id = bottom_batch_id-bottom_batch_rotid+top_batch_rotid;
         switch (rotation) {
           case 0:
           top_data[((top_batch_id*top_channels+top_channel_id)*
@@ -105,6 +105,7 @@ void CyclicRollLayer<Dtype>::Forward_gpu(
   const Dtype* bottom_data = bottom[0]->gpu_data();
   Dtype* top_data = top[0]->mutable_gpu_data();
   const int bottom_count = bottom[0]->count();
+  // NOLINT_NEXT_LINE(whitespace/operators)
   CyclicRollForward<Dtype> <<<CAFFE_GET_BLOCKS(bottom_count),
     CAFFE_CUDA_NUM_THREADS>>>(bottom_count,
     bottom_data, bottom_batch_dim, channel_dim,
@@ -127,6 +128,7 @@ void CyclicRollLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   const int bottom_count = bottom[0]->count();
   // clear bottom diff
   caffe_gpu_set(bottom[0]->count(), Dtype(0), bottom_diff);
+  // NOLINT_NEXT_LINE(whitespace/operators)
   CyclicRollBackward<Dtype> <<<CAFFE_GET_BLOCKS(bottom_count),
     CAFFE_CUDA_NUM_THREADS>>>(bottom_count,
     top_diff, bottom_batch_dim, channel_dim,
