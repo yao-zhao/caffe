@@ -7,13 +7,13 @@
 #include <utility>
 #include <vector>
 
-#include "caffe/layers/dense_image_data_layer.hpp"
+#include "caffe/data_transformer.hpp"
 #include "caffe/layers/base_data_layer.hpp"
+#include "caffe/layers/dense_image_data_layer.hpp"
 #include "caffe/util/benchmark.hpp"
 #include "caffe/util/io.hpp"
 #include "caffe/util/math_functions.hpp"
 #include "caffe/util/rng.hpp"
-#include "caffe/data_transformer.hpp"
 
 namespace caffe {
 
@@ -23,7 +23,8 @@ DenseImageDataLayer<Dtype>::~DenseImageDataLayer<Dtype>() {
 }
 
 template <typename Dtype>
-void DenseImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
+void DenseImageDataLayer<Dtype>::DataLayerSetUp(
+      const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   const int new_height = this->layer_param_.dense_image_data_param().new_height();
   const int new_width  = this->layer_param_.dense_image_data_param().new_width();
@@ -33,7 +34,7 @@ void DenseImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bott
   CHECK((new_height == 0 && new_width == 0) ||
       (new_height > 0 && new_width > 0)) << "Current implementation requires "
       "new_height and new_width to be set at the same time.";
-  // Read the file with filenames and labels
+  //Read the file with filenames and labels
   const string& source = this->layer_param_.dense_image_data_param().source();
   LOG(INFO) << "Opening file " << source;
   std::ifstream infile(source.c_str());
