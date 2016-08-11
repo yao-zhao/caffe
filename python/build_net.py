@@ -74,7 +74,10 @@ class BuildNet:
 ###############################################################################
     # set data layer
     def add_lmdb(self, transformer_dict = None, batch_size = 32,
+                 test_batch_size = None,
                  backend = P.Data.LMDB, source_path = 'data/'):
+        if test_batch_size is None:
+            test_batch_size = batch_size
         if self.phase == 'train':
             self.bottom, self.label = L.Data(batch_size = batch_size, 
                     backend = backend, source = source_path + 'train_lmdb',
@@ -83,7 +86,7 @@ class BuildNet:
             self.net.data = self.bottom
             self.net.label = self.label      
         elif self.phase == 'test':
-            self.bottom, self.label = L.Data(batch_size = batch_size, 
+            self.bottom, self.label = L.Data(batch_size = test_batch_size, 
                     backend = backend, source = source_path + 'val_lmdb',
                     transform_param = transformer_dict,
                     ntop=2, include=dict(phase=caffe.TEST))
@@ -94,8 +97,11 @@ class BuildNet:
 
     # set image data layer
     def add_image(self, transformer_dict = None, batch_size = 32,
+                 test_batch_size = None,
                  source_path = 'data/', root_folder = 'data/',
                  shuffle = True, is_color = True, height = None, width = None):
+        if test_batch_size is None:
+            test_batch_size = batch_size
         # probe image data dimension
         if not height or not width:
             tmpnet = caffe.NetSpec()
@@ -123,7 +129,7 @@ class BuildNet:
             self.net.data = self.bottom
             self.net.label = self.label    
         elif self.phase == 'test':
-            self.bottom, self.label = L.ImageData(batch_size = batch_size, 
+            self.bottom, self.label = L.ImageData(batch_size = test_batch_size, 
                     source = source_path + 'val.txt',
                     root_folder = root_folder, is_color = is_color,
                     shuffle = shuffle,
