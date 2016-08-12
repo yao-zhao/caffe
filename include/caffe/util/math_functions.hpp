@@ -95,6 +95,9 @@ template <typename Dtype>
 void caffe_abs(const int n, const Dtype* a, Dtype* y);
 
 template <typename Dtype>
+void caffe_inv(const int n, const Dtype* a, Dtype* y);
+
+template <typename Dtype>
 Dtype caffe_cpu_dot(const int n, const Dtype* x, const Dtype* y);
 
 template <typename Dtype>
@@ -202,6 +205,9 @@ void caffe_gpu_abs(const int n, const Dtype* a, Dtype* y);
 
 template <typename Dtype>
 void caffe_gpu_exp(const int n, const Dtype* a, Dtype* y);
+
+template <typename Dtype>
+void caffe_gpu_inv(const int n, const Dtype* a, Dtype* y);
 
 template <typename Dtype>
 void caffe_gpu_log(const int n, const Dtype* a, Dtype* y);
