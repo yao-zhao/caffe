@@ -378,6 +378,7 @@ message LayerParameter {
   optional EmbedParameter embed_param = 137;
   optional ExpParameter exp_param = 111;
   optional FlattenParameter flatten_param = 135;
+  optional GaussianProbLossParameter gaussian_prob_loss_param = 210;
   optional HDF5DataParameter hdf5_data_param = 112;
   optional HDF5OutputParameter hdf5_output_param = 113;
   optional HingeLossParameter hinge_loss_param = 114;
@@ -801,6 +802,12 @@ message FlattenParameter {
   // May be negative to index from the end (e.g., the default -1 for the last
   // axis).
   optional int32 end_axis = 2 [default = -1];
+}
+
+// Message that stores parameters used by GaussianProbLossLayer
+message GaussianProbLossParameter {
+  // specify the minimum predicted variance
+  optional float eps = 1 [default = 1e-5];
 }
 
 // Message that stores parameters used by HDF5DataLayer
