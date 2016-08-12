@@ -25,9 +25,9 @@ void GaussianProbLossLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& botto
   caffe_gpu_log(count, diff_diff, tmp_data2);
   caffe_gpu_add(count, tmp_data, tmp_data2, tmp_data);
   // calculate loss
-  Dtype sum;
-  caffe_gpu_asum(count, tmp_data, &sum);
-  Dtype loss = sum/Dtype(bottom[0]->count())/Dtype(2);
+  Dtype loss;
+  caffe_gpu_dot(count, tmp_data, sumvec_.gpu_data(), &loss);
+  loss /= Dtype(count)*Dtype(2);
   top[0]->mutable_cpu_data()[0] = loss;
 }
 

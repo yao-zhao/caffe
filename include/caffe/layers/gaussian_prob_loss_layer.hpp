@@ -33,6 +33,9 @@ class GaussianProbLossLayer : public LossLayer<Dtype> {
       const vector<Blob<Dtype>*>& top);
 
   virtual inline const char* type() const { return "GaussianProbLoss"; }
+  virtual inline int ExactNumBottomBlobs() const { return 3; }
+  virtual inline int ExactNumTopBlobs() const { return 1; }
+
   /**
    * do not allow to backprop to bottom[2] which is label
    */
@@ -56,6 +59,7 @@ class GaussianProbLossLayer : public LossLayer<Dtype> {
   Blob<Dtype> diff_;
   Blob<Dtype> tmp_;
   Dtype eps_;
+  Blob<Dtype> sumvec_;
 
 };
 
