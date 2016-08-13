@@ -167,7 +167,7 @@ class BuildNet:
             accuracy = L.Accuracy(self.bottom, self.label)
             setattr(self.net, 'loss', softmax)
             setattr(self.net, 'accuracy', accuracy)
-        elif self.phase =='deploy':
+        elif self.phase == 'deploy':
             softmax = L.Softmax(self.bottom)
             setattr(self.net, 'prob', softmax)
 
@@ -177,6 +177,30 @@ class BuildNet:
             euclidean = L.EuclideanLoss(self.bottom, self.label,
                                       loss_weight = loss_weight)
             setattr(self.net, 'loss', euclidean)
+
+    # add gaussian prob loss layer with fc
+    def add_gaussian_prob(self, lr = 1, eps = 1e-5,
+        loss_weight = 1):
+        if self.phase == 'train' or self.phase == 'test':
+            self.mean = L.InnerProduct(self.bottom, num_output = 1,
+                param = [dict(lr_mult = lr)],
+                weight_filler = dict(type = 'xavier'))
+            self.var = L.InnerProduct(self.bottom, num_output = 1,
+                param = [dict(lr_mult = lr)],
+                weight_filler = dict(type = 'xavier'))
+            setattr(self.net, 'fcmean'+str(self.index), self.mean)
+            setattr(self.net, 'fcvar'+str(self.index), self.var)
+            self.index += 1
+            gaussianprob = L.GaussianProbLoss(self.mean, self.var, self.label,
+                gaussian_prob_loss_param = dict(eps = eps),
+                loss_weight = loss_weight)
+            setattr(self.net, 'loss', gaussianprob)
+        elif self.phase == 'deploy':
+            self.mean = L.InnerProduct(self.bottom, num_output = num_output)
+            self.var = L.InnerProduct(self.bottom, num_output = num_output)
+            setattr(self.net, 'fcmean'+str(self.index), self.mean)
+            setattr(self.net, 'fcvar'+str(self.index), self.var)
+            self.index += 1
 
 # common building components
 ###############################################################################           
@@ -243,8 +267,8 @@ class BuildNet:
     def add_fc(self, num_output, lr = 1, dropout = 0):
         if self.phase == 'train' or self.phase == 'test':
             self.bottom = L.InnerProduct(self.bottom,
-                num_output = num_output, param=[dict(lr_mult= lr)],
-                weight_filler=dict(type='xavier'))
+                num_output = num_output, param = [dict(lr_mult = lr)],
+                weight_filler = dict(type = 'xavier'))
         elif self.phase == 'deploy':
             self.bottom = L.InnerProduct(self.bottom,
                 num_output = num_output)
