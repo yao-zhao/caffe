@@ -126,7 +126,8 @@ TYPED_TEST(GaussianProbLossLayerTest, TestForward2) {
   }
   loss /= Dtype(2)*Dtype(count);
   layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
-  EXPECT_NEAR(this->blob_top_vec_[0]->cpu_data()[0], loss, 1e-5);
+  EXPECT_NEAR(this->blob_top_vec_[0]->cpu_data()[0],
+    loss+Dtype(0.3990899), 1e-5);
 }
 
 TYPED_TEST(GaussianProbLossLayerTest, TestGradient) {
