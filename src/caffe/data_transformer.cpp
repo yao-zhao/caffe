@@ -110,7 +110,7 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
     // in ReadImageToCVMat which is used in convert_imageset.cpp,
     // if not converted, will convert here
     // images are automatically converted to 8U
-    cv_img = cv::Mat(datum_height,datum_width, CV_8UC(datum_channels));
+    cv_img = cv::Mat(datum_height, datum_width, CV_8UC(datum_channels));
     for (int h = 0; h < datum_height; ++h) {
       uchar* ptr = cv_img.ptr<uchar>(h);
       int img_index = 0;
@@ -142,7 +142,7 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
       cv::warpAffine(cv_img, cv_img, r,
         cv::Size(cv_img.cols, cv_img.rows));
     }
-    //perspective transform
+    // perspective transform
     if (has_perspective_transformation) {
       const int perspective_transformation_border =
         param_.perspective_transformation_border();
@@ -155,9 +155,11 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
         0+Rand(perspective_transformation_border));
       src_shape[1]=cv::Point2f(0+Rand(perspective_transformation_border),
         cv_img.rows-Rand(perspective_transformation_border));
-      src_shape[2]=cv::Point2f(cv_img.cols-Rand(perspective_transformation_border),
+      src_shape[2]=cv::Point2f(cv_img.cols
+        -Rand(perspective_transformation_border),
         cv_img.rows-Rand(perspective_transformation_border));
-      src_shape[3]=cv::Point2f(cv_img.cols-Rand(perspective_transformation_border),
+      src_shape[3]=cv::Point2f(cv_img.cols
+        -Rand(perspective_transformation_border),
         0+Rand(perspective_transformation_border));
       cv::Point2f dst_shape[4];
       dst_shape[0]=cv::Point2f(0, 0);
@@ -208,14 +210,14 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
             switch (datum_channels) {
               case 1:
                 datum_element =
-                static_cast<Dtype>(cv_img.at<uchar>(h+h_off,w+w_off));
+                static_cast<Dtype>(cv_img.at<uchar>(h+h_off, w+w_off));
                 break;
               case 3:
                 datum_element =
-                static_cast<Dtype>(cv_img.at<cv::Vec3b>(h+h_off,w+w_off)[c]);
+                static_cast<Dtype>(cv_img.at<cv::Vec3b>(h+h_off, w+w_off)[c]);
                 break;
               default:
-                CHECK(0)<<"wrong number of channels";
+                CHECK(0) << "wrong number of channels";
             }
           } else {
             datum_element =
@@ -394,11 +396,12 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
     }
   }
 
-  const bool has_rotation = param_.rotation_range()>0;
-  const bool has_perspective_transformation = param_.perspective_transformation_border()>0;
+  const bool has_rotation = param_.rotation_range() > 0;
+  const bool has_perspective_transformation =
+    param_.perspective_transformation_border() > 0;
   const bool random_crop_test = param_.random_crop_test();
-  const bool has_scale_jitter = param_.scale_jitter_range()>0;
-  const bool has_contrast_jitter = param_.contrast_jitter_range()>0;
+  const bool has_scale_jitter = param_.scale_jitter_range() > 0;
+  const bool has_contrast_jitter = param_.contrast_jitter_range() > 0;
 
   if (has_contrast_jitter) {
     float contrast_jitter_range = param_.contrast_jitter_range();

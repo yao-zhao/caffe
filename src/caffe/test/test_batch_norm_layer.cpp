@@ -20,7 +20,8 @@ namespace caffe {
   template <typename TypeParam>
   class BatchNormLayerTest : public MultiDeviceTest<TypeParam> {
     typedef typename TypeParam::Dtype Dtype;
-   protected:
+  protected:
+
     BatchNormLayerTest()
         : blob_bottom_(new Blob<Dtype>(4, 3, 2, 5)),
           blob_top_(new Blob<Dtype>()),
@@ -45,14 +46,14 @@ namespace caffe {
             for ( int l = 0; l < width; ++l ) {
               index++;
               this->blob_bottom2_->mutable_cpu_data()
-              [this->blob_bottom2_->offset(i, j, k, l)] 
+              [this->blob_bottom2_->offset(i, j, k, l)]
               = Dtype(2*(j+3) + 2*(index%2)-1);
             }
           }
         }
       }
     }
-    virtual ~BatchNormLayerTest() { delete blob_bottom_; delete blob_top_; 
+    virtual ~BatchNormLayerTest() { delete blob_bottom_; delete blob_top_;
       delete blob_bottom2_; delete blob_param_; }
     Blob<Dtype>* const blob_bottom_;
     Blob<Dtype>* const blob_top_;
@@ -103,7 +104,8 @@ namespace caffe {
   TYPED_TEST(BatchNormLayerTest, TestTwoTopsForward) {
     typedef typename TypeParam::Dtype Dtype;
     LayerParameter layer_param;
-    BatchNormParameter* batch_norm_param = layer_param.mutable_batch_norm_param();
+    BatchNormParameter* batch_norm_param =
+      layer_param.mutable_batch_norm_param();
     batch_norm_param->set_use_global_stats(false);
     this->blob_top_vec_.push_back(this->blob_param_);
 

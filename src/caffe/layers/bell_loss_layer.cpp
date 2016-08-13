@@ -16,7 +16,6 @@ void BellLossLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   CHECK_GT(threshold_, 0)<<"threshold has to be a positive number"; 
 }
 
-
 template <typename Dtype>
 void BellLossLayer<Dtype>::Reshape(
   const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
@@ -36,7 +35,8 @@ void BellLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   const Dtype* bottom_data = bottom[0]->cpu_data();
   // hack: save the bottom - label in tmp_data
   caffe_sub(count, bottom_data, label_data, tmp_data);
-  // calculate normalized diff, temporarily save the normalizer to diff_data first
+  // calculate normalized diff,
+  //temporarily save the normalizer to diff_data first
   caffe_abs(count, label_data, diff_data);
   caffe_cpu_scale(count, Dtype(1)/threshold_, diff_data, diff_data);
   caffe_powx(count, diff_data, power_, diff_data);

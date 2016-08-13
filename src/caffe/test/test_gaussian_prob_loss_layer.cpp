@@ -69,16 +69,15 @@ class GaussianProbLossLayerTest : public MultiDeviceTest<TypeParam> {
 TYPED_TEST_CASE(GaussianProbLossLayerTest, TestDtypesAndDevices);
 
 TYPED_TEST(GaussianProbLossLayerTest, TestSetUp) {
- typedef typename TypeParam::Dtype Dtype;
+  typedef typename TypeParam::Dtype Dtype;
   LayerParameter layer_param;
   GaussianProbLossLayer<Dtype> layer(layer_param);
   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
-  EXPECT_EQ(this->blob_top_vec_[0]->count(),1);
+  EXPECT_EQ(this->blob_top_vec_[0]->count(), 1);
 }
 
-
 TYPED_TEST(GaussianProbLossLayerTest, TestForward) {
- typedef typename TypeParam::Dtype Dtype;
+  typedef typename TypeParam::Dtype Dtype;
   LayerParameter layer_param;
   layer_param.mutable_gaussian_prob_loss_param()->set_eps(0.1);
   GaussianProbLossLayer<Dtype> layer(layer_param);
@@ -87,10 +86,10 @@ TYPED_TEST(GaussianProbLossLayerTest, TestForward) {
   const Dtype* var = this->blob_bottom_vec_[1]->cpu_data();
   const Dtype* label = this->blob_bottom_vec_[2]->cpu_data();
   const int count =this->blob_bottom_vec_[0]->count(); 
-  Dtype loss=0;
-  Dtype tmp=0;
-  Dtype tmp2=0;
-  for (int i=0; i < count; ++i) {
+  Dtype loss = 0;
+  Dtype tmp = 0;
+  Dtype tmp2 = 0;
+  for (int i = 0; i < count; ++i) {
     EXPECT_GE(var[i], 0);
     tmp = mean[i]-label[i];
     tmp = tmp * tmp;
@@ -103,23 +102,22 @@ TYPED_TEST(GaussianProbLossLayerTest, TestForward) {
   EXPECT_NEAR(this->blob_top_vec_[0]->cpu_data()[0], loss, 1e-5);
 }
 
-
 TYPED_TEST(GaussianProbLossLayerTest, TestForward2) {
- typedef typename TypeParam::Dtype Dtype;
+  typedef typename TypeParam::Dtype Dtype;
   LayerParameter layer_param;
   GaussianProbLossLayer<Dtype> layer(layer_param);
   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
   const Dtype* mean = this->blob_bottom_vec_[0]->cpu_data();
   const Dtype* var = this->blob_bottom_vec_[1]->cpu_data();
   const Dtype* label = this->blob_bottom_vec_[2]->cpu_data();
-  const int count =this->blob_bottom_vec_[0]->count(); 
-  Dtype loss=0;
-  Dtype tmp=0;
-  Dtype tmp2=0;
-  for (int i=0; i < count; ++i) {
+  const int count = this->blob_bottom_vec_[0]->count(); 
+  Dtype loss = 0;
+  Dtype tmp = 0;
+  Dtype tmp2 = 0;
+  for (int i = 0; i < count; ++i) {
     EXPECT_GE(var[i], 0);
     tmp = mean[i]-label[i];
-    tmp = tmp * tmp;
+    tmp = tmp*tmp;
     tmp2 = Dtype(1e-5)+var[i];
     EXPECT_GT(var[i], 0);
     loss += tmp/tmp2+log(tmp2);

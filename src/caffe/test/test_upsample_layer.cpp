@@ -6,8 +6,8 @@
 #include "caffe/blob.hpp"
 #include "caffe/common.hpp"
 #include "caffe/filler.hpp"
-#include "caffe/layers/upsample_layer.hpp"
 #include "caffe/layers/pooling_layer.hpp"
+#include "caffe/layers/upsample_layer.hpp"
 
 #include "caffe/test/test_caffe_main.hpp"
 #include "caffe/test/test_gradient_check_util.hpp"
@@ -102,13 +102,13 @@ class UpsampleLayerTest : public MultiDeviceTest<TypeParam> {
       EXPECT_EQ(blob_top_->cpu_data()[i + 15], 0);
     }
   }
-  int MapIndexBottomToTop(int bottom_idx, int scale_w, 
+  int MapIndexBottomToTop(int bottom_idx, int scale_w,
                           int scale_h, bool randomize) {
     const int input_width = bottom_idx % blob_bottom_->width();
     const int input_height = bottom_idx / blob_bottom_->width();
     const int top_w = scale_w * blob_bottom_->width();
-    int out_w = scale_w * input_width + (randomize ? rand() % scale_w : 0);
-    int out_h = scale_h * input_height + (randomize ? rand() % scale_h : 0);
+    int out_w = scale_w*input_width+(randomize ? caffe_rng_rand()%scale_w : 0);
+    int out_h = scale_h*input_height+(randomize ? caffe_rng_rand()%scale_h : 0);
     int out_idx = out_w + out_h * top_w;
 //     std::cout << "mask i, iw, ih, ow, oh, topw, outidx: " 
 //               << bottom_idx << " " << input_width << " "
@@ -121,12 +121,11 @@ class UpsampleLayerTest : public MultiDeviceTest<TypeParam> {
   }
   void FillBottomMask(int scale_w, int scale_h, bool randomize = false) {
     Dtype* mask_data = blob_bottom_mask_->mutable_cpu_data();
-    for(int n = 0; n < blob_bottom_->num(); ++n) {
-      for(int c = 0; c < blob_bottom_->channels(); ++c) {
-        for(int i = 0; i < blob_bottom_->height() * blob_bottom_->width(); ++i) {
+    for (int n = 0; n < blob_bottom_->num(); ++n) {
+      for (int c = 0; c < blob_bottom_->channels(); ++c) {
+        for (int i = 0; i < blob_bottom_->height()*blob_bottom_->width(); ++i) {
           int idx = MapIndexBottomToTop(i, scale_w, scale_h, randomize);
           mask_data[i] = idx;
-          
         }
         mask_data += blob_bottom_mask_->offset(0, 1);
       }
@@ -161,7 +160,8 @@ TYPED_TEST(UpsampleLayerTest, PrintBackward) {
   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
   layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
   for (int i = 0; i < this->blob_bottom_->count(); ++i) {
-    cout << "bottom data " << i << " " << this->blob_bottom_->cpu_data()[i] << endl;
+    cout << "bottom data " << i << " " <<
+     this->blob_bottom_->cpu_data()[i] << endl;
   }
   for (int i = 0; i < this->blob_bottom_mask_->count(); ++i) {
     cout << "bottom mask data " << i << " " 
@@ -193,7 +193,7 @@ TYPED_TEST(UpsampleLayerTest, TestForwardFromPool) {
   int kernel_w = 2;
   int kernel_h = 2;
   Blob<Dtype>* input_blob = new Blob<Dtype>();
-  input_blob->Reshape(2,3,4,4);
+  input_blob->Reshape(2, 3, 4, 4);
   FillerParameter filler_param;
   GaussianFiller<Dtype> filler(filler_param);
   filler.Fill(input_blob);
@@ -204,7 +204,7 @@ TYPED_TEST(UpsampleLayerTest, TestForwardFromPool) {
   pooling_param->set_kernel_h(kernel_h);
   pooling_param->set_kernel_w(kernel_w);
   pooling_param->set_stride(2);
-//   pooling_param->set_pad(1);
+  //pooling_param->set_pad(1);
   pooling_param->set_pool(PoolingParameter_PoolMethod_MAX);
   PoolingLayer<Dtype> pooling_layer(layer_param);
   pooling_layer.SetUp(pool_bottom_vec, this->blob_bottom_vec_);
@@ -218,7 +218,8 @@ TYPED_TEST(UpsampleLayerTest, TestForwardFromPool) {
   EXPECT_EQ(this->blob_bottom_mask_->width(), 2);
 
   LayerParameter upsample_layer_param;
-  UpsampleParameter* upsample_param = upsample_layer_param.mutable_upsample_param();
+  UpsampleParameter* upsample_param =
+    upsample_layer_param.mutable_upsample_param();
   upsample_param->set_upsample_h(4);
   upsample_param->set_upsample_w(4);
   UpsampleLayer<Dtype> upsample_layer(upsample_layer_param);
@@ -234,8 +235,8 @@ TYPED_TEST(UpsampleLayerTest, TestForwardFromPool) {
   const Dtype* top_data = this->blob_top_->cpu_data();
   const Dtype* pool_bottom_data = input_blob->cpu_data();
   int num_zeros = 0;
-  for(int i = 0; i < this->blob_top_->count(); ++i) {
-    if(top_data[i] != 0) {
+  for (int i = 0; i < this->blob_top_->count(); ++i) {
+    if (top_data[i] != 0) {
       EXPECT_EQ(top_data[i], pool_bottom_data[i]);
     } else {
       ++num_zeros;
@@ -249,7 +250,7 @@ TYPED_TEST(UpsampleLayerTest, TestForwardFromPoolOddShape) {
   int kernel_w = 2;
   int kernel_h = 2;
   Blob<Dtype>* input_blob = new Blob<Dtype>();
-  input_blob->Reshape(2,3,5,4);
+  input_blob->Reshape(2, 3, 5, 4);
   FillerParameter filler_param;
   GaussianFiller<Dtype> filler(filler_param);
   filler.Fill(input_blob);
@@ -273,7 +274,8 @@ TYPED_TEST(UpsampleLayerTest, TestForwardFromPoolOddShape) {
   EXPECT_EQ(this->blob_bottom_mask_->width(), 2);
 
   LayerParameter upsample_layer_param;
-  UpsampleParameter* upsample_param = upsample_layer_param.mutable_upsample_param();
+  UpsampleParameter* upsample_param =
+    upsample_layer_param.mutable_upsample_param();
   upsample_param->set_upsample_h(5);
   upsample_param->set_upsample_w(4);
   UpsampleLayer<Dtype> upsample_layer(upsample_layer_param);

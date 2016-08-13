@@ -105,7 +105,8 @@ class BuildNet:
         # probe image data dimension
         if not height or not width:
             tmpnet = caffe.NetSpec()
-            tmpnet.data, tmpnet.label = L.ImageData(source = source_path + 'train.txt',
+            tmpnet.data, tmpnet.label = L.ImageData(
+                source = source_path+'train.txt',
                 root_folder = root_folder, is_color = is_color,
                 batch_size= 1, ntop = 2)
             with open('tmpnet.prototxt', 'w+') as f:
@@ -123,9 +124,9 @@ class BuildNet:
                     source = source_path + 'train.txt',
                     root_folder = root_folder, is_color = is_color,
                     shuffle = shuffle,
-                    transform_param = transformer_dict, ntop=2,
+                    transform_param = transformer_dict, ntop = 2,
                     new_height = height, new_width = width,
-                    include=dict(phase=caffe.TRAIN))
+                    include = dict(phase = caffe.TRAIN))
             self.net.data = self.bottom
             self.net.label = self.label    
         elif self.phase == 'test':
@@ -133,9 +134,9 @@ class BuildNet:
                     source = source_path + 'val.txt',
                     root_folder = root_folder, is_color = is_color,
                     shuffle = shuffle,
-                    transform_param = transformer_dict, ntop=2,
+                    transform_param = transformer_dict, ntop = 2,
                     new_height = height, new_width = width,
-                    include=dict(phase=caffe.TEST))
+                    include = dict(phase = caffe.TEST))
             self.net.data = self.bottom
             self.net.label = self.label   
         elif self.phase == 'deploy':
@@ -211,18 +212,19 @@ class BuildNet:
 # common building components
 ###############################################################################           
     # convolutional layer 
-    def add_conv(self, num_output, lr=1, kernel_size=3, pad=1, stride=1):
+    def add_conv(self, num_output, lr = 1, kernel_size = 3,
+        pad = 1, stride = 1):
         if self.phase == 'train' or self.phase == 'test':
             self.bottom = L.Convolution(self.bottom, 
-                kernel_size=kernel_size, pad=pad, 
-                stride=stride, num_output=num_output,
-                weight_filler=dict(type='xavier'),
-                param=dict(lr_mult= lr), bias_term=False)
+                kernel_size = kernel_size, pad = pad, 
+                stride = stride, num_output = num_output,
+                weight_filler = dict(type = 'xavier'),
+                param = dict(lr_mult = lr), bias_term = False)
         elif self.phase == 'deploy':
-            self.bottom =  L.Convolution(self.bottom, 
-                kernel_size=kernel_size, pad=pad, 
-                stride=stride, num_output=num_output,
-                bias_term=False)
+            self.bottom = L.Convolution(self.bottom, 
+                kernel_size = kernel_size, pad = pad, 
+                stride = stride, num_output = num_output,
+                bias_term = False)
         else:
             print "phase not supported"
         setattr(self.net, 'conv'+str(self.index), self.bottom)
@@ -231,31 +233,31 @@ class BuildNet:
     def add_batchnorm(self):
         if self.phase == 'train':
             self.bottom = L.BatchNorm(self.bottom,
-                param=[dict(lr_mult= 0),dict(lr_mult= 0),dict(lr_mult= 0)],
-                batch_norm_param=dict(use_global_stats=False),
-                in_place=True)
+                param = [dict(lr_mult = 0),dict(lr_mult = 0),dict(lr_mult = 0)],
+                batch_norm_param = dict(use_global_stats = False),
+                in_place = True)
         elif self.phase == 'test':
             self.bottom = L.BatchNorm(self.bottom,
-                param=[dict(lr_mult= 0),dict(lr_mult= 0),dict(lr_mult= 0)],
-                batch_norm_param=dict(use_global_stats=True),
-                in_place=True)
+                param = [dict(lr_mult = 0),dict(lr_mult = 0),dict(lr_mult = 0)],
+                batch_norm_param = dict(use_global_stats = True),
+                in_place = True)
         elif self.phase == 'deploy':
             self.bottom = L.BatchNorm(self.bottom,
-                batch_norm_param=dict(use_global_stats=True),
-                in_place=True)
+                batch_norm_param = dict(use_global_stats = True),
+                in_place = True)
         setattr(self.net, 'bn'+str(self.index), self.bottom)
 
     # add scale function
     def add_scale(self, lr = 1):
         if self.phase == 'train' or self.phase == 'test':
             self.bottom = L.Scale(self.bottom,
-                  param=[dict(lr_mult= lr), dict(lr_mult= lr)],
-                  bias_term=True,in_place=True,
-                  bias_filler=dict(type='constant',value=0))
+                  param = [dict(lr_mult = lr), dict(lr_mult = lr)],
+                  bias_term = True, in_place = True,
+                  bias_filler = dict(type = 'constant',value = 0))
         else:
             self.bottom = L.Scale(self.bottom,
-                  param=[dict(lr_mult= lr), dict(lr_mult= lr)],
-                  bias_term=True,in_place=True)
+                  param = [dict(lr_mult = lr), dict(lr_mult = lr)],
+                  bias_term = True, in_place = True)
         setattr(self.net, 'scale'+str(self.index), self.bottom)
 
     # ReLU 
@@ -266,7 +268,7 @@ class BuildNet:
     # Parameterized ReLU 
     def add_prelu(self, lr = 1):
         self.bottom = L.PReLU(self.bottom, in_place = True, 
-              param=[dict(lr_mult= lr)])
+              param = [dict(lr_mult = lr)])
         setattr(self.net, 'prelu'+str(self.index), self.bottom)
 
     # add fc
