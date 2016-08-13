@@ -179,7 +179,7 @@ class BuildNet:
             setattr(self.net, 'loss', euclidean)
 
     # add gaussian prob loss layer with fc
-    def add_gaussian_prob(self, lr = 1, eps = 1e-5,
+    def add_gaussian_prob(self, lr = 1, eps = 1e-2,
         loss_weight = 1):
         if self.phase == 'train' or self.phase == 'test':
             self.mean = L.InnerProduct(self.bottom, num_output = 1,
@@ -188,18 +188,22 @@ class BuildNet:
             self.var = L.InnerProduct(self.bottom, num_output = 1,
                 param = [dict(lr_mult = lr)],
                 weight_filler = dict(type = 'xavier'))
+            self.relu = L.ReLU(self.var, in_place = True)
             setattr(self.net, 'fcmean'+str(self.index), self.mean)
             setattr(self.net, 'fcvar'+str(self.index), self.var)
+            setattr(self.net, 'relu'+str(self.index), self.relu)
             self.index += 1
             gaussianprob = L.GaussianProbLoss(self.mean, self.var, self.label,
                 gaussian_prob_loss_param = dict(eps = eps),
                 loss_weight = loss_weight)
             setattr(self.net, 'loss', gaussianprob)
         elif self.phase == 'deploy':
-            self.mean = L.InnerProduct(self.bottom, num_output = num_output)
-            self.var = L.InnerProduct(self.bottom, num_output = num_output)
+            self.mean = L.InnerProduct(self.bottom, num_output = 1)
+            self.var = L.InnerProduct(self.bottom, num_output = 1)
+            self.relu = L.ReLU(self.var, in_place = True)
             setattr(self.net, 'fcmean'+str(self.index), self.mean)
             setattr(self.net, 'fcvar'+str(self.index), self.var)
+            setattr(self.net, 'relu'+str(self.index), self.relu)
             self.index += 1
 
 # common building components
