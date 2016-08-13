@@ -183,11 +183,13 @@ class BuildNet:
         loss_weight = 1):
         if self.phase == 'train' or self.phase == 'test':
             self.mean = L.InnerProduct(self.bottom, num_output = 1,
-                param = [dict(lr_mult = lr)],
-                weight_filler = dict(type = 'xavier'))
+                param = [dict(lr_mult = lr), dict(lr_mult = lr)],
+                weight_filler = dict(type = 'xavier'),
+                bias_filler = dict(type = 'constant', value = 0))
             self.var = L.InnerProduct(self.bottom, num_output = 1,
-                param = [dict(lr_mult = lr)],
-                weight_filler = dict(type = 'xavier'))
+                param = [dict(lr_mult = lr), dict(lr_mult = lr)],
+                weight_filler = dict(type = 'xavier'),
+                bias_filler = dict(type = 'constant', value = 1))
             self.relu = L.ReLU(self.var, in_place = True)
             setattr(self.net, 'fcmean'+str(self.index), self.mean)
             setattr(self.net, 'fcvar'+str(self.index), self.var)
@@ -268,11 +270,13 @@ class BuildNet:
         setattr(self.net, 'prelu'+str(self.index), self.bottom)
 
     # add fc
-    def add_fc(self, num_output, lr = 1, dropout = 0):
+    def add_fc(self, num_output, lr = 1, dropout = 0, bias_value = 0):
         if self.phase == 'train' or self.phase == 'test':
             self.bottom = L.InnerProduct(self.bottom,
-                num_output = num_output, param = [dict(lr_mult = lr)],
-                weight_filler = dict(type = 'xavier'))
+                num_output = num_output,
+                param = [dict(lr_mult = lr), dict(lr_mult = lr)],
+                weight_filler = dict(type = 'xavier'),
+                bias_filler = dict(type = 'constant', value = bias_value))
         elif self.phase == 'deploy':
             self.bottom = L.InnerProduct(self.bottom,
                 num_output = num_output)
