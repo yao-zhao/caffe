@@ -24,7 +24,6 @@ namespace caffe {
 
 template <typename Dtype>
 class GaussianProbLossLayer : public LossLayer<Dtype> {
-
  public:
   explicit GaussianProbLossLayer(const LayerParameter& param)
       : LossLayer<Dtype>(param), diff_() {}
@@ -32,11 +31,9 @@ class GaussianProbLossLayer : public LossLayer<Dtype> {
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top);
   virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
-
   virtual inline const char* type() const { return "GaussianProbLoss"; }
   virtual inline int ExactNumBottomBlobs() const { return 3; }
   virtual inline int ExactNumTopBlobs() const { return 1; }
-
   /**
    * do not allow to backprop to bottom[2] which is label
    */
