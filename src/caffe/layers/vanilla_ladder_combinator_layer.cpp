@@ -14,9 +14,11 @@ inline Dtype sigmoid(Dtype x) {
 }
 
 template <typename Dtype>
-void VanillaLadderCombinatorLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
+void VanillaLadderCombinatorLayer<Dtype>::LayerSetUp(
+      const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
-  const LadderCombinatorParameter& param = this->layer_param_.ladder_combinator_param();
+  const LadderCombinatorParameter& param =
+    this->layer_param_.ladder_combinator_param();
   // check axis, default starting axis is 1 and default num_axes is -1
   axis_ = bottom[0]->CanonicalAxisIndex(param.axis());
   const int num_axes = param.num_axes();
@@ -34,7 +36,7 @@ void VanillaLadderCombinatorLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>&
   const vector<int>::const_iterator& shape_end =
       (num_axes == -1) ? bottom[0]->shape().end() : (shape_start + num_axes);
   vector<int> scale_shape(shape_start, shape_end);
-  for (int iblob=0; iblob<9; ++iblob) {
+  for (int iblob = 0; iblob < 9; ++iblob) {
     this->blobs_[iblob].reset(new Blob<Dtype>(scale_shape));
   }
   // fill each layer with default

@@ -43,7 +43,7 @@ void UpsampleLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
     CHECK(!pad_out_h_ || scale_h_ == 2) <<
       "Output height padding compensation requires scale_h == 2, otherwise"
       << "the output size is ill-defined.";
-    CHECK(!pad_out_w_ || scale_w_ == 2) << 
+    CHECK(!pad_out_w_ || scale_w_ == 2) <<
       "Output width padding compensation requires scale_w == 2, otherwise"
       << "the output size is ill-defined.";
     upsample_h_ = upsample_w_ = -1;  // flag to calculate in Reshape

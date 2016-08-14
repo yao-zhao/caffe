@@ -6,8 +6,9 @@
 namespace caffe {
 
 template <typename Dtype>
-void GaussianProbLossLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
-      const vector<Blob<Dtype>*>& top) {
+void GaussianProbLossLayer<Dtype>::LayerSetUp(
+    const vector<Blob<Dtype>*>& bottom,
+    const vector<Blob<Dtype>*>& top) {
   LossLayer<Dtype>::LayerSetUp(bottom, top);
   eps_ = this->layer_param_.gaussian_prob_loss_param().eps();
   CHECK_GT(eps_, 0)

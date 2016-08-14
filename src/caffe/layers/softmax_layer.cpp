@@ -45,7 +45,7 @@ void SoftmaxLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     }
     // subtraction
     caffe_cpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, channels, inner_num_,
-        1, -1., sum_multiplier_.cpu_data(), scale_data, 1., top_data);
+      1, -1., sum_multiplier_.cpu_data(), scale_data, 1., top_data);
     // exponentiation
     caffe_exp<Dtype>(dim, top_data, top_data);
     // sum after exp

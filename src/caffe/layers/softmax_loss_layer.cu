@@ -1,7 +1,8 @@
+#include <glog/logging.h>
+
 #include <algorithm>
 #include <cfloat>
 #include <vector>
-#include <glog/logging.h>
 
 #include "caffe/layers/softmax_loss_layer.hpp"
 #include "caffe/util/math_functions.hpp"

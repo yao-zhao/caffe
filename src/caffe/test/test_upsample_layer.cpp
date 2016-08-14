@@ -110,7 +110,7 @@ class UpsampleLayerTest : public MultiDeviceTest<TypeParam> {
     int out_w = scale_w*input_width+(randomize ? caffe_rng_rand()%scale_w : 0);
     int out_h = scale_h*input_height+(randomize ? caffe_rng_rand()%scale_h : 0);
     int out_idx = out_w + out_h * top_w;
-//     std::cout << "mask i, iw, ih, ow, oh, topw, outidx: " 
+//     std::cout << "mask i, iw, ih, ow, oh, topw, outidx: "
 //               << bottom_idx << " " << input_width << " "
 //               << input_height << " "
 //               << out_w << " "
@@ -204,7 +204,6 @@ TYPED_TEST(UpsampleLayerTest, TestForwardFromPool) {
   pooling_param->set_kernel_h(kernel_h);
   pooling_param->set_kernel_w(kernel_w);
   pooling_param->set_stride(2);
-  //pooling_param->set_pad(1);
   pooling_param->set_pool(PoolingParameter_PoolMethod_MAX);
   PoolingLayer<Dtype> pooling_layer(layer_param);
   pooling_layer.SetUp(pool_bottom_vec, this->blob_bottom_vec_);
@@ -244,7 +243,7 @@ TYPED_TEST(UpsampleLayerTest, TestForwardFromPool) {
   }
   EXPECT_EQ(num_zeros, (16-4)*2*3);
 }
-    
+
 TYPED_TEST(UpsampleLayerTest, TestForwardFromPoolOddShape) {
   typedef typename TypeParam::Dtype Dtype;
   int kernel_w = 2;
@@ -291,8 +290,8 @@ TYPED_TEST(UpsampleLayerTest, TestForwardFromPoolOddShape) {
   const Dtype* top_data = this->blob_top_->cpu_data();
   const Dtype* pool_bottom_data = input_blob->cpu_data();
   int num_zeros = 0;
-  for(int i = 0; i < this->blob_top_->count(); ++i) {
-    if(top_data[i] != 0) {
+  for (int i = 0; i < this->blob_top_->count(); ++i) {
+    if (top_data[i] != 0) {
       EXPECT_EQ(top_data[i], pool_bottom_data[i]);
     } else {
       ++num_zeros;
@@ -315,7 +314,6 @@ TYPED_TEST(UpsampleLayerTest, TestGradient) {
       GradientChecker<Dtype> checker(1e-4, 1e-2);
       checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
           this->blob_top_vec_, 0);
-//       this->blob_top_vec_.pop_back();
     }
   }
 }

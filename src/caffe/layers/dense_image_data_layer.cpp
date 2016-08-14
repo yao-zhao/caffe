@@ -22,7 +22,7 @@ DenseImageDataLayer<Dtype>::~DenseImageDataLayer<Dtype>() {
   this->StopInternalThread();
 }
 
-template <typename Dtype>
+template <typename Dtype>  // NOLINT_NEXT_LINE(caffe/data_layer_setup)
 void DenseImageDataLayer<Dtype>::DataLayerSetUp(
       const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
@@ -139,7 +139,7 @@ void DenseImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   cv::Mat cv_lab = ReadImageToCVMat(root_folder + lines_[lines_id_].second,
       new_height, new_width, false);
   CHECK(cv_lab.data) << "Could not load " << lines_[lines_id_].second;
-  CHECK(cv_lab.channels() == 1) << "Can only handle grayscale label images";
+  CHECK_EQ(cv_lab.channels(), 1) << "Can only handle grayscale label images";
   CHECK(cv_lab.rows == cv_img.rows && cv_lab.cols ==
     cv_img.cols) << "Input and label "
     << "image heights and widths must match";

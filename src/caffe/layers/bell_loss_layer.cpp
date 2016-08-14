@@ -11,9 +11,9 @@ void BellLossLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   LossLayer<Dtype>::LayerSetUp(bottom, top);
   power_ = this->layer_param_.bell_loss_param().power();
   threshold_ = this->layer_param_.bell_loss_param().threshold();
-  // CHECK_GE(power_, 0)<<"power has to be greater than zeros";
-  // CHECK_EQ(power_%2, 0)<<"power has to be even number";
-  CHECK_GT(threshold_, 0)<<"threshold has to be a positive number";
+  // CHECK_GE(power_, 0) << "power has to be greater than zeros";
+  // CHECK_EQ(power_%2, 0) << "power has to be even number";
+  CHECK_GT(threshold_, 0) << "threshold has to be a positive number";
 }
 
 template <typename Dtype>

@@ -38,7 +38,7 @@ void NoiseLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   if (sigma_> 0) {
     caffe_rng_gaussian(count, Dtype(0), sigma_, rand_vec_data);
   }
-  else if (bottom[0]==top[0]) {
+  else if (bottom[0] == top[0]) {
   } else {
     caffe_set(count, Dtype(0), rand_vec_data);
   }

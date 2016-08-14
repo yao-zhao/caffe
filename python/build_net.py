@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jul 25 22:07:56 2016
 collection of quick helper to build layers
-@author: yz
 """
 import os
 import caffe
@@ -21,8 +19,9 @@ class BuildNet:
         self.solver = None
         self.model_path = savepath + name +'/'
         self.name = name
+
 # common task
-###############################################################################
+################################################################################
     # increase index
     def increase_index(self):
         self.index += 1
@@ -36,9 +35,10 @@ class BuildNet:
         self.index = 1
         self.net = None
         self.net = caffe.NetSpec()
+
 # function groups
-###############################################################################
-    # add a typical block       
+################################################################################
+    # add a typical block
     def add_normal_block(self, num_output, lr = 1):
         self.add_conv(num_output, lr = lr)
         self.add_batchnorm()
@@ -46,7 +46,7 @@ class BuildNet:
         self.add_relu()
         self.index += 1
 
-    # add a prelu block       
+    # add a prelu block
     def add_prelu_block(self, num_output, lr = 1):
         self.add_conv(num_output, lr = lr)
         self.add_batchnorm()
@@ -54,7 +54,7 @@ class BuildNet:
         self.add_prelu()
         self.index += 1
 
-    # add a conv pool block       
+    # add a conv pool block
     def add_convpool_block(self, num_output, lr = 1):
         self.add_conv(num_output, lr = lr, stride = 2)
         self.add_batchnorm()
@@ -62,7 +62,7 @@ class BuildNet:
         self.add_relu()
         self.index += 1
 
-    # add a prelu conv pool block       
+    # add a prelu conv pool block
     def add_prelu_convpool_block(self, num_output, lr = 1):
         self.add_conv(num_output, lr = lr, stride = 2)
         self.add_batchnorm()
@@ -71,7 +71,7 @@ class BuildNet:
         self.index += 1
 
 # input layers
-###############################################################################
+################################################################################
     # set data layer
     def add_lmdb(self, transformer_dict = None, batch_size = 32,
                  test_batch_size = None,
@@ -82,16 +82,16 @@ class BuildNet:
             self.bottom, self.label = L.Data(batch_size = batch_size, 
                     backend = backend, source = source_path + 'train_lmdb',
                     transform_param = transformer_dict,
-                    ntop=2, include=dict(phase=caffe.TRAIN))
+                    ntop = 2, include = dict(phase = caffe.TRAIN))
             self.net.data = self.bottom
-            self.net.label = self.label      
+            self.net.label = self.label
         elif self.phase == 'test':
-            self.bottom, self.label = L.Data(batch_size = test_batch_size, 
+            self.bottom, self.label = L.Data(batch_size = test_batch_size,
                     backend = backend, source = source_path + 'val_lmdb',
                     transform_param = transformer_dict,
-                    ntop=2, include=dict(phase=caffe.TEST))
+                    ntop = 2, include = dict(phase = caffe.TEST))
             self.net.data = self.bottom
-            self.net.label = self.label      
+            self.net.label = self.label
         elif self.phase == 'deploy':
             self.net.data = self.bottom
 
@@ -108,7 +108,7 @@ class BuildNet:
             tmpnet.data, tmpnet.label = L.ImageData(
                 source = source_path+'train.txt',
                 root_folder = root_folder, is_color = is_color,
-                batch_size= 1, ntop = 2)
+                batch_size = 1, ntop = 2)
             with open('tmpnet.prototxt', 'w+') as f:
                 f.write(str(tmpnet.to_proto()))
             nb, nc, h, w = caffe.Net('tmpnet.prototxt', caffe.TRAIN).\
@@ -120,7 +120,7 @@ class BuildNet:
             os.remove('tmpnet.prototxt')
         # add layer
         if self.phase == 'train':
-            self.bottom, self.label = L.ImageData(batch_size = batch_size, 
+            self.bottom, self.label = L.ImageData(batch_size = batch_size,
                     source = source_path + 'train.txt',
                     root_folder = root_folder, is_color = is_color,
                     shuffle = shuffle,
@@ -128,9 +128,9 @@ class BuildNet:
                     new_height = height, new_width = width,
                     include = dict(phase = caffe.TRAIN))
             self.net.data = self.bottom
-            self.net.label = self.label    
+            self.net.label = self.label
         elif self.phase == 'test':
-            self.bottom, self.label = L.ImageData(batch_size = test_batch_size, 
+            self.bottom, self.label = L.ImageData(batch_size = test_batch_size,
                     source = source_path + 'val.txt',
                     root_folder = root_folder, is_color = is_color,
                     shuffle = shuffle,
@@ -138,12 +138,12 @@ class BuildNet:
                     new_height = height, new_width = width,
                     include = dict(phase = caffe.TEST))
             self.net.data = self.bottom
-            self.net.label = self.label   
+            self.net.label = self.label
         elif self.phase == 'deploy':
             self.net.data = self.bottom
 
 # pooling layers
-###############################################################################
+################################################################################
     # add pooling layer of 2
     def add_maxpool_2(self):
         self.bottom = L.Pooling(self.bottom,
@@ -159,8 +159,7 @@ class BuildNet:
         self.index += 1
 
 # output layers
-###############################################################################    
-    # add softmax
+################################################################################
     def add_softmax(self, loss_weight = 1):
         if self.phase == 'train' or self.phase == 'test':
             softmax = L.SoftmaxWithLoss(self.bottom, self.label,
@@ -210,19 +209,19 @@ class BuildNet:
             self.index += 1
 
 # common building components
-###############################################################################           
+################################################################################
     # convolutional layer 
     def add_conv(self, num_output, lr = 1, kernel_size = 3,
         pad = 1, stride = 1):
         if self.phase == 'train' or self.phase == 'test':
-            self.bottom = L.Convolution(self.bottom, 
-                kernel_size = kernel_size, pad = pad, 
+            self.bottom = L.Convolution(self.bottom,
+                kernel_size = kernel_size, pad = pad,
                 stride = stride, num_output = num_output,
                 weight_filler = dict(type = 'xavier'),
                 param = dict(lr_mult = lr), bias_term = False)
         elif self.phase == 'deploy':
-            self.bottom = L.Convolution(self.bottom, 
-                kernel_size = kernel_size, pad = pad, 
+            self.bottom = L.Convolution(self.bottom,
+                kernel_size = kernel_size, pad = pad,
                 stride = stride, num_output = num_output,
                 bias_term = False)
         else:
@@ -233,12 +232,14 @@ class BuildNet:
     def add_batchnorm(self):
         if self.phase == 'train':
             self.bottom = L.BatchNorm(self.bottom,
-                param = [dict(lr_mult = 0),dict(lr_mult = 0),dict(lr_mult = 0)],
+                param = [dict(lr_mult = 0),
+                         dict(lr_mult = 0), dict(lr_mult = 0)],
                 batch_norm_param = dict(use_global_stats = False),
                 in_place = True)
         elif self.phase == 'test':
             self.bottom = L.BatchNorm(self.bottom,
-                param = [dict(lr_mult = 0),dict(lr_mult = 0),dict(lr_mult = 0)],
+                param = [dict(lr_mult = 0),
+                         dict(lr_mult = 0), dict(lr_mult = 0)],
                 batch_norm_param = dict(use_global_stats = True),
                 in_place = True)
         elif self.phase == 'deploy':
@@ -290,7 +291,7 @@ class BuildNet:
         self.index += 1
 
 # cyclic functions
-###############################################################################
+################################################################################
     def add_cslice(self):
         self.bottom = L.CyclicSlice(self.bottom)
         setattr(self.net, 'cslice', self.bottom)
@@ -307,7 +308,7 @@ class BuildNet:
         self.index += 1
 
 # solvers
-###############################################################################
+################################################################################
     # define sdg solver
     def set_solver_sdg(self, test_interval = 100, test_iter = 1,
                 max_iter = 6e3, base_lr = 0.01, momentum = 0.9,
@@ -334,7 +335,7 @@ class BuildNet:
         self.solver.solver_mode = caffe_pb2.SolverParameter.GPU
 
 # saving to files
-###############################################################################
+################################################################################
     # write solver
     def save_solver(self):
         if self.solver:
@@ -345,14 +346,14 @@ class BuildNet:
             self.solver.max_iter = 1
             with open(self.model_path+'solver_preload.prototxt', 'w+') as f:
                 f.write(str(self.solver))
-            print 'solver writing finished'        
+            print 'solver writing finished'
 
     # save net
     def save_net(self):
         if not os.path.exists(self.model_path):
             os.mkdir(self.model_path)
         for phase in ['train','test','deploy']:
-            self.reset()            
+            self.reset()
             self.phase = phase
             self.func(self)
             with open(self.model_path+self.phase+'.prototxt', 'w+') as f:
@@ -367,7 +368,7 @@ class BuildNet:
                     f.write('input_dim: '+str(height)+'\n')
                     f.write('input_dim: '+str(width)+'\n')
                 f.write(str(self.net.to_proto() ))
-                print self.phase+' net writing finished!' 
+                print self.phase+' net writing finished!'
 
     # save
     def save(self):

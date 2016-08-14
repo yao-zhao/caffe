@@ -44,7 +44,7 @@ void SoftmaxWithLossLayer<Dtype>::LayerSetUp(
     label_counts_.Reshape(count_shape);
     CHECK_EQ(this->layer_param_.loss_param().class_weighting_size(),
       bottom[0]->channels())
-		<< "Number of class weight values does not match the number of classes.";
+      << "Number of class weight values does not match the number of classes.";
     float* label_count_data = label_counts_.mutable_cpu_data();
     for (int i = 0; i < this->layer_param_.loss_param().class_weighting_size();
       i++) {

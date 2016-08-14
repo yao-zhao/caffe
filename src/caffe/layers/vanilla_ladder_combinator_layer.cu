@@ -17,7 +17,7 @@ __global__ void VanillaLadderCombinatorForward(const int n,
   CUDA_KERNEL_LOOP(index, n) {
     const int comb_index = index % comb_dim;
     // save the sigmoid calculation to be used later in backprop
-    tempsig_data[index] = 1. / (1. + exp( - (weight_b1[comb_index] +
+    tempsig_data[index] = 1. / (1. + exp(-(weight_b1[comb_index] +
       weight_w1z[comb_index] * bottom_data_z[index] +
       weight_w1u[comb_index] * bottom_data_u[index] +
       weight_w1zu[comb_index] * bottom_data_z[index] * bottom_data_u[index])));
@@ -109,7 +109,7 @@ __global__ void VanillaLadderCombinatorBackward_w(const int n,
   }
 }
 
-// calculate the differnce of sigmored 
+// calculate the differnce of sigmored
 template <typename Dtype>
 __global__ void diff_sigmoid(const int n, Dtype* sig) {
   CUDA_KERNEL_LOOP(index, n) {
@@ -148,9 +148,8 @@ void VanillaLadderCombinatorLayer<Dtype>::Forward_gpu(
 
 template <typename Dtype>
 void VanillaLadderCombinatorLayer<Dtype>::Backward_gpu(
-  const vector<Blob<Dtype>*>& top,
-  const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
-
+    const vector<Blob<Dtype>*>& top,
+    const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
   const Dtype* top_diff = top[0]->gpu_diff();
   const Dtype* bottom_data_z = bottom[0]->gpu_data();
   const Dtype* bottom_data_u = bottom[1]->gpu_data();
@@ -178,15 +177,15 @@ void VanillaLadderCombinatorLayer<Dtype>::Backward_gpu(
 
   // make sure calculate this first before param diff
   // and make sure that tempsig_ is not modified during calculation
-  CHECK(!(propagate_down[0]==1 && propagate_down[1]==0)) <<
+  CHECK(!(propagate_down[0] == 1 && propagate_down[1] == 0)) <<
     "currently only support propagate down to at least the second bottoms"
     << " propagate_down[0]=" << propagate_down[0]
     << " propagate_down[1]=" << propagate_down[1]
     << " current layer name: " << this->layer_param_.name();
   if (propagate_down[0] && propagate_down[1]) {
     Dtype* bottom_diff_z = bottom[0]->mutable_gpu_diff();
-    // NOLINT_NEXT_LINE(whitespace/operators)
     VanillaLadderCombinatorBackward<Dtype>
+    // NOLINT_NEXT_LINE(whitespace/operators)
     <<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
       count, top_diff, tempsig_data,
       bottom_data_z, bottom_data_u,
@@ -195,8 +194,8 @@ void VanillaLadderCombinatorLayer<Dtype>::Backward_gpu(
       comb_dim_, bottom_diff_z, bottom_diff_u);
     CUDA_POST_KERNEL_CHECK;
   } else if (propagate_down[1]) {
-    // NOLINT_NEXT_LINE(whitespace/operators)
     VanillaLadderCombinatorBackward_u<Dtype>
+    // NOLINT_NEXT_LINE(whitespace/operators)
     <<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
       count, top_diff, tempsig_data,
       bottom_data_z,
@@ -215,15 +214,15 @@ void VanillaLadderCombinatorLayer<Dtype>::Backward_gpu(
   // b0
   caffe_gpu_gemv<Dtype>(CblasTrans, outer_dim_, comb_dim_,
     Dtype(1), top_diff, sum_mult, Dtype(1), weight_diff_b0);
-  // w0z 
+  // w0z
   caffe_gpu_mul<Dtype>(count, top_diff, bottom_data_z, tempmul_data);
   caffe_gpu_gemv<Dtype>(CblasTrans, outer_dim_, comb_dim_,
     Dtype(1), tempmul_data, sum_mult, Dtype(1), weight_diff_w0z);
-  // w0u 
+  // w0u
   caffe_gpu_mul<Dtype>(count, top_diff, bottom_data_u, tempmul_data);
   caffe_gpu_gemv<Dtype>(CblasTrans, outer_dim_, comb_dim_,
     Dtype(1), tempmul_data, sum_mult, Dtype(1), weight_diff_w0u);
-    // w0zu 
+  // w0zu
   caffe_gpu_mul<Dtype>(count, top_diff, bottom_data_z, tempmul_data);
   caffe_gpu_mul<Dtype>(count, bottom_data_u, tempmul_data, tempmul_data);
   caffe_gpu_gemv<Dtype>(CblasTrans, outer_dim_, comb_dim_,
@@ -233,8 +232,7 @@ void VanillaLadderCombinatorLayer<Dtype>::Backward_gpu(
   caffe_gpu_gemv<Dtype>(CblasTrans, outer_dim_, comb_dim_,
     Dtype(1), tempmul_data, sum_mult, Dtype(1), weight_diff_wsigma);
   // modify tempsig
-  // NOLINT_NEXT_LINE(whitespace/operators)
-  diff_sigmoid<Dtype>
+  diff_sigmoid<Dtype>  // NOLINT_NEXT_LINE(whitespace/operators)
   <<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>
   (count, tempsig_data);
   caffe_gpu_mul<Dtype>(count, top_diff, tempsig_data, tempsig_data);
@@ -243,26 +241,25 @@ void VanillaLadderCombinatorLayer<Dtype>::Backward_gpu(
     Dtype(1), tempsig_data, sum_mult, Dtype(1), weight_diff_b1);
   caffe_gpu_mul<Dtype>(comb_dim_, weight_wsigma,
                        weight_diff_b1, weight_diff_b1);
-  // w0z 
+  // w0z
   caffe_gpu_mul<Dtype>(count, tempsig_data, bottom_data_z, tempmul_data);
   caffe_gpu_gemv<Dtype>(CblasTrans, outer_dim_, comb_dim_,
     Dtype(1), tempmul_data, sum_mult, Dtype(1), weight_diff_w1z);
   caffe_gpu_mul<Dtype>(comb_dim_, weight_wsigma,
                        weight_diff_w1z, weight_diff_w1z);
-  // w0u 
+  // w0u
   caffe_gpu_mul<Dtype>(count, tempsig_data, bottom_data_u, tempmul_data);
   caffe_gpu_gemv<Dtype>(CblasTrans, outer_dim_, comb_dim_,
     Dtype(1), tempmul_data, sum_mult, Dtype(1), weight_diff_w1u);
   caffe_gpu_mul<Dtype>(comb_dim_, weight_wsigma,
                        weight_diff_w1u, weight_diff_w1u);
-  // w0zu 
+  // w0zu
   caffe_gpu_mul<Dtype>(count, tempsig_data, bottom_data_z, tempmul_data);
   caffe_gpu_mul<Dtype>(count, bottom_data_u, tempmul_data, tempmul_data);
   caffe_gpu_gemv<Dtype>(CblasTrans, outer_dim_, comb_dim_,
     Dtype(1), tempmul_data, sum_mult, Dtype(1), weight_diff_w1zu);
   caffe_gpu_mul<Dtype>(comb_dim_, weight_wsigma,
                        weight_diff_w1zu, weight_diff_w1zu);
-
 }
 
 INSTANTIATE_LAYER_GPU_FUNCS(VanillaLadderCombinatorLayer);

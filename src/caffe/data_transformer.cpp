@@ -4,9 +4,10 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #endif  // USE_OPENCV
 
+#include <math.h>
+
 #include <string>
 #include <vector>
-#include <math.h>
 
 #include "caffe/data_transformer.hpp"
 #include "caffe/util/io.hpp"
@@ -814,14 +815,14 @@ vector<int> DataTransformer<Dtype>::InferBlobShape(const Datum& datum) {
   shape[0] = 1;
   shape[1] = datum_channels;
   CHECK(param_.crop_size() == 0 ||
-        (param_.crop_h() == 0 && param_.crop_w() == 0))
-        << "Crop size is crop_size OR crop_h and crop_w; not both";
+    (param_.crop_h() == 0 && param_.crop_w() == 0))
+    << "Crop size is crop_size OR crop_h and crop_w; not both";
   CHECK((param_.crop_h() != 0) == (param_.crop_w() != 0))
-        << "For non-square crops both crop_h and crop_w are required.";
+    << "For non-square crops both crop_h and crop_w are required.";
   if (crop_size) {
     shape[2] = crop_size;
     shape[3] = crop_size;
-  } else if (crop_h > 0 && crop_w > 0){
+  } else if (crop_h > 0 && crop_w > 0) {
     shape[2] = crop_h;
     shape[3] = crop_w;
   } else {
@@ -870,7 +871,7 @@ vector<int> DataTransformer<Dtype>::InferBlobShape(const cv::Mat& cv_img) {
   if (crop_size) {
     shape[2] = crop_size;
     shape[3] = crop_size;
-  } else if (crop_h > 0 && crop_w > 0){
+  } else if (crop_h > 0 && crop_w > 0) {
     shape[2] = crop_h;
     shape[3] = crop_w;
   } else {
