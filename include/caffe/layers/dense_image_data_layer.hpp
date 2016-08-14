@@ -1,6 +1,8 @@
 #ifndef CAFFE_DENSE_IMAGE_DATA_LAYER_HPP_
 #define CAFFE_DENSE_IMAGE_DATA_LAYER_HPP_
 
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "caffe/blob.hpp"

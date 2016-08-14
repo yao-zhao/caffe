@@ -24,7 +24,8 @@ namespace caffe {
 
 template <typename Dtype>
 class GaussianProbLossLayer : public LossLayer<Dtype> {
-  public:
+
+ public:
   explicit GaussianProbLossLayer(const LayerParameter& param)
       : LossLayer<Dtype>(param), diff_() {}
   virtual void LayerSetUp(
@@ -60,9 +61,7 @@ class GaussianProbLossLayer : public LossLayer<Dtype> {
   Blob<Dtype> tmp_;
   Dtype eps_;
   Blob<Dtype> sumvec_;
-
 };
 
 }  // namespace caffe
-
 #endif  // CAFFE_GAUSSIAN_PROB_LOSS_LAYER_HPP_

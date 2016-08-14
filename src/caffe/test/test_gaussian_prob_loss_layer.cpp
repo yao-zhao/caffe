@@ -85,7 +85,7 @@ TYPED_TEST(GaussianProbLossLayerTest, TestForward) {
   const Dtype* mean = this->blob_bottom_vec_[0]->cpu_data();
   const Dtype* var = this->blob_bottom_vec_[1]->cpu_data();
   const Dtype* label = this->blob_bottom_vec_[2]->cpu_data();
-  const int count =this->blob_bottom_vec_[0]->count(); 
+  const int count =this->blob_bottom_vec_[0]->count();
   Dtype loss = 0;
   Dtype tmp = 0;
   Dtype tmp2 = 0;
@@ -110,7 +110,7 @@ TYPED_TEST(GaussianProbLossLayerTest, TestForward2) {
   const Dtype* mean = this->blob_bottom_vec_[0]->cpu_data();
   const Dtype* var = this->blob_bottom_vec_[1]->cpu_data();
   const Dtype* label = this->blob_bottom_vec_[2]->cpu_data();
-  const int count = this->blob_bottom_vec_[0]->count(); 
+  const int count = this->blob_bottom_vec_[0]->count();
   Dtype loss = 0;
   Dtype tmp = 0;
   Dtype tmp2 = 0;

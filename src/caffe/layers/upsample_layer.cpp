@@ -1,13 +1,12 @@
 #include <algorithm>
 #include <cfloat>
 #include <vector>
-#include <iostream>
 
 #include "caffe/common.hpp"
 #include "caffe/layer.hpp"
+#include "caffe/layers/upsample_layer.hpp"
 #include "caffe/syncedmem.hpp"
 #include "caffe/util/math_functions.hpp"
-#include "caffe/layers/upsample_layer.hpp"
 
 namespace caffe {
 
@@ -41,12 +40,12 @@ void UpsampleLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
     }
     pad_out_h_ = upsample_param.pad_out_h();
     pad_out_w_ = upsample_param.pad_out_w();
-    CHECK(!pad_out_h_ || scale_h_ == 2) 
-        << "Output height padding compensation requires scale_h == 2, otherwise "
-        << "the output size is ill-defined.";
-    CHECK(!pad_out_w_ || scale_w_ == 2) 
-        << "Output width padding compensation requires scale_w == 2, otherwise "
-        << "the output size is ill-defined.";
+    CHECK(!pad_out_h_ || scale_h_ == 2) <<
+      "Output height padding compensation requires scale_h == 2, otherwise"
+      << "the output size is ill-defined.";
+    CHECK(!pad_out_w_ || scale_w_ == 2) << 
+      "Output width padding compensation requires scale_w == 2, otherwise"
+      << "the output size is ill-defined.";
     upsample_h_ = upsample_w_ = -1;  // flag to calculate in Reshape
   }
 }
@@ -64,8 +63,8 @@ void UpsampleLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   CHECK_EQ(bottom[0]->width(), bottom[1]->width());
 
   if (upsample_h_ <= 0 || upsample_w_ <= 0) {
-    upsample_h_ = bottom[0]->height() * scale_h_ - int(pad_out_h_);
-    upsample_w_ = bottom[0]->width() * scale_w_ - int(pad_out_w_);
+    upsample_h_ = bottom[0]->height() * scale_h_ - static_cast<int>(pad_out_h_);
+    upsample_w_ = bottom[0]->width() * scale_w_ - static_cast<int>(pad_out_w_);
   }
   top[0]->Reshape(bottom[0]->num(), bottom[0]->channels(), upsample_h_,
       upsample_w_);
@@ -125,7 +124,8 @@ void UpsampleLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
             // this can happen if the pooling layer that created
             // the input mask had an input with different size to top[0]
             LOG(FATAL) << "upsample top index " << idx << " out of range - "
-              << "check scale settings match input pooling layer's downsample setup";
+              << "check scale settings match"
+              << "input pooling layer's downsample setup";
           }
           bottom_diff[i] = top_diff[idx];
         }
@@ -137,7 +137,6 @@ void UpsampleLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     }
   }
 }
-
 
 #ifdef CPU_ONLY
 STUB_GPU(UpsampleLayer);

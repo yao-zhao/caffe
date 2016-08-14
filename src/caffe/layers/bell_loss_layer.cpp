@@ -13,7 +13,7 @@ void BellLossLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
   threshold_ = this->layer_param_.bell_loss_param().threshold();
   // CHECK_GE(power_, 0)<<"power has to be greater than zeros";
   // CHECK_EQ(power_%2, 0)<<"power has to be even number";
-  CHECK_GT(threshold_, 0)<<"threshold has to be a positive number"; 
+  CHECK_GT(threshold_, 0)<<"threshold has to be a positive number";
 }
 
 template <typename Dtype>
@@ -36,7 +36,7 @@ void BellLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   // hack: save the bottom - label in tmp_data
   caffe_sub(count, bottom_data, label_data, tmp_data);
   // calculate normalized diff,
-  //temporarily save the normalizer to diff_data first
+  // temporarily save the normalizer to diff_data first
   caffe_abs(count, label_data, diff_data);
   caffe_cpu_scale(count, Dtype(1)/threshold_, diff_data, diff_data);
   caffe_powx(count, diff_data, power_, diff_data);
@@ -54,9 +54,10 @@ void BellLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   if (propagate_down[0]) {
     int count = bottom[0]->count();
     Dtype alpha = top[0]->cpu_diff()[0]/Dtype(count);
-    caffe_cpu_scale(count, alpha, diff_.cpu_data(), bottom[0]->mutable_cpu_diff());
-  } 
-  LOG_IF(INFO, propagate_down[1])<<"can not propagate down to the label data";
+    caffe_cpu_scale(count, alpha, diff_.cpu_data(),
+      bottom[0]->mutable_cpu_diff());
+  }
+  LOG_IF(INFO, propagate_down[1]) << "can not propagate down to the label data";
 }
 
 #ifdef CPU_ONLY

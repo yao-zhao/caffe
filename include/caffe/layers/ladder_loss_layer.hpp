@@ -72,7 +72,6 @@ class LadderLossLayer : public LossLayer<Dtype> {
   Blob<Dtype> spatial_sum_multiplier_;
   Blob<Dtype> tempvar_;
   int channels_;
-
 };
 
 }  // namespace caffe

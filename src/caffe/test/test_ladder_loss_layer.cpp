@@ -58,7 +58,7 @@ class LadderLossLayerTest : public MultiDeviceTest<TypeParam> {
       blob_bottom_param_data[i] = (15+i);
       blob_bottom_param_data[i+shape[1]] = 10+i;
     }
-    // push to vec 
+    // push to vec
     blob_bottom_vec_.clear();
     blob_bottom_vec_.push_back(blob_bottom_clean_);
     blob_bottom_vec_.push_back(blob_bottom_recon_);
@@ -74,7 +74,7 @@ class LadderLossLayerTest : public MultiDeviceTest<TypeParam> {
     Dtype* blob_bottom_clean_data = blob_bottom_clean_->mutable_cpu_data();
     Dtype* blob_bottom_recon_data = blob_bottom_recon_->mutable_cpu_data();
     for (int i = 0; i < blob_bottom_clean_->count(); ++i) {
-      blob_bottom_recon_data[i] = blob_bottom_clean_data[i] + 2*(i%2)-1; 
+      blob_bottom_recon_data[i] = blob_bottom_clean_data[i] + 2*(i%2)-1;
     }
   }
   // destructor
@@ -137,7 +137,7 @@ TYPED_TEST(LadderLossLayerTest, TestTwoBottomsForward) {
 
 TYPED_TEST(LadderLossLayerTest, TestThreeBottomsGradient) {
   typedef typename TypeParam::Dtype Dtype;
-   // setup
+  // setup
   this->SetUp();
   LayerParameter layer_param;
   LadderLossLayer<Dtype> layer(layer_param);
@@ -164,4 +164,4 @@ TYPED_TEST(LadderLossLayerTest, TestTwoBottomsGradient) {
     this->blob_top_vec_, 1);
 }
 
-} // namespace caffe
+}  // namespace caffe

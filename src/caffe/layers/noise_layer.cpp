@@ -18,7 +18,7 @@ void NoiseLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
 template <typename Dtype>
 void NoiseLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
-  if (bottom[0]==top[0]) {
+  if (bottom[0] == top[0]) {
   } else {
     top[0]->ReshapeLike(*bottom[0]);
   }
@@ -38,14 +38,12 @@ void NoiseLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   if (sigma_> 0) {
     caffe_rng_gaussian(count, Dtype(0), sigma_, rand_vec_data);
   }
-  // else  
   else if (bottom[0]==top[0]) {
   } else {
     caffe_set(count, Dtype(0), rand_vec_data);
   }
   // use copy not add
   caffe_add(count, rand_vec_data, bottom_data, top_data);
-
 }
 
 template <typename Dtype>
@@ -53,7 +51,7 @@ void NoiseLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down,
     const vector<Blob<Dtype>*>& bottom) {
   if (propagate_down[0]) {
-    if (bottom[0]==top[0]) {      
+    if (bottom[0] == top[0]) {
       // in-place doing nothing
     } else {
       // copy top diff to bot diff

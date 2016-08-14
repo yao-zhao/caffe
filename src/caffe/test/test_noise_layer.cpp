@@ -29,7 +29,7 @@ class NoiseLayerTest : public MultiDeviceTest<TypeParam> {
   // set up
   virtual void SetUp() {
     Caffe::set_random_seed(1701);
-    blob_bottom_->Reshape(2,3,4,4);
+    blob_bottom_->Reshape(2, 3, 4, 4);
     // fill the values
     FillerParameter filler_param;
     // filler_param.set_type("constant");
@@ -85,8 +85,11 @@ class NoiseLayerTest : public MultiDeviceTest<TypeParam> {
       diff = top_data[i] - bottom_data[i];
       var += (diff*diff)/count;
       EXPECT_NEAR(diff, 0.0, 1.0);
-      if ( diff < 0 ) ++count_lesser;
-      else ++count_greater;
+      if ( diff < 0 ) {
+        ++count_lesser;
+      } else {
+        ++count_greater;
+      }
     }
     EXPECT_LE(abs(count_greater-count_lesser), 4*sqrt(count));
     EXPECT_LE(sqrt(var), 0.12);
@@ -126,7 +129,7 @@ TYPED_TEST(NoiseLayerTest, TestForwardInPlace) {
 
 TYPED_TEST(NoiseLayerTest, TestGradientEltwise) {
   typedef typename TypeParam::Dtype Dtype;
-   // setup
+  // setup
   this->blob_top_vec_[0] = this->blob_top_;
   LayerParameter layer_param;
   NoiseParameter* noise_param = layer_param.mutable_noise_param();
@@ -138,7 +141,7 @@ TYPED_TEST(NoiseLayerTest, TestGradientEltwise) {
     this->blob_top_vec_);
 }
 
-//this will not work, because in-place calculation changes the bottom data
+// this will not work, because in-place calculation changes the bottom data
 //  TYPED_TEST(NoiseLayerTest, TestGradientEltwiseInPlace) {
 //   typedef typename TypeParam::Dtype Dtype;
 //    // setup

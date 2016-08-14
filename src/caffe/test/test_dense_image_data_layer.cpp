@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <map>
 #include <string>
 #include <vector>
@@ -7,9 +8,9 @@
 #include "caffe/blob.hpp"
 #include "caffe/common.hpp"
 #include "caffe/filler.hpp"
+#include "caffe/layers/dense_image_data_layer.hpp"
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/util/io.hpp"
-#include "caffe/layers/dense_image_data_layer.hpp"
 
 #include "caffe/test/test_caffe_main.hpp"
 
@@ -33,7 +34,7 @@ class DenseImageDataLayerTest : public MultiDeviceTest<TypeParam> {
     std::ofstream outfile(filename_.c_str(), std::ofstream::out);
     LOG(INFO) << "Using temporary file " << filename_;
     for (int i = 0; i < 5; ++i) {
-      outfile << EXAMPLES_SOURCE_DIR "images/cat.jpg " 
+      outfile << EXAMPLES_SOURCE_DIR "images/cat.jpg "
               << EXAMPLES_SOURCE_DIR "images/cat_label.png ";
     }
     outfile.close();
@@ -41,9 +42,9 @@ class DenseImageDataLayerTest : public MultiDeviceTest<TypeParam> {
     MakeTempFilename(&filename_reshape_);
     std::ofstream reshapefile(filename_reshape_.c_str(), std::ofstream::out);
     LOG(INFO) << "Using temporary file " << filename_reshape_;
-    reshapefile << EXAMPLES_SOURCE_DIR "images/cat.jpg " 
+    reshapefile << EXAMPLES_SOURCE_DIR "images/cat.jpg "
         << EXAMPLES_SOURCE_DIR "images/cat_label.png ";
-    reshapefile << EXAMPLES_SOURCE_DIR "images/fish-bike.jpg " 
+    reshapefile << EXAMPLES_SOURCE_DIR "images/fish-bike.jpg "
         << EXAMPLES_SOURCE_DIR "images/fish-bike_label.png ";
     reshapefile.close();
   }
@@ -67,7 +68,8 @@ TYPED_TEST_CASE(DenseImageDataLayerTest, TestDtypesAndDevices);
 TYPED_TEST(DenseImageDataLayerTest, TestRead) {
   typedef typename TypeParam::Dtype Dtype;
   LayerParameter param;
-  DenseImageDataParameter* image_data_param = param.mutable_dense_image_data_param();
+  DenseImageDataParameter* image_data_param =
+    param.mutable_dense_image_data_param();
   image_data_param->set_batch_size(5);
   image_data_param->set_source(this->filename_.c_str());
   image_data_param->set_shuffle(false);
@@ -103,7 +105,8 @@ TYPED_TEST(DenseImageDataLayerTest, TestRead) {
 TYPED_TEST(DenseImageDataLayerTest, TestResize) {
   typedef typename TypeParam::Dtype Dtype;
   LayerParameter param;
-  DenseImageDataParameter* image_data_param = param.mutable_dense_image_data_param();
+  DenseImageDataParameter* image_data_param =
+    param.mutable_dense_image_data_param();
   image_data_param->set_batch_size(5);
   image_data_param->set_source(this->filename_.c_str());
   image_data_param->set_new_height(256);
@@ -138,7 +141,8 @@ TYPED_TEST(DenseImageDataLayerTest, TestResize) {
 TYPED_TEST(DenseImageDataLayerTest, TestReshape) {
   typedef typename TypeParam::Dtype Dtype;
   LayerParameter param;
-  DenseImageDataParameter* image_data_param = param.mutable_dense_image_data_param();
+  DenseImageDataParameter* image_data_param =
+    param.mutable_dense_image_data_param();
   image_data_param->set_batch_size(1);
   image_data_param->set_source(this->filename_reshape_.c_str());
   image_data_param->set_shuffle(false);
@@ -173,7 +177,8 @@ TYPED_TEST(DenseImageDataLayerTest, TestReshape) {
 TYPED_TEST(DenseImageDataLayerTest, TestShuffle) {
   typedef typename TypeParam::Dtype Dtype;
   LayerParameter param;
-  DenseImageDataParameter* image_data_param = param.mutable_dense_image_data_param();
+  DenseImageDataParameter* image_data_param =
+    param.mutable_dense_image_data_param();
   image_data_param->set_batch_size(5);
   image_data_param->set_source(this->filename_.c_str());
   image_data_param->set_shuffle(true);

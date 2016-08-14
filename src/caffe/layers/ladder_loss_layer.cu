@@ -14,7 +14,7 @@ void LadderLossLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   const Dtype* z_hat = bottom[1]->gpu_data();
   const Dtype* z = bottom[0]->gpu_data();
 
-  if (bottom.size()>2) {
+  if (bottom.size() > 2) {
     int spatial_dim = bottom[0]->count()/(bottom[0]->shape(0)*channels_);
     const Dtype* mean_data = bottom[2]->gpu_data();
     const Dtype* variance_data = mean_data + channels_;
@@ -67,7 +67,7 @@ void LadderLossLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   if (propagate_down[1]) {
       // div the diff by variance, modified the diff, cant be used further
     alpha = - top[0]->cpu_diff()[0] / bottom[0]->count();
-    if (bottom.size()>2) {
+    if (bottom.size() > 2) {
       caffe_gpu_div(count, diff_data, tempvar_.gpu_data(), diff_data);
     }
     caffe_gpu_scale(count, alpha, diff_data, bottom[1]->mutable_gpu_diff());

@@ -20,8 +20,8 @@ namespace caffe {
   template <typename TypeParam>
   class BatchNormLayerTest : public MultiDeviceTest<TypeParam> {
     typedef typename TypeParam::Dtype Dtype;
-  protected:
 
+ protected:
     BatchNormLayerTest()
         : blob_bottom_(new Blob<Dtype>(4, 3, 2, 5)),
           blob_top_(new Blob<Dtype>()),

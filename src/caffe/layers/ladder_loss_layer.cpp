@@ -19,9 +19,11 @@ void LadderLossLayer<Dtype>::Reshape(
   tempvar_.ReshapeLike(*bottom[0]);
 
 // intialize batchnorm param
-  if (bottom.size()>2) {
-    CHECK_EQ(bottom[2]->shape(0), 2) <<"first dimension of batch norm param has to be 2";
-    CHECK_EQ(bottom[2]->shape(1), bottom[0]->shape(1)) <<"channel dimension has to agree";
+  if (bottom.size() > 2) {
+    CHECK_EQ(bottom[2]->shape(0), 2) <<
+      "first dimension of batch norm param has to be 2";
+    CHECK_EQ(bottom[2]->shape(1), bottom[0]->shape(1)) <<
+      "channel dimension has to agree";
 
     vector<int> sz;
     channels_ = bottom[0]->shape(1);
@@ -46,7 +48,7 @@ void LadderLossLayer<Dtype>::Reshape(
       num_by_chans_.Reshape(sz);
       caffe_set(batch_sum_multiplier_.count(), Dtype(1),
         batch_sum_multiplier_.mutable_cpu_data());
-    }  
+    }
   }
 }
 
@@ -60,7 +62,7 @@ void LadderLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
   const Dtype* z = bottom[0]->cpu_data();
   Dtype* tempvar_data = tempvar_.mutable_cpu_data();
 
-  if (bottom.size()>2) {
+  if (bottom.size() > 2) {
     int spatial_dim = bottom[0]->count()/(bottom[0]->shape(0)*channels_);
     const Dtype* mean_data = bottom[2]->cpu_data();
     const Dtype* variance_data = mean_data + channels_;
@@ -111,10 +113,10 @@ void LadderLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     // propagate to z hat
     if (propagate_down[1]) {
       alpha = - top[0]->cpu_diff()[0] / bottom[0]->count();
-      if (bottom.size()>2) {
+      if (bottom.size() > 2) {
       // div the diff by variance
         caffe_div(count, diff_data, tempvar_.cpu_data(), diff_data);
-      }   
+      }
       caffe_cpu_scale(count, alpha, diff_data, bottom[1]->mutable_cpu_diff());
     }
     // dont propagate to varibles

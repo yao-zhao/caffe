@@ -28,7 +28,7 @@ class VanillaLadderCombinatorLayerTest : public MultiDeviceTest<TypeParam> {
   // constructor
   VanillaLadderCombinatorLayerTest()
   : blob_bottom_z_(new Blob<Dtype>()),
-  	blob_bottom_u_(new Blob<Dtype>()),
+    blob_bottom_u_(new Blob<Dtype>()),
     blob_top_(new Blob<Dtype>()),
     gradient_computed_(new Blob<Dtype>()),
     gradient_estimated_(new Blob<Dtype>()),
@@ -49,7 +49,7 @@ class VanillaLadderCombinatorLayerTest : public MultiDeviceTest<TypeParam> {
       blob_bottom_z_data[i] = Dtype(i)/100+0.2;
       blob_bottom_u_data[i] = Dtype(i)/100+0.25;
     }
-    // push to vec 
+    // push to vec
     blob_bottom_vec_.push_back(blob_bottom_z_);
     blob_bottom_vec_.push_back(blob_bottom_u_);
     blob_top_vec_.push_back(blob_top_);
@@ -112,7 +112,7 @@ TYPED_TEST(VanillaLadderCombinatorLayerTest, TestForwardDefault) {
 
 TYPED_TEST(VanillaLadderCombinatorLayerTest, TestForwardRandom) {
   typedef typename TypeParam::Dtype Dtype;
-  // setup 
+  // setup
   LayerParameter layer_param;
   VanillaLadderCombinatorLayer<Dtype> layer(layer_param);
   this->blob_top_vec_[0] = this->blob_top_;
@@ -147,7 +147,7 @@ TYPED_TEST(VanillaLadderCombinatorLayerTest, TestForwardRandom) {
 
 TYPED_TEST(VanillaLadderCombinatorLayerTest, TestBottomGradient) {
   typedef typename TypeParam::Dtype Dtype;
-  // setup 
+  // setup
   LayerParameter layer_param;
   VanillaLadderCombinatorLayer<Dtype> layer(layer_param);
   this->blob_top_vec_[0] = this->blob_top_;
@@ -157,7 +157,7 @@ TYPED_TEST(VanillaLadderCombinatorLayerTest, TestBottomGradient) {
   FillerParameter filler_param;
   GaussianFiller<Dtype> gaussianfiller(filler_param);
   Caffe::set_random_seed(1701);
-  for (int i=0; i<9; ++i) {
+  for (int i = 0; i < 9; ++i) {
     gaussianfiller.Fill(blobs[i].get());
   }
   // check gradient, only test agains bottom 0 and 1
@@ -213,7 +213,7 @@ TYPED_TEST(VanillaLadderCombinatorLayerTest, TestBottomGradient) {
 
 TYPED_TEST(VanillaLadderCombinatorLayerTest, TestWeightGradient) {
   typedef typename TypeParam::Dtype Dtype;
-  // setup 
+  // setup
   LayerParameter layer_param;
   VanillaLadderCombinatorLayer<Dtype> layer(layer_param);
   this->blob_top_vec_[0] = this->blob_top_;
@@ -228,7 +228,7 @@ TYPED_TEST(VanillaLadderCombinatorLayerTest, TestWeightGradient) {
     gaussianfiller.Fill(blobs[i].get());
   }
   // set top diff
-  // calculate top forward first, need top data and 
+  // calculate top forward first, need top data and
   // also need to set intermedia variables for backward
   // because backward depends on forward
   this->blob_top_vec_[0] = this->blob_top_;
@@ -247,7 +247,7 @@ TYPED_TEST(VanillaLadderCombinatorLayerTest, TestWeightGradient) {
   Dtype threshold = 1e-2;
   Dtype obj_positive, obj_negative;
   for (int iblob = 0; iblob < 9; ++iblob) {
-    for (int j = 0; j<blobs[iblob]->count(); ++j) {
+    for (int j = 0; j < blobs[iblob]->count(); ++j) {
       // increase
       blobs[iblob]->mutable_cpu_data()[j] += step_size;
       this->blob_top_vec_[0] = this->objective_positive_;
@@ -275,7 +275,7 @@ TYPED_TEST(VanillaLadderCombinatorLayerTest, TestWeightGradient) {
       Dtype gradient_estimated_data = 0;
       const Dtype* positive_data = this->objective_positive_->cpu_data();
       const Dtype* negative_data = this->objective_negative_->cpu_data();
-      for (int k = 0; k < count; ++k ) {
+      for (int k = 0; k < count; ++k) {
         gradient_estimated_data += positive_data[k]*positive_data[k] -
         negative_data[k]*negative_data[k];
       }

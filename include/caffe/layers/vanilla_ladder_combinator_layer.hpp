@@ -43,10 +43,12 @@ class VanillaLadderCombinatorLayer : public Layer<Dtype> {
   int axis_;
   int outer_dim_, inner_dim_, comb_dim_;
   // temp_, used to store temporary result
-  // temsig_, used to store sigmoid function result in forward run, will be used in backward
+  // temsig_, used to store sigmoid function result in forward run,
+  // will be used in backward
   // tempmul_, used to store pairwise product
   // sum_mul_, a vector of 1s with fixed length for cublasSgemv function
-  // TODO: use of meomory is not optimal consider not using temp_ and tempmul_ for gpu version
+  // TODO: use of meomory is not optimal
+  // consider not using temp_ and tempmul_ for gpu version
   Blob<Dtype> temp_;
   Blob<Dtype> tempmul_;
   Blob<Dtype> tempsig_;

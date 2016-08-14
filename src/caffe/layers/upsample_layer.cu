@@ -3,8 +3,8 @@
 #include <vector>
 
 #include "caffe/layer.hpp"
-#include "caffe/util/math_functions.hpp"
 #include "caffe/layers/upsample_layer.hpp"
+#include "caffe/util/math_functions.hpp"
 
 namespace caffe {
 
@@ -27,9 +27,11 @@ void UpsampleLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   Dtype* top_data = top[0]->mutable_gpu_data();
   caffe_gpu_set(top[0]->count(), Dtype(0), top_data);
   int bottom_count = bottom[0]->count();
-  UpsampleForward<Dtype><<<CAFFE_GET_BLOCKS(bottom_count), CAFFE_CUDA_NUM_THREADS>>>(
-      bottom_count, bottom[0]->width(), bottom[0]->height(), 
-      top[0]->width(), top[0]->height(), bottom_data, bottom_mask, top_data);
+  // NOLINT_NEXT_LINE(whitespace/operators)
+  UpsampleForward<Dtype>
+  <<<CAFFE_GET_BLOCKS(bottom_count), CAFFE_CUDA_NUM_THREADS>>>(
+    bottom_count, bottom[0]->width(), bottom[0]->height(),
+    top[0]->width(), top[0]->height(), bottom_data, bottom_mask, top_data);
   CUDA_POST_KERNEL_CHECK;
 }
 
@@ -53,15 +55,15 @@ void UpsampleLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
     Dtype* bottom_diff = bottom[0]->mutable_gpu_diff();
     const int bottom_count = bottom[0]->count();
     caffe_gpu_set(bottom_count, Dtype(0.), bottom_diff);
-    UpsampleBackward<Dtype><<<CAFFE_GET_BLOCKS(bottom_count), CAFFE_CUDA_NUM_THREADS>>>(
-        bottom_count, bottom[0]->width(), bottom[0]->height(), 
-        top[0]->width(), top[0]->height(), top_diff, bottom_mask, bottom_diff);
+    // NOLINT_NEXT_LINE(whitespace/operators)
+    UpsampleBackward<Dtype>
+    <<<CAFFE_GET_BLOCKS(bottom_count), CAFFE_CUDA_NUM_THREADS>>>(
+      bottom_count, bottom[0]->width(), bottom[0]->height(),
+      top[0]->width(), top[0]->height(), top_diff, bottom_mask, bottom_diff);
     CUDA_POST_KERNEL_CHECK;
   }
 }
 
-
 INSTANTIATE_LAYER_GPU_FUNCS(UpsampleLayer);
-
 
 }  // namespace caffe

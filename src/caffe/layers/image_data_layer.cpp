@@ -59,11 +59,14 @@ void ImageDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
 
   lines_id_ = 0;
   // // batch duplicate added here
-  // batch_duplicate_count_ = this->layer_param_.image_data_param().batch_duplicate();
+  // batch_duplicate_count_ =
+  // this->layer_param_.image_data_param().batch_duplicate();
   // batch_duplicate_id_ = batch_duplicate_count_;
   // // check if allowing both duplicate and shuffle
-  // CHECK(batch_duplicate_count_==0 || this->layer_param_.image_data_param().shuffle()==0) <<"cannot duplicate batch while shuffling";
-  
+  // CHECK(batch_duplicate_count_==0 ||
+  // this->layer_param_.image_data_param().shuffle()==0) <<
+  // "cannot duplicate batch while shuffling";
+
   // Check if we would need to randomly skip a few data points
   if (this->layer_param_.image_data_param().rand_skip()) {
     unsigned int skip = caffe_rng_rand() %
@@ -171,8 +174,8 @@ void ImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   // if (batch_duplicate_id_ > 0) {
   //   lines_id_ -= batch_size;
   // }
-  // batch_duplicate_id_ = (batch_duplicate_id_ -1) % (batch_duplicate_count_+1);
-  // //
+  // batch_duplicate_id_ = (batch_duplicate_id_ -1)%(batch_duplicate_count_+1);
+
   batch_timer.Stop();
   DLOG(INFO) << "Prefetch batch: " << batch_timer.MilliSeconds() << " ms.";
   DLOG(INFO) << "     Read time: " << read_time / 1000 << " ms.";

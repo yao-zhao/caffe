@@ -106,7 +106,7 @@ void BatchNormLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
       x_norm_.mutable_gpu_data());
 
   // output top 2
-  if (top.size()>1) {
+  if (top.size() > 1) {
     Dtype* param_data = top[1]->mutable_gpu_data();
     caffe_copy(channels_, mean_.gpu_data(), param_data);
     param_data += channels_;

@@ -17,7 +17,7 @@ void NoiseLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   if (sigma_> 0) {
     caffe_gpu_rng_gaussian(count, Dtype(0), sigma_, rand_vec_data);
     caffe_gpu_add(count, bottom_data, rand_vec_data, top_data);
-  } else if (bottom[0]==top[0]) {
+  } else if (bottom[0] == top[0]) {
   } else {
     caffe_copy(count, bottom_data, top_data);
   }
@@ -28,7 +28,7 @@ void NoiseLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down,
     const vector<Blob<Dtype>*>& bottom) {
   if (propagate_down[0]) {
-    if (bottom[0]==top[0]) {
+    if (bottom[0] == top[0]) {
     } else {
       const Dtype* top_diff = top[0]->gpu_diff();
       Dtype* bottom_diff = bottom[0]->mutable_gpu_diff();

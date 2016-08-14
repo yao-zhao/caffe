@@ -6,7 +6,8 @@
 namespace caffe {
 
 template <typename Dtype>
-void GaussianProbLossLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+void GaussianProbLossLayer<Dtype>::Forward_gpu(
+    const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
   int count = bottom[0]->count();
   // hack: save tmp diff for tmp variables, also use diff_diff for save
@@ -52,7 +53,7 @@ void GaussianProbLossLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
       caffe_gpu_scale(count, alpha, sigma_diff, sigma_diff);
     }
   }
-  LOG_IF(INFO, propagate_down[2])<<"can not propagate down to the label data";
+  LOG_IF(INFO, propagate_down[2]) << "can not propagate down to the label data";
 }
 
 INSTANTIATE_LAYER_GPU_FUNCS(GaussianProbLossLayer);

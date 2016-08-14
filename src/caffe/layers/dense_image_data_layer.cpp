@@ -26,15 +26,19 @@ template <typename Dtype>
 void DenseImageDataLayer<Dtype>::DataLayerSetUp(
       const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
-  const int new_height = this->layer_param_.dense_image_data_param().new_height();
-  const int new_width  = this->layer_param_.dense_image_data_param().new_width();
-  const bool is_color  = this->layer_param_.dense_image_data_param().is_color();
-  string root_folder = this->layer_param_.dense_image_data_param().root_folder();
-    
+  const int new_height =
+    this->layer_param_.dense_image_data_param().new_height();
+  const int new_width =
+    this->layer_param_.dense_image_data_param().new_width();
+  const bool is_color =
+    this->layer_param_.dense_image_data_param().is_color();
+  string root_folder =
+    this->layer_param_.dense_image_data_param().root_folder();
+
   CHECK((new_height == 0 && new_width == 0) ||
-      (new_height > 0 && new_width > 0)) << "Current implementation requires "
-      "new_height and new_width to be set at the same time.";
-  //Read the file with filenames and labels
+    (new_height > 0 && new_width > 0)) << "Current implementation requires "
+    "new_height and new_width to be set at the same time.";
+  // Read the file with filenames and labels
   const string& source = this->layer_param_.dense_image_data_param().source();
   LOG(INFO) << "Opening file " << source;
   std::ifstream infile(source.c_str());
@@ -66,14 +70,14 @@ void DenseImageDataLayer<Dtype>::DataLayerSetUp(
   // Read an image, and use it to initialize the top blobs.
   cv::Mat cv_img = ReadImageToCVMat(root_folder + lines_[lines_id_].first,
                                     new_height, new_width, is_color);
- // const int channels = cv_img.channels();
+  // const int channels = cv_img.channels();
   const int height = cv_img.rows;
   const int width = cv_img.cols;
 
   // sanity check label image
   cv::Mat cv_lab = ReadImageToCVMat(root_folder + lines_[lines_id_].second,
                                     new_height, new_width, false);
-  CHECK(cv_lab.channels() == 1) << "Can only handle grayscale label images";
+  CHECK_EQ(cv_lab.channels(), 1) << "Can only handle grayscale label images";
   CHECK(cv_lab.rows == height && cv_lab.cols == width) << "Input and label "
       << "image heights and widths must match";
   // image
@@ -82,7 +86,8 @@ void DenseImageDataLayer<Dtype>::DataLayerSetUp(
   vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
   this->transformed_data_.Reshape(top_shape);
   // Reshape prefetch_data and top[0] according to the batch_size.
-  const int batch_size = this->layer_param_.dense_image_data_param().batch_size();
+  const int batch_size =
+    this->layer_param_.dense_image_data_param().batch_size();
   CHECK_GT(batch_size, 0) << "Positive batch size required";
   top_shape[0] = batch_size;
   for (int i = 0; i < this->PREFETCH_COUNT; ++i) {
@@ -120,7 +125,8 @@ void DenseImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   CHECK(batch->data_.count());
   CHECK(this->transformed_data_.count());
 
-  DenseImageDataParameter dense_image_data_param = this->layer_param_.dense_image_data_param();
+  DenseImageDataParameter dense_image_data_param =
+    this->layer_param_.dense_image_data_param();
   const int batch_size = dense_image_data_param.batch_size();
   const int new_height = dense_image_data_param.new_height();
   const int new_width = dense_image_data_param.new_width();
@@ -134,8 +140,9 @@ void DenseImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
       new_height, new_width, false);
   CHECK(cv_lab.data) << "Could not load " << lines_[lines_id_].second;
   CHECK(cv_lab.channels() == 1) << "Can only handle grayscale label images";
-  CHECK(cv_lab.rows == cv_img.rows && cv_lab.cols == cv_img.cols) << "Input and label "
-      << "image heights and widths must match";
+  CHECK(cv_lab.rows == cv_img.rows && cv_lab.cols ==
+    cv_img.cols) << "Input and label "
+    << "image heights and widths must match";
   // Use data_transformer to infer the expected blob shape from a cv_img.
   vector<int> top_shape = this->data_transformer_->InferBlobShape(cv_img);
   vector<int> top_shape_label = this->data_transformer_->InferBlobShape(cv_lab);
@@ -158,7 +165,8 @@ void DenseImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
     cv::Mat cv_img = ReadImageToCVMat(root_folder + lines_[lines_id_].first,
         new_height, new_width, is_color);
     CHECK(cv_img.data) << "Could not load " << lines_[lines_id_].first;
-    // TODO: this way of interp label image is wrong!!!! only works for 0-1 cases
+    // TODO: this way of interp label image is wrong!!!!
+    // only works for 0-1 cases
     // fix it in the future
     cv::Mat cv_lab = ReadImageToCVMat(root_folder + lines_[lines_id_].second,
         new_height, new_width, false);
@@ -172,9 +180,10 @@ void DenseImageDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
     // transform label the same way
     int label_offset = batch->label_.offset(item_id);
     this->transformed_label_.set_cpu_data(prefetch_label + label_offset);
-    // this->data_transformer_->Transform(cv_lab, &this->transformed_label_, true);
+    // this->data_transformer_->
+    // Transform(cv_lab, &this->transformed_label_, true);
     this->data_transformer_->Transform(cv_img, &(this->transformed_data_),
-                                        cv_lab, &(this->transformed_label_));    
+                                        cv_lab, &(this->transformed_label_));
 
     trans_time += timer.MicroSeconds();
 

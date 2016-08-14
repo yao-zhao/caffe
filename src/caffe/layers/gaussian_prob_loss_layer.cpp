@@ -5,7 +5,7 @@
 
 namespace caffe {
 
-template<typename Dtype>
+template <typename Dtype>
 void GaussianProbLossLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   LossLayer<Dtype>::LayerSetUp(bottom, top);
@@ -29,7 +29,8 @@ void GaussianProbLossLayer<Dtype>::Reshape(
 }
 
 template <typename Dtype>
-void GaussianProbLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+void GaussianProbLossLayer<Dtype>::Forward_cpu(
+    const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
   int count = bottom[0]->count();
   // hack: save tmp diff for tmp variables, also use diff_diff for save
@@ -76,7 +77,7 @@ void GaussianProbLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
       caffe_cpu_scale(count, alpha, var_diff, var_diff);
     }
   }
-  LOG_IF(INFO, propagate_down[2])<<"can not propagate down to the label data";
+  LOG_IF(INFO, propagate_down[2]) << "can not propagate down to the label data";
 }
 
 #ifdef CPU_ONLY

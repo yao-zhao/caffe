@@ -16,7 +16,7 @@ void BatchNormLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
     use_global_stats_ = param.use_global_stats();
   if (param.has_update_global_stats())
     update_global_stats_ = param.update_global_stats();
-  if (use_global_stats_ == false) 
+  if (use_global_stats_ == false)
     update_global_stats_ = false;
   if (bottom[0]->num_axes() == 1)
     channels_ = 1;
@@ -75,7 +75,7 @@ void BatchNormLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
   }
 
   // reshape the second top
-  if (top.size()>1) {
+  if (top.size() > 1) {
     vector<int> sz2;
     sz2.push_back(2);
     sz2.push_back(channels_);
@@ -182,7 +182,7 @@ void BatchNormLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       x_norm_.mutable_cpu_data());
 
   // output top 2
-  if (top.size()>1) {
+  if (top.size() > 1) {
     Dtype* param_data = top[1]->mutable_cpu_data();
     caffe_copy(channels_, mean_.cpu_data(), param_data);
     param_data += channels_;

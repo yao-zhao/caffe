@@ -15,7 +15,8 @@ void BellLossLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   const Dtype* bottom_data = bottom[0]->gpu_data();
   // hack: save the bottom - label in tmp_data
   caffe_gpu_sub(count, bottom_data, label_data, tmp_data);
-  // calculate normalized diff, temporarily save the normalizer to diff_data first
+  // calculate normalized diff,
+  // temporarily save the normalizer to diff_data first
   caffe_gpu_abs(count, label_data, diff_data);
   caffe_gpu_scale(count, Dtype(1)/threshold_, diff_data, diff_data);
   caffe_gpu_powx(count, diff_data, power_, diff_data);
@@ -34,9 +35,10 @@ void BellLossLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
   if (propagate_down[0]) {
     int count = bottom[0]->count();
     Dtype alpha = top[0]->cpu_diff()[0]/Dtype(count);
-    caffe_gpu_scale(count, alpha, diff_.gpu_data(), bottom[0]->mutable_gpu_diff());
-  } 
-  LOG_IF(INFO, propagate_down[1])<<"can not propagate down to the label data";
+    caffe_gpu_scale(count, alpha, diff_.gpu_data(),
+      bottom[0]->mutable_gpu_diff());
+  }
+  LOG_IF(INFO, propagate_down[1]) << "can not propagate down to the label data";
 }
 
 INSTANTIATE_LAYER_GPU_FUNCS(BellLossLayer);

@@ -387,7 +387,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   }
   if (has_mean_values) {
     CHECK(mean_values_.size() == 1 || mean_values_.size() == img_channels) <<
-     "Specify either 1 mean_value or as many as channels: " << img_channels;
+      "Specify either 1 mean_value or as many as channels: " << img_channels;
     if (img_channels > 1 && mean_values_.size() == 1) {
       // Replicate the mean_value for simplicity
       for (int c = 1; c < img_channels; ++c) {
@@ -405,7 +405,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
 
   if (has_contrast_jitter) {
     float contrast_jitter_range = param_.contrast_jitter_range();
-    CHECK_GE(contrast_jitter_range,0);
+    CHECK_GE(contrast_jitter_range, 0);
     scale = scale*exp(contrast_jitter_range*
       static_cast<float>(Rand(201)-100)/200.0);
   }
@@ -428,10 +428,10 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
       } else {
         r = cv::getRotationMatrix2D(pt, 0, scale_jitter);
       }
-      cv::warpAffine(cv_img, cv_img,r,
+      cv::warpAffine(cv_img, cv_img, r,
         cv::Size(cv_img.cols, cv_img.rows));
     }
-    //perspective transform
+    // perspective transform
     if (has_perspective_transformation) {
       const int perspective_transformation_border =
         param_.perspective_transformation_border();
@@ -440,13 +440,15 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
       CHECK_LE(perspective_transformation_border, cv_img.cols/2);
       // get transformation matrix
       cv::Point2f src_shape[4];
-      src_shape[0]=cv::Point2f(0+Rand(perspective_transformation_border),
+      src_shape[0] = cv::Point2f(0+Rand(perspective_transformation_border),
         0+Rand(perspective_transformation_border));
-      src_shape[1]=cv::Point2f(0+Rand(perspective_transformation_border),
+      src_shape[1] = cv::Point2f(0+Rand(perspective_transformation_border),
         cv_img.rows-Rand(perspective_transformation_border));
-      src_shape[2]=cv::Point2f(cv_img.cols-Rand(perspective_transformation_border),
+      src_shape[2] = cv::Point2f(cv_img.cols-
+        Rand(perspective_transformation_border),
         cv_img.rows-Rand(perspective_transformation_border));
-      src_shape[3]=cv::Point2f(cv_img.cols-Rand(perspective_transformation_border),
+      src_shape[3] = cv::Point2f(cv_img.cols-
+        Rand(perspective_transformation_border),
         0+Rand(perspective_transformation_border));
       cv::Point2f dst_shape[4];
       dst_shape[0]=cv::Point2f(0, 0);
@@ -524,9 +526,9 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   const int img_width = cv_img.cols;
   const int lab_channels =  cv_lab.channels();
 
-  CHECK(cv_lab.channels() == 1) << "Can only handle grayscale label images";
-  CHECK(cv_lab.rows == img_height && cv_lab.cols == img_width) << "Input and label "
-      << "image heights and widths must match";
+  CHECK_EQ(cv_lab.channels(), 1) << "Can only handle grayscale label images";
+  CHECK(cv_lab.rows == img_height && cv_lab.cols == img_width) <<
+    "Input and label image heights and widths must match";
   // Check dimensions.
   const int channels = transformed_blob_img->channels();
   const int height = transformed_blob_img->height();
@@ -545,7 +547,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   const bool has_mean_file = param_.has_mean_file();
   const bool has_mean_values = mean_values_.size() > 0;
 
-  // add crop h and w 
+  // add crop h and w
   int crop_h = param_.crop_h();
   int crop_w = param_.crop_w();
   if (crop_size > 0) {
@@ -557,7 +559,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   CHECK_GE(img_width, crop_w);
 
   Dtype* mean = NULL;
-  if (has_mean_file ) {
+  if (has_mean_file) {
     CHECK_EQ(img_channels, data_mean_.channels());
     CHECK_EQ(img_height, data_mean_.height());
     CHECK_EQ(img_width, data_mean_.width());
@@ -575,7 +577,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   }
 
   int h_off = 0;
-  int w_off = 0;  
+  int w_off = 0;
   cv::Mat cv_cropped_img = cv_img;
   cv::Mat cv_cropped_label = cv_lab;
   if (crop_h > 0 || crop_w > 0) {
@@ -609,7 +611,6 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
     int img_index = 0;
     for (int w = 0; w < width; ++w) {
       for (int c = 0; c < img_channels; ++c) {
-        // CHECK(img_channels==1)<<"only support single channel images for not, fix it for color images";
         if (do_mirror) {
           top_index = (c*height+h)*width+(width-1-w);
         } else {
@@ -670,14 +671,14 @@ void DataTransformer<Dtype>::Transform(Blob<Dtype>* input_blob,
   if (transformed_blob->count() == 0) {
     // Initialize transformed_blob with the right shape.
     if (crop_size) {
-      transformed_blob->Reshape(input_num, input_channels,
-                                crop_size, crop_size);
-    } else if (crop_h>0 && crop_w>0){
-      transformed_blob->Reshape(input_num, input_channels,
-                                crop_h, crop_w);
+      transformed_blob->Reshape(
+        input_num, input_channels, crop_size, crop_size);
+    } else if (crop_h > 0 && crop_w > 0) {
+      transformed_blob->Reshape(
+        input_num, input_channels, crop_h, crop_w);
     } else {
-      transformed_blob->Reshape(input_num, input_channels,
-                                input_height, input_width);
+      transformed_blob->Reshape(
+        input_num, input_channels, input_height, input_width);
     }
   }
 
@@ -818,11 +819,11 @@ vector<int> DataTransformer<Dtype>::InferBlobShape(const Datum& datum) {
   CHECK((param_.crop_h() != 0) == (param_.crop_w() != 0))
         << "For non-square crops both crop_h and crop_w are required.";
   if (crop_size) {
-    shape[2]=crop_size;
-    shape[3]=crop_size;
-  } else if (crop_h>0 && crop_w>0){
-    shape[2]=crop_h;
-    shape[3]=crop_w;
+    shape[2] = crop_size;
+    shape[3] = crop_size;
+  } else if (crop_h > 0 && crop_w > 0){
+    shape[2] = crop_h;
+    shape[3] = crop_w;
   } else {
     shape[2] = datum_height;
     shape[3] = datum_width;
@@ -846,7 +847,7 @@ vector<int> DataTransformer<Dtype>::InferBlobShape(
 template<typename Dtype>
 vector<int> DataTransformer<Dtype>::InferBlobShape(const cv::Mat& cv_img) {
   const int crop_size = param_.crop_size();
-  const int crop_h = param_.crop_h();  
+  const int crop_h = param_.crop_h();
   const int crop_w = param_.crop_w();
   const int img_channels = cv_img.channels();
   const int img_height = cv_img.rows;
@@ -854,7 +855,7 @@ vector<int> DataTransformer<Dtype>::InferBlobShape(const cv::Mat& cv_img) {
   // Check dimensions.
   CHECK_GT(img_channels, 0);
   CHECK_GE(img_height, crop_size);
-  CHECK_GE(img_width, crop_size);  
+  CHECK_GE(img_width, crop_size);
   CHECK_GE(img_height, crop_h);
   CHECK_GE(img_width, crop_w);
   // Build BlobShape.
@@ -867,11 +868,11 @@ vector<int> DataTransformer<Dtype>::InferBlobShape(const cv::Mat& cv_img) {
   CHECK((param_.crop_h() != 0) == (param_.crop_w() != 0))
         << "For non-square crops both crop_h and crop_w are required.";
   if (crop_size) {
-    shape[2]=crop_size;
-    shape[3]=crop_size;
-  } else if (crop_h>0 && crop_w>0){
-    shape[2]=crop_h;
-    shape[3]=crop_w;
+    shape[2] = crop_size;
+    shape[3] = crop_size;
+  } else if (crop_h > 0 && crop_w > 0){
+    shape[2] = crop_h;
+    shape[3] = crop_w;
   } else {
     shape[2] = img_height;
     shape[3] = img_width;
