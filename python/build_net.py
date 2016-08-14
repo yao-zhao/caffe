@@ -160,52 +160,53 @@ class BuildNet:
 
 # output layers
 ################################################################################
-    def add_softmax(self, loss_weight = 1):
+    def add_softmax(self, loss_weight = 1, name = 'softmax'):
         if self.phase == 'train' or self.phase == 'test':
             softmax = L.SoftmaxWithLoss(self.bottom, self.label,
                                         loss_weight = loss_weight)
             accuracy = L.Accuracy(self.bottom, self.label)
-            setattr(self.net, 'loss', softmax)
+            setattr(self.net, name+'loss', softmax)
             setattr(self.net, 'accuracy', accuracy)
         elif self.phase == 'deploy':
             softmax = L.Softmax(self.bottom)
-            setattr(self.net, 'prob', softmax)
+            setattr(self.net, name+'prob', softmax)
 
     # add softmax
-    def add_euclidean(self, loss_weight = 1):
+    def add_euclidean(self, loss_weight = 1, name = 'euclidean'):
         if self.phase == 'train' or self.phase == 'test':
             euclidean = L.EuclideanLoss(self.bottom, self.label,
                                       loss_weight = loss_weight)
-            setattr(self.net, 'loss', euclidean)
+            setattr(self.net, name+'loss', euclidean)
 
     # add gaussian prob loss layer with fc
     def add_gaussian_prob(self, lr = 1, eps = 1e-2,
-        loss_weight = 1):
+        loss_weight = 1, name = 'gaussianprob'):
         if self.phase == 'train' or self.phase == 'test':
-            self.mean = L.InnerProduct(self.bottom, num_output = 1,
+            mean = L.InnerProduct(self.bottom, num_output = 1,
                 param = [dict(lr_mult = lr), dict(lr_mult = lr)],
                 weight_filler = dict(type = 'xavier'),
                 bias_filler = dict(type = 'constant', value = 0))
-            self.var = L.InnerProduct(self.bottom, num_output = 1,
+            var = L.InnerProduct(self.bottom, num_output = 1,
                 param = [dict(lr_mult = lr), dict(lr_mult = lr)],
                 weight_filler = dict(type = 'xavier'),
                 bias_filler = dict(type = 'constant', value = 1))
-            self.relu = L.ReLU(self.var, in_place = True)
-            setattr(self.net, 'fcmean'+str(self.index), self.mean)
-            setattr(self.net, 'fcvar'+str(self.index), self.var)
-            setattr(self.net, 'relu'+str(self.index), self.relu)
+            relu = L.ReLU(var, in_place = True)
+            setattr(self.net, 'fcmean'+str(self.index), mean)
+            setattr(self.net, 'fcvar'+str(self.index), var)
+            setattr(self.net, 'relu'+str(self.index), relu)
             self.index += 1
-            gaussianprob = L.GaussianProbLoss(self.mean, self.var, self.label,
+            gaussianprob = L.GaussianProbLoss(mean, var, self.label,
                 gaussian_prob_loss_param = dict(eps = eps),
                 loss_weight = loss_weight)
-            setattr(self.net, 'loss', gaussianprob)
+            setattr(self.net, name+'loss', gaussianprob)
+            self.bottom = mean
         elif self.phase == 'deploy':
-            self.mean = L.InnerProduct(self.bottom, num_output = 1)
-            self.var = L.InnerProduct(self.bottom, num_output = 1)
-            self.relu = L.ReLU(self.var, in_place = True)
-            setattr(self.net, 'fcmean'+str(self.index), self.mean)
-            setattr(self.net, 'fcvar'+str(self.index), self.var)
-            setattr(self.net, 'relu'+str(self.index), self.relu)
+            mean = L.InnerProduct(self.bottom, num_output = 1)
+            var = L.InnerProduct(self.bottom, num_output = 1)
+            relu = L.ReLU(var, in_place = True)
+            setattr(self.net, 'fcmean'+str(self.index), mean)
+            setattr(self.net, 'fcvar'+str(self.index), var)
+            setattr(self.net, 'relu'+str(self.index), relu)
             self.index += 1
 
 # common building components
