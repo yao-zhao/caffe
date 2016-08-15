@@ -1,3 +1,4 @@
+#ifdef USE_OPENCV
 #include <algorithm>
 #include <map>
 #include <string>
@@ -212,3 +213,4 @@ TYPED_TEST(DenseImageDataLayerTest, TestShuffle) {
 }
 
 }  // namespace caffe
+#endif  // USE_OPENCV
