@@ -179,17 +179,18 @@ class BuildNet:
             setattr(self.net, name+'loss', euclidean)
 
     # add gaussian prob loss layer with fc
-    def add_gaussian_prob(self, lr = 1, eps = 1e-2,
-        loss_weight = 1, name = 'gaussianprob'):
+    def add_gaussian_prob(self, mean_lr = 1, var_lr = 0.1, eps = 1e-2,
+        loss_weight = 1, name = 'gaussianprob',
+        var_bias = 1):
         if self.phase == 'train' or self.phase == 'test':
             mean = L.InnerProduct(self.bottom, num_output = 1,
-                param = [dict(lr_mult = lr), dict(lr_mult = lr)],
+                param = [dict(lr_mult = mean_lr), dict(lr_mult = mean_lr)],
                 weight_filler = dict(type = 'xavier'),
                 bias_filler = dict(type = 'constant', value = 0))
             var = L.InnerProduct(self.bottom, num_output = 1,
-                param = [dict(lr_mult = lr), dict(lr_mult = lr)],
+                param = [dict(lr_mult = var_lr), dict(lr_mult = var_lr)],
                 weight_filler = dict(type = 'xavier'),
-                bias_filler = dict(type = 'constant', value = 1))
+                bias_filler = dict(type = 'constant', value = var_bias))
             relu = L.ReLU(var, in_place = True)
             setattr(self.net, 'fcmean'+str(self.index), mean)
             setattr(self.net, 'fcvar'+str(self.index), var)
@@ -347,7 +348,7 @@ class BuildNet:
             self.solver.max_iter = 1
             with open(self.model_path+'solver_preload.prototxt', 'w+') as f:
                 f.write(str(self.solver))
-            print 'solver writing finished'
+            print self.name+': '+'solver writing finished'
 
     # save net
     def save_net(self):
@@ -369,7 +370,7 @@ class BuildNet:
                     f.write('input_dim: '+str(height)+'\n')
                     f.write('input_dim: '+str(width)+'\n')
                 f.write(str(self.net.to_proto() ))
-                print self.phase+' net writing finished!'
+                print self.name+': '+self.phase+' net writing finished!'
 
     # save
     def save(self):
