@@ -12,6 +12,10 @@
 
 namespace caffe {
 
+inline int positive_mod(int i, int n) {
+  return (i % n + n) % n;
+}
+
 // Caffe gemm provides a simpler interface to the gemm functions, with the
 // limitation that the data has to be contiguous in memory.
 template <typename Dtype>
