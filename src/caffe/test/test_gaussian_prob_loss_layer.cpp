@@ -137,7 +137,7 @@ TYPED_TEST(GaussianProbLossLayerTest, TestGradient) {
   layer_param.add_loss_weight(kLossWeight);
   GaussianProbLossLayer<Dtype> layer(layer_param);
   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
-  GradientChecker<Dtype> checker(1e-4, 5e-2, 1701);
+  GradientChecker<Dtype> checker(1e-3, 5e-1, 1701);
   checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
       this->blob_top_vec_, 0);
   checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
