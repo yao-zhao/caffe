@@ -1,31 +1,39 @@
 #ifdef USE_OPENCV
+#include <string>
 #include <vector>
 
 #include "gtest/gtest.h"
 
-#include "caffe/image_transformations.hpp"
+#include "caffe/proto/caffe.pb.h"
+#include "caffe/util/image_transformations.hpp"
 
 #include "caffe/test/test_caffe_main.hpp"
 
 namespace caffe {
 
-template <typename TypeParam>
+template <typename Dtype>
 class ImageTransformationsTest : public ::testing::Test {
-  typedef typename TypeParam::Dtype Dtype;
 
  protected:
   ImageTransformationsTest()
       : seed_(1701) {}
 
-  CompareTwoImages(const cv::Mat img1, const cv::Mat img2) {
-    CHECK_EQ(img1.rows(), img2.rows());
-    CHECK_EQ(img1.cols(), img2.cols());
-    CHECK_EQ(img1.channels(), img2.channels());
-    for (h = 0; h < img1.rows(); ++h) {
-      uchar* ptr1 = img1.ptr<uchar>(h);
-      uchar* ptr2 = img2.ptr<uchar>(h);
-      for (int w = 0; w < w_dst; ++w) {
-        for (int c = 0; c < num_channels; ++c) {
+  void CompareTwoImages(const cv::Mat& img_expected,
+      const cv::Mat& img_actual) {
+    // EXPECT_EQ(img_expected.rows, img_actual.rows);
+    // EXPECT_EQ(img_expected.cols, img_actual.cols);
+    // EXPECT_EQ(img_expected.channels(), img_actual.channels());
+    for (int h = 0; h < img_expected.rows; ++h) {
+      const uchar* ptr1 = img_expected.ptr<uchar>(h);
+      const uchar* ptr2 = img_actual.ptr<uchar>(h);
+      int index = 0;
+      for (int w = 0; w < img_expected.cols; ++w) {
+        for (int c = 0; c < img_expected.channels(); ++c) {
+          int value_expected = ptr1[index];
+          int value_actual = ptr2[index++];
+          EXPECT_EQ(value_expected, value_actual)
+              << "matrices don't agree at"
+              << " h=" << h << " w=" << w << " c=" << c << "\n";
         }
       }
     }
@@ -34,21 +42,48 @@ class ImageTransformationsTest : public ::testing::Test {
   int seed_;
 };
 
-TYPED_TEST_CASE(ImageTransformationsTest);
+TYPED_TEST_CASE(ImageTransformationsTest, TestDtypes);
 
-TYPED_TEST_CASE(ImageTransformationsTest, TestNothing) {
+TYPED_TEST(ImageTransformationsTest, TestNothing) {
 }
 
-TYPED_TEST_CASE(ImageTransformationsTest, TestResizeImagePeriodic) {
-  cv::Mat img_src = cv::Mat::eye(3, 3, cv::CV_8UC3);
-  cv::Mat img_dst = cv::Mat::zeros(5, 6, cv::CV_8UC3);
+TYPED_TEST(ImageTransformationsTest, TestResizeImagePeriodic) {
+  cv::Mat img_src = cv::Mat::eye(3, 3, CV_8UC1);
+  cv::Mat img_dst = cv::Mat::zeros(5, 6, CV_8UC1);
   cv::Mat img_exp;
   ResizeImagePeriodic(img_src, 0, 0, img_dst);
-  img_exp = (cv::Mat_<double>(5,6) << 1, 0, 0, 1, 0, 0,
-                                      0, 1, 0, 0, 1, 0,
-                                      0, 0, 1, 0, 0, 1,
-                                      1, 0, 0, 1, 0, 0,
-                                      0, 1, 0, 0, 1, 0);
+  img_exp = (cv::Mat_<uint8_t>(5, 6) << 1, 0, 0, 1, 0, 0,
+                                        0, 1, 0, 0, 1, 0,
+                                        0, 0, 1, 0, 0, 1,
+                                        1, 0, 0, 1, 0, 0,
+                                        0, 1, 0, 0, 1, 0);
+  this->CompareTwoImages(img_dst, img_exp);
+}
+
+TYPED_TEST(ImageTransformationsTest, TestResizeImagePeriodic2) {
+  cv::Mat img_src = cv::Mat::eye(3, 3, CV_8UC1);
+  cv::Mat img_dst = cv::Mat::zeros(5, 6, CV_8UC1);
+  cv::Mat img_exp;
+  ResizeImagePeriodic(img_src, 1, 2, img_dst);
+  img_exp = (cv::Mat_<uint8_t>(5,6) << 0, 1, 0, 0, 1, 0,
+                                       0, 0, 1, 0, 0, 1,
+                                       1, 0, 0, 1, 0, 0,
+                                       0, 1, 0, 0, 1, 0,
+                                       0, 0, 1, 0, 0, 1);
+  this->CompareTwoImages(img_dst, img_exp);
+}
+
+TYPED_TEST(ImageTransformationsTest, TestResizeImagePeriodic3) {
+  cv::Mat img_src = cv::Mat::eye(3, 3, CV_8UC3);
+  cv::Mat img_dst = cv::Mat::zeros(5, 4, CV_8UC3);
+  cv::Mat img_exp;
+  ResizeImagePeriodic(img_src, 1, 2, img_dst);
+  img_exp = (cv::Mat_<uint8_t>(5,12) << 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+                                        0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+                                        1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+                                        0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+                                        0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0);
+  this->CompareTwoImages(img_dst, img_exp);
 }
 
 }
