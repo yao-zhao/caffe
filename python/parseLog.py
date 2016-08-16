@@ -7,26 +7,29 @@ result is a dictionary that have different keys including, 'train',
 @author: yz
 """
 import re
+
 def addValue(dic, keyname, subkeyname, value):
     if not dic.has_key(keyname):
         dic[keyname] = {}
     if not dic[keyname].has_key(subkeyname):
-        dic[keyname][subkeyname]=[]
+        dic[keyname][subkeyname] = []
     dic[keyname][subkeyname].append(value)
-        
+
 def parseLog(filename):
     result = {};
     with open(filename,'r') as file:
         for line in file:
             #print(line)
             # match iteration number for loss
-            testIDMatch = re.match('.* Iteration (\d*), Testing net \(#(\d*)\).*',line)
+            testIDMatch = re.match(
+                '.* Iteration (\d*), Testing net \(#(\d*)\).*',line)
             if testIDMatch:
                 iteration = int(testIDMatch.group(1))
                 testID = (testIDMatch.group(2))
                 addValue(result, 'test'+testID,'iter',iteration)
 
-            trainlossMatch = re.match('.* Iteration (\d*), loss = (\d*\.?\d*)',line)
+            trainlossMatch = re.match(
+                '.* Iteration (\d*), loss = ([-]?\d*\.?\d*)',line)
             if trainlossMatch:
                 iteration = int(trainlossMatch.group(1))
                 totalTrainLoss = float(trainlossMatch.group(2))
@@ -38,16 +41,17 @@ def parseLog(filename):
             # match output
             outputMatch = re.match(
             '.* (.*) net output #?(\d*)?: (\S*)'+
-            ' = (\d*.?\d*)(?: \(\* )?(\d*\.?\d*)?(?: = )?(\d*\.?\d*)?', line)
+            ' = ([-]?\d*.?\d*)(?: \(\* )?([-]?\d*\.?\d*)?(?: = )?'+
+            '([-]?\d*\.?\d*)?', line)
             if outputMatch:
                 phase = outputMatch.group(1).lower()
-                index= int(outputMatch.group(2))
+                index = int(outputMatch.group(2))
                 name = outputMatch.group(3)
                 value = float(outputMatch.group(4))
                 if phase == 'test':
                     phase += testID
                 addValue(result, phase, name, value)
-                if outputMatch.group(5)=='':
+                if outputMatch.group(5) =='':
                     weight = float('nan')
                     weighted_value = float('nan')
                 else:
@@ -56,9 +60,10 @@ def parseLog(filename):
                     addValue(result, phase, name+'_weight', weight)
                     addValue(result, phase, name+'_weighted', weighted_value)
             # match lear rate
-            lrMatch = re.match('.* lr = (\d*\.?\d*).*',line)
+            lrMatch = re.match('.* lr = ([-]?\d*\.?\d*).*',line)
             if lrMatch:
                 lr = float(lrMatch.group(1))
                 addValue(result, 'train', 'lr', lr)
-                
+    result['train']['total_loss'] = result['train']['total_loss'][1:]
+    result['train']['iter'] = result['train']['iter'][1:]
     return result
