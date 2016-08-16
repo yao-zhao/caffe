@@ -8,7 +8,7 @@
 namespace caffe {
 
 void ResizeImagePeriodic(const cv::Mat& src_img,
-    const int off_h, const int off_w, cv::Mat& dst_img);
+    const int off_h, const int off_w, cv::Mat* dst_img);
 
 #endif  // USE_OPENCV
 

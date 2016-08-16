@@ -13,7 +13,6 @@ namespace caffe {
 
 template <typename Dtype>
 class ImageTransformationsTest : public ::testing::Test {
-
  protected:
   ImageTransformationsTest()
       : seed_(1701) {}
@@ -51,7 +50,7 @@ TYPED_TEST(ImageTransformationsTest, TestResizeImagePeriodic) {
   cv::Mat img_src = cv::Mat::eye(3, 3, CV_8UC1);
   cv::Mat img_dst = cv::Mat::zeros(5, 6, CV_8UC1);
   cv::Mat img_exp;
-  ResizeImagePeriodic(img_src, 0, 0, img_dst);
+  ResizeImagePeriodic(img_src, 0, 0, &img_dst);
   img_exp = (cv::Mat_<uint8_t>(5, 6) << 1, 0, 0, 1, 0, 0,
                                         0, 1, 0, 0, 1, 0,
                                         0, 0, 1, 0, 0, 1,
@@ -64,12 +63,12 @@ TYPED_TEST(ImageTransformationsTest, TestResizeImagePeriodic2) {
   cv::Mat img_src = cv::Mat::eye(3, 3, CV_8UC1);
   cv::Mat img_dst = cv::Mat::zeros(5, 6, CV_8UC1);
   cv::Mat img_exp;
-  ResizeImagePeriodic(img_src, 1, 2, img_dst);
-  img_exp = (cv::Mat_<uint8_t>(5,6) << 0, 1, 0, 0, 1, 0,
-                                       0, 0, 1, 0, 0, 1,
-                                       1, 0, 0, 1, 0, 0,
-                                       0, 1, 0, 0, 1, 0,
-                                       0, 0, 1, 0, 0, 1);
+  ResizeImagePeriodic(img_src, 1, 2, &img_dst);
+  img_exp = (cv::Mat_<uint8_t>(5, 6) << 0, 1, 0, 0, 1, 0,
+                                        0, 0, 1, 0, 0, 1,
+                                        1, 0, 0, 1, 0, 0,
+                                        0, 1, 0, 0, 1, 0,
+                                        0, 0, 1, 0, 0, 1);
   this->CompareTwoImages(img_dst, img_exp);
 }
 
@@ -77,15 +76,16 @@ TYPED_TEST(ImageTransformationsTest, TestResizeImagePeriodic3) {
   cv::Mat img_src = cv::Mat::eye(3, 3, CV_8UC3);
   cv::Mat img_dst = cv::Mat::zeros(5, 4, CV_8UC3);
   cv::Mat img_exp;
-  ResizeImagePeriodic(img_src, 1, 2, img_dst);
-  img_exp = (cv::Mat_<uint8_t>(5,12) << 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
-                                        0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
-                                        1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
-                                        0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
-                                        0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0);
+  ResizeImagePeriodic(img_src, 1, 2, &img_dst);
+  img_exp = (cv::Mat_<uint8_t>(5, 12) <<
+      0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+      1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+      0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0);
   this->CompareTwoImages(img_dst, img_exp);
 }
 
-}
+}  // namespace caffe
 
 #endif  // USE_OPENCV
