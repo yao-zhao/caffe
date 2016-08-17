@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "caffe/data_transformer.hpp"
+#include "caffe/util/image_transformations.hpp"
 #include "caffe/util/io.hpp"
 #include "caffe/util/math_functions.hpp"
 #include "caffe/util/rng.hpp"
@@ -220,49 +221,14 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
       const int rotation_range = param_.rotation_range();
       const float scale_jitter = exp(param_.scale_jitter_range()*
         static_cast<float>(Rand(201)-100)/200.0);
-      CHECK_GE(scale_jitter, 0);
-      CHECK_GE(rotation_range, 0);
-      CHECK_LE(rotation_range, 180);
-      // rotate the image
-      cv::Point2f pt(cv_img.cols/2, cv_img.rows/2);
-      cv::Mat r;
-      if (has_rotation) {
-        r = cv::getRotationMatrix2D(pt,
-          Rand(rotation_range)-rotation_range/2, scale_jitter);
-      } else {
-        r = cv::getRotationMatrix2D(pt, 0, scale_jitter);
-      }
-      cv::warpAffine(cv_img, cv_img, r,
-        cv::Size(cv_img.cols, cv_img.rows));
+      RotateImageCenter(cv_img, rotation_range, scale_jitter, &cv_img);
     }
     // perspective transform
     if (has_perspective_transformation) {
       const int perspective_transformation_border =
-        param_.perspective_transformation_border();
-      CHECK_GE(perspective_transformation_border, 0);
-      CHECK_LE(perspective_transformation_border, datum_height/2);
-      CHECK_LE(perspective_transformation_border, datum_width/2);
-      // get transformation matrix
-      cv::Point2f src_shape[4];
-      src_shape[0]=cv::Point2f(0+Rand(perspective_transformation_border),
-        0+Rand(perspective_transformation_border));
-      src_shape[1]=cv::Point2f(0+Rand(perspective_transformation_border),
-        cv_img.rows-Rand(perspective_transformation_border));
-      src_shape[2]=cv::Point2f(cv_img.cols
-        -Rand(perspective_transformation_border),
-        cv_img.rows-Rand(perspective_transformation_border));
-      src_shape[3]=cv::Point2f(cv_img.cols
-        -Rand(perspective_transformation_border),
-        0+Rand(perspective_transformation_border));
-      cv::Point2f dst_shape[4];
-      dst_shape[0]=cv::Point2f(0, 0);
-      dst_shape[1]=cv::Point2f(0, cv_img.rows);
-      dst_shape[2]=cv::Point2f(cv_img.cols, cv_img.rows);
-      dst_shape[3]=cv::Point2f(cv_img.cols, 0);
-      cv::Mat ptmatrix = cv::getPerspectiveTransform(src_shape, dst_shape);
-      cv::warpPerspective(cv_img, cv_img, ptmatrix,
-        cv::Size(datum_width, datum_height),
-        cv::INTER_LINEAR, cv::BORDER_CONSTANT);
+          param_.perspective_transformation_border();
+      PerspectiveTransformImage(cv_img,
+          perspective_transformation_border, &cv_img);
     }
     // copy back to datum
     // CVMatToDatum(cv_img, newdatum);
@@ -503,60 +469,26 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
       static_cast<float>(Rand(201)-100)/200.0);
   }
 
+  cv::Mat transformed_img = cv_img;
   if ((has_perspective_transformation || has_rotation || has_scale_jitter)) {
     // if has rotation or scale jitter
     if (has_rotation || has_scale_jitter) {
       const int rotation_range = param_.rotation_range();
-      const float scale_jitter =
-      exp(param_.scale_jitter_range()*static_cast<float>(Rand(201)-100)/200.0);
-      CHECK_GE(scale_jitter, 0);
-      CHECK_GE(rotation_range, 0);
-      CHECK_LE(rotation_range, 180);
-      // rotate the image
-      cv::Point2f pt(cv_img.cols/2, cv_img.rows/2);
-      cv::Mat r;
-      if (has_rotation) {
-        r = cv::getRotationMatrix2D(pt,
-          Rand(rotation_range)-rotation_range/2, scale_jitter);
-      } else {
-        r = cv::getRotationMatrix2D(pt, 0, scale_jitter);
-      }
-      cv::warpAffine(cv_img, cv_img, r,
-        cv::Size(cv_img.cols, cv_img.rows));
+      const float scale_jitter = exp(param_.scale_jitter_range()*
+        static_cast<float>(Rand(201)-100)/200.0);
+      RotateImageCenter(transformed_img, rotation_range,
+          scale_jitter, &transformed_img);
     }
     // perspective transform
     if (has_perspective_transformation) {
       const int perspective_transformation_border =
-        param_.perspective_transformation_border();
-      CHECK_GE(perspective_transformation_border, 0);
-      CHECK_LE(perspective_transformation_border, cv_img.rows/2);
-      CHECK_LE(perspective_transformation_border, cv_img.cols/2);
-      // get transformation matrix
-      cv::Point2f src_shape[4];
-      src_shape[0] = cv::Point2f(0+Rand(perspective_transformation_border),
-        0+Rand(perspective_transformation_border));
-      src_shape[1] = cv::Point2f(0+Rand(perspective_transformation_border),
-        cv_img.rows-Rand(perspective_transformation_border));
-      src_shape[2] = cv::Point2f(cv_img.cols-
-        Rand(perspective_transformation_border),
-        cv_img.rows-Rand(perspective_transformation_border));
-      src_shape[3] = cv::Point2f(cv_img.cols-
-        Rand(perspective_transformation_border),
-        0+Rand(perspective_transformation_border));
-      cv::Point2f dst_shape[4];
-      dst_shape[0]=cv::Point2f(0, 0);
-      dst_shape[1]=cv::Point2f(0, cv_img.rows);
-      dst_shape[2]=cv::Point2f(cv_img.cols, cv_img.rows);
-      dst_shape[3]=cv::Point2f(cv_img.cols, 0);
-      cv::Mat ptmatrix = cv::getPerspectiveTransform(src_shape, dst_shape);
-      cv::warpPerspective(cv_img, cv_img, ptmatrix,
-        cv::Size(cv_img.cols, cv_img.rows),
-        cv::INTER_LINEAR, cv::BORDER_CONSTANT);
+          param_.perspective_transformation_border();
+      PerspectiveTransformImage(transformed_img,
+          perspective_transformation_border, &transformed_img);
     }
   }
   int h_off = 0;
   int w_off = 0;
-  cv::Mat cv_cropped_img = cv_img;
   if (crop_h > 0 || crop_w > 0) {
     CHECK_EQ(crop_h, height);
     CHECK_EQ(crop_w, width);
@@ -569,18 +501,18 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
       w_off = (img_width-crop_w)/2;
     }
     cv::Rect roi(w_off, h_off, crop_w, crop_h);
-    cv_cropped_img = cv_img(roi);
+    transformed_img = cv_img(roi);
   } else {
     CHECK_EQ(img_height, height);
     CHECK_EQ(img_width, width);
   }
 
-  CHECK(cv_cropped_img.data);
+  CHECK(transformed_img.data);
 
   Dtype* transformed_data = transformed_blob->mutable_cpu_data();
   int top_index;
   for (int h = 0; h < height; ++h) {
-    const uchar* ptr = cv_cropped_img.ptr<uchar>(h);
+    const uchar* ptr = transformed_img.ptr<uchar>(h);
     int img_index = 0;
     for (int w = 0; w < width; ++w) {
       for (int c = 0; c < img_channels; ++c) {
