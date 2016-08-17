@@ -28,7 +28,10 @@ class BuildNet:
 
     # change the bottom
     def set_bottom(self, name):
-        self.bottom = getattr(self.net, name)
+        if type(name) in [str, unicode]:
+            self.bottom = getattr(self.net, name)
+        else:
+            self.bottom = name
 
     # reset net
     def reset(self):
@@ -94,6 +97,7 @@ class BuildNet:
             self.net.label = self.label
         elif self.phase == 'deploy':
             self.net.data = self.bottom
+        return self.bottom
 
     # set image data layer
     def add_image(self, transformer_dict = None, batch_size = 32,
@@ -141,6 +145,7 @@ class BuildNet:
             self.net.label = self.label
         elif self.phase == 'deploy':
             self.net.data = self.bottom
+        return self.bottom
 
 # pooling layers
 ################################################################################
@@ -150,6 +155,7 @@ class BuildNet:
             kernel_size = 2, stride = 2, pool = P.Pooling.MAX)
         setattr(self.net, 'pool'+str(self.index), self.bottom)
         self.index += 1
+        return self.bottom
 
     # add final mean pool
     def add_meanpool_final(self):
@@ -157,6 +163,7 @@ class BuildNet:
             stride = 1, pool = P.Pooling.AVE)
         setattr(self.net, 'pool'+str(self.index), self.bottom)
         self.index += 1
+        return self.bottom
 
 # output layers
 ################################################################################
@@ -178,37 +185,49 @@ class BuildNet:
                                       loss_weight = loss_weight)
             setattr(self.net, name+'loss', euclidean)
 
-    # add gaussian prob loss layer with fc
-    def add_gaussian_prob(self, mean_lr = 1, var_lr = 0.1, eps = 1e-2,
-        loss_weight = 1, name = 'gaussianprob',
-        var_bias = 1):
+    # add gaussian prob loss layer
+    def add_gaussian_prob(self, mean, var, label = None,
+        eps = 1e-2, loss_weight = 1, name = 'gaussianprob'):
+        if not label:
+            label = self.label
         if self.phase == 'train' or self.phase == 'test':
-            mean = L.InnerProduct(self.bottom, num_output = 1,
-                param = [dict(lr_mult = mean_lr), dict(lr_mult = mean_lr)],
-                weight_filler = dict(type = 'xavier'),
-                bias_filler = dict(type = 'constant', value = 0))
-            var = L.InnerProduct(self.bottom, num_output = 1,
-                param = [dict(lr_mult = var_lr), dict(lr_mult = var_lr)],
-                weight_filler = dict(type = 'xavier'),
-                bias_filler = dict(type = 'constant', value = var_bias))
-            relu = L.ReLU(var, in_place = True)
-            setattr(self.net, 'fcmean'+str(self.index), mean)
-            setattr(self.net, 'fcvar'+str(self.index), var)
-            setattr(self.net, 'relu'+str(self.index), relu)
-            self.index += 1
-            gaussianprob = L.GaussianProbLoss(mean, var, self.label,
+            gaussianprob = L.GaussianProbLoss(mean, var, label,
                 gaussian_prob_loss_param = dict(eps = eps),
                 loss_weight = loss_weight)
             setattr(self.net, name+'loss', gaussianprob)
-            self.bottom = mean
-        elif self.phase == 'deploy':
-            mean = L.InnerProduct(self.bottom, num_output = 1)
-            var = L.InnerProduct(self.bottom, num_output = 1)
-            relu = L.ReLU(var, in_place = True)
-            setattr(self.net, 'fcmean'+str(self.index), mean)
-            setattr(self.net, 'fcvar'+str(self.index), var)
-            setattr(self.net, 'relu'+str(self.index), relu)
-            self.index += 1
+
+    # depreciated function
+    # # add gaussian prob loss layer with fc
+    # def add_gaussian_prob(self, mean_lr = 1, var_lr = 0.1, eps = 1e-2,
+    #     loss_weight = 1, name = 'gaussianprob',
+    #     var_bias = 1):
+    #     if self.phase == 'train' or self.phase == 'test':
+    #         mean = L.InnerProduct(self.bottom, num_output = 1,
+    #             param = [dict(lr_mult = mean_lr), dict(lr_mult = mean_lr)],
+    #             weight_filler = dict(type = 'xavier'),
+    #             bias_filler = dict(type = 'constant', value = 0))
+    #         var = L.InnerProduct(self.bottom, num_output = 1,
+    #             param = [dict(lr_mult = var_lr), dict(lr_mult = var_lr)],
+    #             weight_filler = dict(type = 'xavier'),
+    #             bias_filler = dict(type = 'constant', value = var_bias))
+    #         relu = L.ReLU(var, in_place = True)
+    #         setattr(self.net, 'fcmean'+str(self.index), mean)
+    #         setattr(self.net, 'fcvar'+str(self.index), var)
+    #         setattr(self.net, 'relu'+str(self.index), relu)
+    #         self.index += 1
+    #         gaussianprob = L.GaussianProbLoss(mean, var, self.label,
+    #             gaussian_prob_loss_param = dict(eps = eps),
+    #             loss_weight = loss_weight)
+    #         setattr(self.net, name+'loss', gaussianprob)
+    #         self.bottom = mean
+    #     elif self.phase == 'deploy':
+    #         mean = L.InnerProduct(self.bottom, num_output = 1)
+    #         var = L.InnerProduct(self.bottom, num_output = 1)
+    #         relu = L.ReLU(var, in_place = True)
+    #         setattr(self.net, 'fcmean'+str(self.index), mean)
+    #         setattr(self.net, 'fcvar'+str(self.index), var)
+    #         setattr(self.net, 'relu'+str(self.index), relu)
+    #         self.index += 1
 
 # common building components
 ################################################################################
@@ -229,6 +248,7 @@ class BuildNet:
         else:
             print "phase not supported"
         setattr(self.net, 'conv'+str(self.index), self.bottom)
+        return self.bottom
 
     # add batch normalization
     def add_batchnorm(self):
@@ -249,6 +269,7 @@ class BuildNet:
                 batch_norm_param = dict(use_global_stats = True),
                 in_place = True)
         setattr(self.net, 'bn'+str(self.index), self.bottom)
+        return self.bottom
 
     # add scale function
     def add_scale(self, lr = 1):
@@ -262,35 +283,42 @@ class BuildNet:
                   param = [dict(lr_mult = lr), dict(lr_mult = lr)],
                   bias_term = True, in_place = True)
         setattr(self.net, 'scale'+str(self.index), self.bottom)
+        return self.bottom
 
     # ReLU 
     def add_relu(self):
         self.bottom = L.ReLU(self.bottom, in_place = True)
         setattr(self.net, 'relu'+str(self.index), self.bottom)
+        return self.bottom
 
     # Parameterized ReLU 
     def add_prelu(self, lr = 1):
         self.bottom = L.PReLU(self.bottom, in_place = True, 
               param = [dict(lr_mult = lr)])
         setattr(self.net, 'prelu'+str(self.index), self.bottom)
+        return self.bottom
 
     # add fc
-    def add_fc(self, num_output, lr = 1, dropout = 0, bias_value = 0):
+    def add_fc(self, num_output, lr = 1, dropout = 0, bias_value = 0,
+            weight_filler = 'xavier', name = None):
+        if not name:
+            name = 'fc'+str(self.index)
         if self.phase == 'train' or self.phase == 'test':
             self.bottom = L.InnerProduct(self.bottom,
                 num_output = num_output,
                 param = [dict(lr_mult = lr), dict(lr_mult = lr)],
-                weight_filler = dict(type = 'xavier'),
+                weight_filler = dict(type = weight_filler),
                 bias_filler = dict(type = 'constant', value = bias_value))
         elif self.phase == 'deploy':
             self.bottom = L.InnerProduct(self.bottom,
                 num_output = num_output)
-        setattr(self.net, 'fc'+str(self.index), self.bottom)
+        setattr(self.net, name, self.bottom)
         if dropout > 0:
             self.bottom = L.Dropout(self.bottom, dropout_ratio = dropout,
                 in_place = True)
             setattr(self.net, 'dropout'+str(self.index), self.bottom)
         self.index += 1
+        return self.bottom
 
 # cyclic functions
 ################################################################################
@@ -298,16 +326,19 @@ class BuildNet:
         self.bottom = L.CyclicSlice(self.bottom)
         setattr(self.net, 'cslice', self.bottom)
         self.index += 1
+        return self.bottom
 
     def add_croll(self):
         self.bottom = L.CyclicRoll(self.bottom)
         setattr(self.net, 'croll'+str(self.index), self.bottom)
         self.index += 1
+        return self.bottom
 
     def add_cpool(self):
         self.bottom = L.CyclicPool(self.bottom, pool = P.CyclicPool.AVE)
         setattr(self.net, 'cpool', self.bottom)
         self.index += 1
+        return self.bottom
 
 # solvers
 ################################################################################
