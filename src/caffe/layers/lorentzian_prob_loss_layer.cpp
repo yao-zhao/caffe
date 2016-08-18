@@ -57,7 +57,7 @@ void LorentzianProbLossLayer<Dtype>::Forward_cpu(
   // calculate loss
   Dtype loss = caffe_cpu_dot(count, tmp_data, sumvec_.cpu_data());
   loss /= Dtype(count);
-  top[0]->mutable_cpu_data()[0] = loss+Dtype(0.49714987269);
+  top[0]->mutable_cpu_data()[0] = loss+Dtype(1.14472988585);
 }
 
 template <typename Dtype>

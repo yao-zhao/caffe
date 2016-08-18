@@ -69,7 +69,6 @@ class LorentzianProbLossLayerTest : public MultiDeviceTest<TypeParam> {
       EXPECT_GE(var[i], 0);
       tmp = mean[i]-label[i];
       tmp = tmp * tmp;
-      EXPECT_NEAR(tmp, 0.01, 1e-5);
       tmp2 = Dtype(this->eps_)+var[i];
       EXPECT_GT(var[i], 0);
       loss += log(tmp/tmp2+1)+log(tmp2)/2;
@@ -134,24 +133,42 @@ TYPED_TEST(LorentzianProbLossLayerTest, TestForward2) {
   LayerParameter layer_param;
   LorentzianProbLossLayer<Dtype> layer(layer_param);
   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
+  this->eps_ = layer_param.mutable_lorentzian_prob_loss_param()->eps();
   Dtype loss = this->getLoss();
   layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
   EXPECT_NEAR(this->blob_top_vec_[0]->cpu_data()[0],
     loss, 1e-5);
 }
 
-// TYPED_TEST(LorentzianProbLossLayerTest, TestGradient) {
-//   typedef typename TypeParam::Dtype Dtype;
-//   LayerParameter layer_param;
-//   const Dtype kLossWeight = 3.7;
-//   layer_param.add_loss_weight(kLossWeight);
-//   LorentzianProbLossLayer<Dtype> layer(layer_param);
-//   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
-//   GradientChecker<Dtype> checker(1e-3, 5e-1, 1701);
-//   checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
-//       this->blob_top_vec_, 0);
-//   checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
-//       this->blob_top_vec_, 0);
-// }
+TYPED_TEST(LorentzianProbLossLayerTest, TestGradientEasy) {
+  typedef typename TypeParam::Dtype Dtype;
+  this->SetUpEasy();
+  LayerParameter layer_param;
+  const Dtype kLossWeight = 3.7;
+  layer_param.add_loss_weight(kLossWeight);
+  LorentzianProbLossLayer<Dtype> layer(layer_param);
+  layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
+  GradientChecker<Dtype> checker(1e-3, 1e-4, 1701);
+  checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
+      this->blob_top_vec_, 0);
+  checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
+      this->blob_top_vec_, 0);
+}
+
+TYPED_TEST(LorentzianProbLossLayerTest, TestGradientRandom) {
+  typedef typename TypeParam::Dtype Dtype;
+  this->SetUpRandom();
+  LayerParameter layer_param;
+  const Dtype kLossWeight = 3.7;
+  layer_param.add_loss_weight(kLossWeight);
+  LorentzianProbLossLayer<Dtype> layer(layer_param);
+  layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
+  GradientChecker<Dtype> checker(1e-3, 1e-3, 1701);
+  checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
+      this->blob_top_vec_, 0);
+  checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
+      this->blob_top_vec_, 0);
+}
+
 
 }  // namespace caffe
