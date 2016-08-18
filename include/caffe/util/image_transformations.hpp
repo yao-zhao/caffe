@@ -10,10 +10,10 @@ namespace caffe {
 void ResizeImagePeriodic(const cv::Mat& src_img,
     const int off_h, const int off_w, cv::Mat* dst_img);
 
-void RotateImageCenter(const cv::Mat& src_img, const int rotation_range,
+void RandomRotateImage(const cv::Mat& src_img, const int rotation_range,
     const float rescale_factor, cv::Mat* dst_img);
 
-void PerspectiveTransformImage(const cv::Mat& src_img,
+void RandomPerspectiveTransformImage(const cv::Mat& src_img,
     const int perspective_transformation_border, cv::Mat* dst_img);
 
 #endif  // USE_OPENCV
