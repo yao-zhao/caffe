@@ -4,6 +4,7 @@ collection of quick helper to build layers
 """
 
 import os
+os.environ["GLOG_minloglevel"] = "2"
 import caffe
 from caffe import layers as L, params as P
 from caffe.proto import caffe_pb2
@@ -15,7 +16,10 @@ class BuildNet:
         self.func = func
         self.model_path = savepath + name +'/'
         self.name = name
+        self.number_stage = None
         self.reset()
+        self.number_stage = self.number_stages()
+        print "initialization done"
 
 # common task
 ################################################################################
@@ -31,23 +35,28 @@ class BuildNet:
             self.bottom = name
 
     # reset net
-    def reset(self):
+    def reset(self, phase = 'train', stage = None):
         self.index = 1
         self.net = None
         self.net = caffe.NetSpec()
         self.solvers = []
-        self.stage = None
+        self.stage = 0
         self.stage_iters = []
         self.bottom = None
         self.label = None
-        self.phase = 'train'
+        self.phase = phase
+        self.func(self)
+        self.stage = stage
 
     def number_stages(self):
-        return len(self.solvers)
+        if self.number_stage is None:
+            return len(self.solvers)
+        else:
+            return self.number_stage
 
     # check stage
     def check_stage(self, stage):
-        return not stage or not self.stage or \
+        return stage is None or self.stage is None or \
                 np.any(np.equal(stage, self.stage))
 
 # function groups
@@ -97,42 +106,41 @@ class BuildNet:
                     backend = backend, source = source_path + 'train_lmdb',
                     transform_param = transformer_dict,
                     ntop = 2, include = dict(phase = caffe.TRAIN))
-            self.net.data = self.bottom
-            self.net.label = self.label
         elif self.phase == 'test':
             self.bottom, self.label = L.Data(batch_size = test_batch_size,
                     backend = backend, source = source_path + 'val_lmdb',
                     transform_param = transformer_dict,
                     ntop = 2, include = dict(phase = caffe.TEST))
-            self.net.data = self.bottom
-            self.net.label = self.label
         elif self.phase == 'deploy':
-            self.net.data = self.bottom
+            self.bottom = L.Input(input_param = dict(shape = dict(dim =
+                                 [deploy_batch_size, nc, height, width])))
+        self.net.data = self.bottom
+        if not self.phase == 'deploy':
+            self.net.label = self.label
         return self.bottom
 
     # set image data layer
     def add_image(self, transformer_dict = None, batch_size = 32,
-                 test_batch_size = None,
+                 test_batch_size = None, deploy_batch_size = 1,
                  source_path = 'data/', root_folder = 'data/',
                  shuffle = True, is_color = True, height = None, width = None):
         if test_batch_size is None:
             test_batch_size = batch_size
         # probe image data dimension
-        if not height or not width:
-            tmpnet = caffe.NetSpec()
-            tmpnet.data, tmpnet.label = L.ImageData(
-                source = source_path+'train.txt',
-                root_folder = root_folder, is_color = is_color,
-                batch_size = 1, ntop = 2)
-            with open('tmpnet.prototxt', 'w+') as f:
-                f.write(str(tmpnet.to_proto()))
-            nb, nc, h, w = caffe.Net('tmpnet.prototxt', caffe.TRAIN).\
-                blobs['data'].data.shape
-            if not height:
-                height = h
-            if not width:
-                width = w
-            os.remove('tmpnet.prototxt')
+        tmpnet = caffe.NetSpec()
+        tmpnet.data, tmpnet.label = L.ImageData(
+            source = source_path+'train.txt',
+            root_folder = root_folder, is_color = is_color,
+            batch_size = 1, ntop = 2)
+        with open('tmpnet.prototxt', 'w+') as f:
+            f.write(str(tmpnet.to_proto()))
+        nb, nc, h, w = caffe.Net('tmpnet.prototxt', caffe.TRAIN).\
+            blobs['data'].data.shape
+        if not height:
+            height = h
+        if not width:
+            width = w
+        os.remove('tmpnet.prototxt')
         # add layer
         if self.phase == 'train':
             self.bottom, self.label = L.ImageData(batch_size = batch_size,
@@ -142,8 +150,6 @@ class BuildNet:
                     transform_param = transformer_dict, ntop = 2,
                     new_height = height, new_width = width,
                     include = dict(phase = caffe.TRAIN))
-            self.net.data = self.bottom
-            self.net.label = self.label
         elif self.phase == 'test':
             self.bottom, self.label = L.ImageData(batch_size = test_batch_size,
                     source = source_path + 'val.txt',
@@ -152,10 +158,12 @@ class BuildNet:
                     transform_param = transformer_dict, ntop = 2,
                     new_height = height, new_width = width,
                     include = dict(phase = caffe.TEST))
-            self.net.data = self.bottom
-            self.net.label = self.label
         elif self.phase == 'deploy':
-            self.net.data = self.bottom
+            self.bottom = L.Input(input_param = dict(shape = dict(dim =
+                                 [deploy_batch_size, nc, height, width])))
+        self.net.data = self.bottom
+        if not self.phase == 'deploy':
+            self.net.label = self.label
         return self.bottom
 
 # pooling layers
@@ -209,39 +217,6 @@ class BuildNet:
                     gaussian_prob_loss_param = dict(eps = eps),
                     loss_weight = loss_weight)
                 setattr(self.net, name+'loss', gaussianprob)
-
-    # depreciated function
-    # # add gaussian prob loss layer with fc
-    # def add_gaussian_prob(self, mean_lr = 1, var_lr = 0.1, eps = 1e-2,
-    #     loss_weight = 1, name = 'gaussianprob',
-    #     var_bias = 1):
-    #     if self.phase == 'train' or self.phase == 'test':
-    #         mean = L.InnerProduct(self.bottom, num_output = 1,
-    #             param = [dict(lr_mult = mean_lr), dict(lr_mult = mean_lr)],
-    #             weight_filler = dict(type = 'xavier'),
-    #             bias_filler = dict(type = 'constant', value = 0))
-    #         var = L.InnerProduct(self.bottom, num_output = 1,
-    #             param = [dict(lr_mult = var_lr), dict(lr_mult = var_lr)],
-    #             weight_filler = dict(type = 'xavier'),
-    #             bias_filler = dict(type = 'constant', value = var_bias))
-    #         relu = L.ReLU(var, in_place = True)
-    #         setattr(self.net, 'fcmean'+str(self.index), mean)
-    #         setattr(self.net, 'fcvar'+str(self.index), var)
-    #         setattr(self.net, 'relu'+str(self.index), relu)
-    #         self.index += 1
-    #         gaussianprob = L.GaussianProbLoss(mean, var, self.label,
-    #             gaussian_prob_loss_param = dict(eps = eps),
-    #             loss_weight = loss_weight)
-    #         setattr(self.net, name+'loss', gaussianprob)
-    #         self.bottom = mean
-    #     elif self.phase == 'deploy':
-    #         mean = L.InnerProduct(self.bottom, num_output = 1)
-    #         var = L.InnerProduct(self.bottom, num_output = 1)
-    #         relu = L.ReLU(var, in_place = True)
-    #         setattr(self.net, 'fcmean'+str(self.index), mean)
-    #         setattr(self.net, 'fcvar'+str(self.index), var)
-    #         setattr(self.net, 'relu'+str(self.index), relu)
-    #         self.index += 1
 
 # common building components
 ################################################################################
@@ -366,9 +341,9 @@ class BuildNet:
         solver = caffe_pb2.SolverParameter()
         # solver.random_seed = 0xCAFFE
         solver.train_net = self.model_path+'train_'+\
-                str(self.number_stages())+'.prototxt'
+                str(self.stage)+'.prototxt'
         solver.test_net.append(self.model_path+'test_'+\
-                str(self.number_stages())+'.prototxt')
+                str(self.stage)+'.prototxt')
         solver.test_interval = test_interval
         solver.test_iter.append(test_iter)
         solver.max_iter = int(max_iter)
@@ -381,18 +356,17 @@ class BuildNet:
         solver.stepsize  = int(stepsize)
         solver.display = int(display)
         solver.snapshot = int(snapshot)
-        solver.snapshot_prefix = self.model_path+'stage_'+\
-                str(self.number_stages())
+        solver.snapshot_prefix = self.model_path+'stage_'+str(self.stage)
         solver.solver_mode = caffe_pb2.SolverParameter.GPU
         self.solvers.append(solver)
         self.stage_iters.append(solver.max_iter)
+        self.stage += 1
 
 # saving to files
 ################################################################################
     # write solver
     def save_solver(self):
-        self.reset()
-        self.func(self)
+        self.reset('train')
         for solver, stage in \
                 zip(self.solvers, range(self.number_stages())):
             # training solver
@@ -412,25 +386,13 @@ class BuildNet:
     def save_net(self):
         if not os.path.exists(self.model_path):
             os.mkdir(self.model_path)
-        for phase in ['train','test','deploy']:
-            self.reset()
-            self.phase = phase
-            self.func(self)
+        for phase in ['train', 'test', 'deploy']:
             for stage in range(self.number_stages()):
-                self.stage  = stage
+                self.reset(phase, stage)
                 with open(self.model_path+self.phase+'_'
                         +str(stage)+'.prototxt', 'w+') as f:
-                    f.write('name: \"'+self.name+'\"\n')
-                    if phase == 'deploy':
-                        numbatch, numchannel, height, width = caffe.Net(
-                            self.model_path+'train_0.prototxt',
-                            caffe.TRAIN).blobs['data'].shape
-                        f.write('input: \"data\"\n')
-                        f.write('input_dim: '+str(numbatch)+'\n')
-                        f.write('input_dim: '+str(numchannel)+'\n')
-                        f.write('input_dim: '+str(height)+'\n')
-                        f.write('input_dim: '+str(width)+'\n')
-                    f.write(str(self.net.to_proto() ))
+                    f.write('name: "'+self.name+'"\n')
+                    f.write(str(self.net.to_proto()))
                     print self.name+': stage '+str(stage)+' '+ \
                             self.phase+' net writing finished!'
 
@@ -451,7 +413,7 @@ class BuildNet:
                 'shift # past argument\n'+
                 ';;\n'+
                 '*)\n'+
-                '# unknown option'
+                '# unknown option\n'
                 ';;\n'+
                 'esac\n'+
                 'shift # past argument\n'+
@@ -462,38 +424,44 @@ class BuildNet:
         with open(self.model_path+'runfile.sh', 'w+') as f:
             self.gen_runfile_header(f)
             self.reset()
-            self.func(self)
             for stage in range(self.number_stages()):
                 f.write('~/caffe-yao/build/tools/caffe train -gpu $GPU'+
                         ' \\\n--solver=models/'+self.name+
                         '/solver_'+str(stage)+'.prototxt')
                 if stage > 0:
                     f.write(' \\\n--weights=models/'+self.name+
-                            '/stage_'+str(stage)+'_iter_'+
-                            str(self.stage_iters[stage-1])+'.solverstate')
+                            '/stage_'+str(stage-1)+'_iter_'+
+                            str(self.stage_iters[stage-1])+'.caffemodel')
                 f.write(' \\\n2>&1 | tee ')
                 if stage > 0:
                     f.write('-a ')
                 f.write('models/'+self.name+'/log_$REPEAT.txt\n')
+            f.write('cp models/'+self.name+'/stage_'+str(stage)+
+                    '_iter_'+str(self.stage_iters[stage])+'.caffemodel \\\n'+
+                    'models/'+self.name+'/final_$REPEAT.caffemodel\n')
 
     # save runfile
     def save_checking(self):
         with open(self.model_path+'checking.sh', 'w+') as f:
             self.gen_runfile_header(f)
             self.reset()
-            self.func(self)
+            f.write('set -e\n')
             for stage in range(self.number_stages()):
                 f.write('~/caffe-yao/build/tools/caffe train -gpu $GPU'+
                         ' \\\n--solver=models/'+self.name+
-                        '/solver_checking_'+str(stage)+'.prototxt')
-                f.write(' \\\n2>&1 | tee ')
-                if stage > 0:
-                    f.write('-a ')
-                f.write('models/'+self.name+'/log_checking_$REPEAT.txt\n')
+                        '/solver_checking_'+str(stage)+'.prototxt \\\n')
+                if stage == 0:
+                    f.write('2>&1 | tee ')
+                else:
+                    f.write('2>&1 | tee -a ')
+                f.write('models/'+self.name+'/log_checking.txt\n')
+                f.write('rm models/'+self.name+'/stage_'+str(stage)+
+                        '_iter_1.*\n')
+            f.write('set +e\n')
 
     # save
     def save(self):
-        # self.save_net()
+        self.save_net()
         self.save_solver()
         self.save_runfile()
         self.save_checking()
