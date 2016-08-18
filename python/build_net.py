@@ -266,13 +266,22 @@ class BuildNet:
             self.bottom = L.Scale(self.bottom,
                   param = [dict(lr_mult = lr), dict(lr_mult = lr)],
                   bias_term = True, in_place = True,
-                  bias_filler = dict(type = 'constant',value = 0))
+                  bias_filler = dict(type = 'constant', value = 0))
         else:
             self.bottom = L.Scale(self.bottom,
                   param = [dict(lr_mult = lr), dict(lr_mult = lr)],
                   bias_term = True, in_place = True)
         setattr(self.net, 'scale'+str(self.index), self.bottom)
         return self.bottom
+
+    # add rescale function
+    def add_rescale_label(self, scale):
+        if self.check_stage(stage) and
+                (self.phase == 'train' or self.phase == 'test'):
+            self.label = L.Scale(self.label, param = [dict(lr_mult = 0)],
+                                 bias_term = False, in_place = True,
+                                 weight_filler = dict(type = 'constant',
+                                 value = scale))
 
     # ReLU 
     def add_relu(self, stage = None):
