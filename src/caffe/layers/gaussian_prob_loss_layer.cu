@@ -29,7 +29,7 @@ void GaussianProbLossLayer<Dtype>::Forward_gpu(
   Dtype loss;
   caffe_gpu_dot(count, tmp_data, sumvec_.gpu_data(), &loss);
   loss /= Dtype(count)*Dtype(2);
-  top[0]->mutable_cpu_data()[0] = loss+Dtype(0.3990899);;
+  top[0]->mutable_cpu_data()[0] = loss+Dtype(0.9189385332);;
 }
 
 template <typename Dtype>

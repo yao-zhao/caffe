@@ -54,7 +54,7 @@ void GaussianProbLossLayer<Dtype>::Forward_cpu(
   // calculate loss
   Dtype loss = caffe_cpu_dot(count, tmp_data, sumvec_.cpu_data());
   loss /= Dtype(count)*Dtype(2);
-  top[0]->mutable_cpu_data()[0] = loss+Dtype(0.3990899);
+  top[0]->mutable_cpu_data()[0] = loss+Dtype(0.9189385332);
 }
 
 template <typename Dtype>
