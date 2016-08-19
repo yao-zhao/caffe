@@ -8,36 +8,42 @@ result is a dictionary that have different keys including, 'train',
 """
 import re
 
-def addValue(dic, keyname, subkeyname, value):
-    if not dic.has_key(keyname):
-        dic[keyname] = {}
-    if not dic[keyname].has_key(subkeyname):
-        dic[keyname][subkeyname] = []
-    dic[keyname][subkeyname].append(value)
+
+
+
+
 
 def parseLog(filename):
+    # first iteration number of each stage
+    base_iteration = 0
+    last_iteration = 0
+    iteration = 0
+    def addValue(dic, keyname, subkeyname, i, value):
+        if not dic.has_key(keyname):
+            dic[keyname] = {}
+        if not dic[keyname].has_key(subkeyname):
+            dic[keyname][subkeyname] = []
+        dic[keyname][subkeyname].append((i+base_iteration, value))    
+    # start parsing
     result = {};
     with open(filename,'r') as file:
         for line in file:
-            #print(line)
-            # match iteration number for loss
+            # match iteration number, testID
             testIDMatch = re.match(
                 '.* Iteration (\d*), Testing net \(#(\d*)\).*',line)
             if testIDMatch:
                 iteration = int(testIDMatch.group(1))
                 testID = (testIDMatch.group(2))
-                addValue(result, 'test'+testID,'iter',iteration)
-
+#                addValue(result, 'test'+testID,'iter',iteration)
+            # match train total loss
             trainlossMatch = re.match(
                 '.* Iteration (\d*), loss = ([-]?\d*\.?\d*)',line)
             if trainlossMatch:
                 iteration = int(trainlossMatch.group(1))
                 totalTrainLoss = float(trainlossMatch.group(2))
-                addValue(result, 'train', 'iter',iteration)
-                addValue(result, 'train', 'total_loss',totalTrainLoss)
-            # match test net id
-#            testIDMatch = re.match('.* Testing net \(#(\d*)\)',line)
-#            if testIDMatch:
+#                addValue(result, 'train', 'iter', iteration)
+                addValue(result, 'train', 'total_loss', 
+                         iteration, totalTrainLoss)
             # match output
             outputMatch = re.match(
             '.* (.*) net output #?(\d*)?: (\S*)'+
@@ -50,20 +56,28 @@ def parseLog(filename):
                 value = float(outputMatch.group(4))
                 if phase == 'test':
                     phase += testID
-                addValue(result, phase, name, value)
+                addValue(result, phase, name, iteration, value)
                 if outputMatch.group(5) =='':
                     weight = float('nan')
                     weighted_value = float('nan')
                 else:
                     weight = float(outputMatch.group(5))
                     weighted_value = float(outputMatch.group(6))
-                    addValue(result, phase, name+'_weight', weight)
-                    addValue(result, phase, name+'_weighted', weighted_value)
+                    addValue(result, phase, name+'_weight',
+                             iteration, weight)
+                    addValue(result, phase, name+'_weighted',
+                             iteration, weighted_value)
             # match lear rate
             lrMatch = re.match('.* lr = ([-]?\d*\.?\d*).*',line)
             if lrMatch:
                 lr = float(lrMatch.group(1))
-                addValue(result, 'train', 'lr', lr)
-    result['train']['total_loss'] = result['train']['total_loss'][1:]
-    result['train']['iter'] = result['train']['iter'][1:]
+                addValue(result, 'train', 'lr', iteration, lr)
+            if last_iteration > iteration:
+                print last_iteration
+                base_iteration += last_iteration
+                last_iteration = iteration
+            elif last_iteration < iteration:
+                last_iteration = iteration
+#    result['train']['total_loss'] = result['train']['total_loss'][1:]
+#    result['train']['iter'] = result['train']['iter'][1:]
     return result
