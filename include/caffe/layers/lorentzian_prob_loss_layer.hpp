@@ -31,7 +31,7 @@ class LorentzianProbLossLayer : public LossLayer<Dtype> {
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top);
   virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
-  virtual inline const char* type() const { return "GaussianProbLoss"; }
+  virtual inline const char* type() const { return "LorentzianProbLoss"; }
   virtual inline int ExactNumBottomBlobs() const { return 3; }
   virtual inline int ExactNumTopBlobs() const { return 1; }
   /**
