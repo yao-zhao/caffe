@@ -16,9 +16,8 @@ class BuildNet:
         self.func = func
         self.model_path = savepath + name +'/'
         self.name = name
-        self.number_stage = None
         self.reset()
-        self.number_stage = self.number_stages()
+        self.number_stages = len(self.solvers)
         print "initialization done"
 
 # common task
@@ -40,19 +39,12 @@ class BuildNet:
         self.net = None
         self.net = caffe.NetSpec()
         self.solvers = []
-        self.stage = 0
+        self.stage = stage
         self.stage_iters = []
         self.bottom = None
         self.label = None
         self.phase = phase
         self.func(self)
-        self.stage = stage
-
-    def number_stages(self):
-        if self.number_stage is None:
-            return len(self.solvers)
-        else:
-            return self.number_stage
 
     # check stage
     def check_stage(self, stage):
@@ -276,7 +268,7 @@ class BuildNet:
 
     # add rescale function
     def add_rescale_label(self, scale):
-        if self.check_stage(stage) and
+        if self.check_stage(stage) and \
                 (self.phase == 'train' or self.phase == 'test'):
             self.label = L.Scale(self.label, param = [dict(lr_mult = 0)],
                                  bias_term = False, in_place = True,
@@ -349,10 +341,9 @@ class BuildNet:
                 display = 10, snapshot = 1e3):
         solver = caffe_pb2.SolverParameter()
         # solver.random_seed = 0xCAFFE
-        solver.train_net = self.model_path+'train_'+\
-                str(self.stage)+'.prototxt'
-        solver.test_net.append(self.model_path+'test_'+\
-                str(self.stage)+'.prototxt')
+        stage_str = str(len(self.solvers))
+        solver.train_net = self.model_path+'train_'+stage_str+'.prototxt'
+        solver.test_net.append(self.model_path+'test_'+stage_str+'.prototxt')
         solver.test_interval = test_interval
         solver.test_iter.append(test_iter)
         solver.max_iter = int(max_iter)
@@ -365,11 +356,10 @@ class BuildNet:
         solver.stepsize  = int(stepsize)
         solver.display = int(display)
         solver.snapshot = int(snapshot)
-        solver.snapshot_prefix = self.model_path+'stage_'+str(self.stage)
+        solver.snapshot_prefix = self.model_path+'stage_'+stage_str
         solver.solver_mode = caffe_pb2.SolverParameter.GPU
         self.solvers.append(solver)
         self.stage_iters.append(solver.max_iter)
-        self.stage += 1
 
 # saving to files
 ################################################################################
@@ -377,7 +367,7 @@ class BuildNet:
     def save_solver(self):
         self.reset('train')
         for solver, stage in \
-                zip(self.solvers, range(self.number_stages())):
+                zip(self.solvers, range(self.number_stages)):
             # training solver
             solver.test_initialization = False
             with open(self.model_path+'solver_'
@@ -396,7 +386,7 @@ class BuildNet:
         if not os.path.exists(self.model_path):
             os.mkdir(self.model_path)
         for phase in ['train', 'test', 'deploy']:
-            for stage in range(self.number_stages()):
+            for stage in range(self.number_stages):
                 self.reset(phase, stage)
                 with open(self.model_path+self.phase+'_'
                         +str(stage)+'.prototxt', 'w+') as f:
@@ -433,7 +423,7 @@ class BuildNet:
         with open(self.model_path+'runfile.sh', 'w+') as f:
             self.gen_runfile_header(f)
             self.reset()
-            for stage in range(self.number_stages()):
+            for stage in range(self.number_stages):
                 f.write('~/caffe-yao/build/tools/caffe train -gpu $GPU'+
                         ' \\\n--solver=models/'+self.name+
                         '/solver_'+str(stage)+'.prototxt')
@@ -455,7 +445,7 @@ class BuildNet:
             self.gen_runfile_header(f)
             self.reset()
             f.write('set -e\n')
-            for stage in range(self.number_stages()):
+            for stage in range(self.number_stages):
                 f.write('~/caffe-yao/build/tools/caffe train -gpu $GPU'+
                         ' \\\n--solver=models/'+self.name+
                         '/solver_checking_'+str(stage)+'.prototxt \\\n')
