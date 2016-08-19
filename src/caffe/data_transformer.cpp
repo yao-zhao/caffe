@@ -221,13 +221,13 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
       const int rotation_range = param_.rotation_range();
       const float scale_jitter = exp(param_.scale_jitter_range()*
         static_cast<float>(Rand(201)-100)/200.0);
-      RotateImageCenter(cv_img, rotation_range, scale_jitter, &cv_img);
+      RandomRotateImage(cv_img, rotation_range, scale_jitter, &cv_img);
     }
     // perspective transform
     if (has_perspective_transformation) {
       const int perspective_transformation_border =
           param_.perspective_transformation_border();
-      PerspectiveTransformImage(cv_img,
+      RandomPerspectiveTransformImage(cv_img,
           perspective_transformation_border, &cv_img);
     }
     // copy back to datum
@@ -476,14 +476,14 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
       const int rotation_range = param_.rotation_range();
       const float scale_jitter = exp(param_.scale_jitter_range()*
         static_cast<float>(Rand(201)-100)/200.0);
-      RotateImageCenter(transformed_img, rotation_range,
+      RandomRotateImage(transformed_img, rotation_range,
           scale_jitter, &transformed_img);
     }
     // perspective transform
     if (has_perspective_transformation) {
       const int perspective_transformation_border =
           param_.perspective_transformation_border();
-      PerspectiveTransformImage(transformed_img,
+      RandomPerspectiveTransformImage(transformed_img,
           perspective_transformation_border, &transformed_img);
     }
   }

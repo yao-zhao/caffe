@@ -1,22 +1,22 @@
 #include <vector>
 
-#include "caffe/layers/gaussian_prob_loss_layer.hpp"
+#include "caffe/layers/lorentzian_prob_loss_layer.hpp"
 #include "caffe/util/math_functions.hpp"
 
 namespace caffe {
 
 template <typename Dtype>
-void GaussianProbLossLayer<Dtype>::LayerSetUp(
+void LorentzianProbLossLayer<Dtype>::LayerSetUp(
     const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
   LossLayer<Dtype>::LayerSetUp(bottom, top);
-  eps_ = this->layer_param_.gaussian_prob_loss_param().eps();
+  eps_ = this->layer_param_.lorentzian_prob_loss_param().eps();
   CHECK_GT(eps_, 0)
-  <<"eps has to be a positive number to ensure nonzero variance";
+      <<"eps has to be a positive number to ensure nonzero variance";
 }
 
 template <typename Dtype>
-void GaussianProbLossLayer<Dtype>::Reshape(
+void LorentzianProbLossLayer<Dtype>::Reshape(
   const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   LossLayer<Dtype>::Reshape(bottom, top);
   CHECK_EQ(bottom[0]->count(), bottom[1]->count())
@@ -30,7 +30,7 @@ void GaussianProbLossLayer<Dtype>::Reshape(
 }
 
 template <typename Dtype>
-void GaussianProbLossLayer<Dtype>::Forward_cpu(
+void LorentzianProbLossLayer<Dtype>::Forward_cpu(
     const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
   int count = bottom[0]->count();
@@ -49,43 +49,52 @@ void GaussianProbLossLayer<Dtype>::Forward_cpu(
   caffe_copy(count, var_data, diff_diff);
   caffe_add_scalar(count, eps_, diff_diff);
   caffe_div(count, tmp_data, diff_diff, tmp_data);
+  caffe_add_scalar(count, Dtype(1), tmp_data);
+  caffe_log(count, tmp_data, tmp_data);
   caffe_log(count, diff_diff, tmp_data2);
+  caffe_cpu_scale(count, Dtype(0.5), tmp_data2, tmp_data2);
   caffe_add(count, tmp_data, tmp_data2, tmp_data);
   // calculate loss
   Dtype loss = caffe_cpu_dot(count, tmp_data, sumvec_.cpu_data());
-  loss /= Dtype(count)*Dtype(2);
-  top[0]->mutable_cpu_data()[0] = loss+Dtype(0.9189385332);
+  loss /= Dtype(count);
+  top[0]->mutable_cpu_data()[0] = loss+Dtype(1.14472988585);
 }
 
 template <typename Dtype>
-void GaussianProbLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
+void LorentzianProbLossLayer<Dtype>::Backward_cpu(
+    const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
   if (propagate_down[0] || propagate_down[1]) {
     int count = bottom[0]->count();
-    Dtype alpha = top[0]->cpu_diff()[0]/Dtype(count);
+    const Dtype alpha_0 = top[0]->cpu_diff()[0]/Dtype(count)*2;
+    const Dtype alpha_1 = top[0]->cpu_diff()[0]/Dtype(count)/2;
+    Dtype* tmp_data = tmp_.mutable_cpu_data();
+    Dtype* tmp_data2 = tmp_.mutable_cpu_diff();
     Dtype* mean_diff = bottom[0]->mutable_cpu_diff();
     Dtype* var_diff = bottom[1]->mutable_cpu_diff();
-    Dtype* diff_data = diff_.mutable_cpu_data();
-    Dtype* diff_diff = diff_.mutable_cpu_diff();
-    caffe_div(count, diff_data, diff_diff, diff_data);
+    const Dtype* diff_data = diff_.mutable_cpu_data();
+    const Dtype* diff_diff = diff_.mutable_cpu_diff();
+    caffe_sqr(count, diff_data, tmp_data2);
+    caffe_add(count, tmp_data2, diff_diff, tmp_data);
+    caffe_div(count, diff_data, tmp_data, tmp_data);
     if (propagate_down[0]) {
-      caffe_cpu_scale(count, alpha, diff_data, mean_diff);
+      caffe_cpu_scale(count, alpha_0, tmp_data, mean_diff);
     }
     if (propagate_down[1]) {
-      caffe_sqr(count, diff_data, diff_data);
-      caffe_inv(count, diff_diff, diff_diff);
-      caffe_sub(count, diff_diff, diff_data, var_diff);
-      caffe_cpu_scale(count, alpha, var_diff, var_diff);
+      caffe_mul(count, diff_data, tmp_data, tmp_data);
+      caffe_sub(count, sumvec_.cpu_data(), tmp_data, tmp_data);
+      caffe_div(count, tmp_data, diff_diff, tmp_data);
+      caffe_cpu_scale(count, alpha_1, tmp_data, var_diff);
     }
   }
   LOG_IF(INFO, propagate_down[2]) << "can not propagate down to the label data";
 }
 
 #ifdef CPU_ONLY
-STUB_GPU(GaussianProbLossLayer);
+STUB_GPU(LorentzianProbLossLayer);
 #endif
 
-INSTANTIATE_CLASS(GaussianProbLossLayer);
-REGISTER_LAYER_CLASS(GaussianProbLoss);
+INSTANTIATE_CLASS(LorentzianProbLossLayer);
+REGISTER_LAYER_CLASS(LorentzianProbLoss);
 
 }  // namespace caffe
