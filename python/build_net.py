@@ -210,6 +210,18 @@ class BuildNet:
                     loss_weight = loss_weight)
                 setattr(self.net, name+'loss', gaussianprob)
 
+    # add gaussian prob loss layer
+    def add_lorentzian_prob(self, mean, var, label = None,
+        eps = 1e-2, loss_weight = 1, name = 'lorentzianprob', stage = None):
+        if self.check_stage(stage):
+            if not label:
+                label = self.label
+            if self.phase == 'train' or self.phase == 'test':
+                prob = L.LorentzianProbLoss(mean, var, label,
+                    gaussian_prob_loss_param = dict(eps = eps),
+                    loss_weight = loss_weight)
+                setattr(self.net, name+'loss', prob)
+
 # common building components
 ################################################################################
     # convolutional layer 
@@ -435,9 +447,10 @@ class BuildNet:
                 if stage > 0:
                     f.write('-a ')
                 f.write('models/'+self.name+'/log_$REPEAT.txt\n')
-            f.write('cp models/'+self.name+'/stage_'+str(stage)+
-                    '_iter_'+str(self.stage_iters[stage])+'.caffemodel \\\n'+
-                    'models/'+self.name+'/final_$REPEAT.caffemodel\n')
+                f.write('cp models/'+self.name+'/stage_'+str(stage)+'_iter_'+
+                        str(self.stage_iters[stage])+'.caffemodel \\\n'+
+                        'models/'+self.name+'/stage_'+str(stage)+
+                        '_final_$REPEAT.caffemodel\n')
 
     # save runfile
     def save_checking(self):
