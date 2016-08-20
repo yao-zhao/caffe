@@ -8,11 +8,6 @@ result is a dictionary that have different keys including, 'train',
 """
 import re
 
-
-
-
-
-
 def parseLog(filename):
     # first iteration number of each stage
     base_iteration = 0
@@ -73,7 +68,6 @@ def parseLog(filename):
                 lr = float(lrMatch.group(1))
                 addValue(result, 'train', 'lr', iteration, lr)
             if last_iteration > iteration:
-                print last_iteration
                 base_iteration += last_iteration
                 last_iteration = iteration
             elif last_iteration < iteration:
