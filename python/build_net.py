@@ -146,7 +146,7 @@ class BuildNet:
             self.bottom, self.label = L.ImageData(batch_size = test_batch_size,
                     source = source_path + 'val.txt',
                     root_folder = root_folder, is_color = is_color,
-                    shuffle = shuffle,
+                    shuffle = False,
                     transform_param = transformer_dict, ntop = 2,
                     new_height = height, new_width = width,
                     include = dict(phase = caffe.TEST))
