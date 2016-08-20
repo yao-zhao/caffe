@@ -868,6 +868,8 @@ message ImageDataParameter {
   // data.
   optional bool mirror = 6 [default = false];
   optional string root_folder = 12 [default = ""];
+  // rescale the label
+  optional float label_scale = 13 [default = 1.0];
 }
 
 message InfogainLossParameter {
