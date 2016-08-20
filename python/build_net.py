@@ -115,6 +115,7 @@ class BuildNet:
     def add_image(self, transformer_dict = None, batch_size = 32,
                  test_batch_size = None, deploy_batch_size = 1,
                  source_path = 'data/', root_folder = 'data/',
+                 label_scale = 1,
                  shuffle = True, is_color = True, height = None, width = None):
         if test_batch_size is None:
             test_batch_size = batch_size
@@ -138,7 +139,7 @@ class BuildNet:
             self.bottom, self.label = L.ImageData(batch_size = batch_size,
                     source = source_path + 'train.txt',
                     root_folder = root_folder, is_color = is_color,
-                    shuffle = shuffle,
+                    shuffle = shuffle, label_scale = label_scale,
                     transform_param = transformer_dict, ntop = 2,
                     new_height = height, new_width = width,
                     include = dict(phase = caffe.TRAIN))
@@ -146,7 +147,7 @@ class BuildNet:
             self.bottom, self.label = L.ImageData(batch_size = test_batch_size,
                     source = source_path + 'val.txt',
                     root_folder = root_folder, is_color = is_color,
-                    shuffle = False,
+                    shuffle = False, label_scale = label_scale,
                     transform_param = transformer_dict, ntop = 2,
                     new_height = height, new_width = width,
                     include = dict(phase = caffe.TEST))
@@ -277,15 +278,6 @@ class BuildNet:
                   bias_term = True, in_place = True)
         setattr(self.net, 'scale'+str(self.index), self.bottom)
         return self.bottom
-
-    # add rescale function
-    def add_rescale_label(self, scale):
-        if self.check_stage(stage) and \
-                (self.phase == 'train' or self.phase == 'test'):
-            self.label = L.Scale(self.label, param = [dict(lr_mult = 0)],
-                                 bias_term = False, in_place = True,
-                                 weight_filler = dict(type = 'constant',
-                                 value = scale))
 
     # ReLU 
     def add_relu(self, stage = None):
