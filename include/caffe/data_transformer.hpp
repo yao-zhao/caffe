@@ -171,7 +171,7 @@ class DataTransformer {
    * @return
    *    if cropping is valid, has_crop
    */
-  bool GetPostCropSize(int& crop_h, int& crop_w,
+  bool GetPostCropSize(int* crop_h, int* crop_w,
       const int height, const int width);
    /**
    * @brief get the mean of the image, saved in data_mean, mean_values_
@@ -198,10 +198,10 @@ class DataTransformer {
    *    cropped width
    * @param height
    *    input height
-   * @param crop_h
+   * @param width
    *    input width
    */
-  void GetOffset(int& off_h, int& off_w,
+  void GetOffset(int* off_h, int* off_w,
     const int crop_h, const int crop_w, const int height, const int width);
    /**
    * @brief get the factor to scale the intensity of the image
@@ -218,14 +218,18 @@ class DataTransformer {
    * @param cv_img
    *    image to be transformed
    */
-  void GeometricalTransform(cv::Mat& cv_img);
+  void GeometricalTransform(cv::Mat* cv_img);
    /**
    * @brief resize an image using periodic boundary condition
    *
+   * @param input_height
+   *    input height after resize
+   * @param width
+   *    input width after resize
    * @param cv_img
    *    image to be resize
    */
-  void PeriodicResize(cv::Mat& cv_img);
+  void PeriodicResize(cv::Mat* cv_img, int* input_height, int* input_width);
 #endif  // USE_OPENCV
 
   void Transform(const Datum& datum, Dtype* transformed_data);

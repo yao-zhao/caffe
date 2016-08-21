@@ -240,6 +240,10 @@ cv::Mat DatumToCVMat(const Datum& datum) {
   const int datum_channels = datum.channels();
   const int datum_height = datum.height();
   const int datum_width = datum.width();
+  CHECK_EQ(data.size(), datum_channels*datum_height*datum_width) <<
+      "size of data " << data.size() << "has to equal to the product of " <<
+      "number of channels " << datum_channels << ", height of datum " <<
+      datum_height << " and the width of datum " << datum_width;
   // images are automatically converted to 8U
   cv::Mat cv_img = cv::Mat(datum_height, datum_width, CV_8UC(datum_channels));
   for (int h = 0; h < datum_height; ++h) {
@@ -252,6 +256,7 @@ cv::Mat DatumToCVMat(const Datum& datum) {
       }
     }
   }
+  return cv_img;
 }
 #endif  // USE_OPENCV
 }  // namespace caffe

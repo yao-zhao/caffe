@@ -54,42 +54,40 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
                                        Dtype* transformed_data) {
   const string& data = datum.data();
   const int datum_channels = datum.channels();
-  const int datum_height = datum.height();
-  const int datum_width = datum.width();
+  int datum_height = datum.height();
+  int datum_width = datum.width();
 
   const bool do_mirror = param_.mirror() && Rand(2);
   const bool has_uint8 = data.size() > 0;
   const Dtype scale = GetScale();
 
-  // get post crop height and width
-  int height, width;
-  GetPostCropSize(height, width, datum_height, datum_width);
-  CHECK_GT(datum_channels, 0);
-
-  // get mean
-  GetMean(datum_channels, datum_height, datum_width);
-
   // use advanced transformation if USE_OPENCV
-  bool use_new_data = false;
+  bool convert_to_cv = false;
 #ifdef USE_OPENCV
   cv::Mat cv_img = DatumToCVMat(datum);
-  PeriodicResize(cv_img);
-  GeometricalTransform(cv_img);
-  use_new_data = true;
+  PeriodicResize(&cv_img, &datum_height, &datum_width);
+  GeometricalTransform(&cv_img);
+  convert_to_cv = true;
 #endif  // USE_OPENCV
 #ifndef USE_OPENCV
   NoAdvancedTransformations();
 #endif  // USE_OPENCV
 
+  // get post crop height and width
+  int height, width;
+  GetPostCropSize(&height, &width, datum_height, datum_width);
+  CHECK_GT(datum_channels, 0);
+
+  // get mean
+  GetMean(datum_channels, datum_height, datum_width);
+
   // get offset
   int h_off, w_off;
-  GetOffset(h_off, w_off, height, width, datum_height, datum_width);
+  GetOffset(&h_off, &w_off, height, width, datum_height, datum_width);
 
   // assign values
-  const Dtype* mean = NULL;
-  if (param_.has_mean_file()) {
-    data_mean_.mutable_cpu_data();
-  }
+  const Dtype* mean = param_.has_mean_file() ?
+      data_mean_.mutable_cpu_data() : NULL;
   Dtype datum_element;
   int top_index, data_index;
   for (int c = 0; c < datum_channels; ++c) {
@@ -102,7 +100,7 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
           top_index = (c*height+h)*width+w;
         }
         if (has_uint8) {
-          if (use_new_data) {
+          if (convert_to_cv) {
 #ifdef USE_OPENCV
             switch (datum_channels) {
               case 1:
@@ -183,7 +181,7 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
 
   // get crop
   int crop_h, crop_w;
-  GetPostCropSize(crop_h, crop_w, datum_height, datum_width);
+  GetPostCropSize(&crop_h, &crop_w, datum_height, datum_width);
   CHECK_GT(datum_channels, 0);
   CHECK_EQ(crop_h, height);
   CHECK_EQ(crop_w, width);
@@ -237,8 +235,8 @@ template<typename Dtype>
 void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
                                        Blob<Dtype>* transformed_blob) {
   const int img_channels = cv_img.channels();
-  const int img_height = cv_img.rows;
-  const int img_width = cv_img.cols;
+ int img_height = cv_img.rows;
+ int img_width = cv_img.cols;
 
   // Check dimensions.
   const int channels = transformed_blob->channels();
@@ -256,22 +254,22 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   const Dtype scale = GetScale();
   const bool do_mirror = param_.mirror() && Rand(2);
 
+  // advanced transformations
+  cv::Mat transformed_img = cv_img;
+  PeriodicResize(&transformed_img, &img_height, &img_width);
+  GeometricalTransform(&transformed_img);
+
   // get crop
   int crop_h, crop_w;
-  bool has_crop = GetPostCropSize(crop_h, crop_w, img_height, img_width);
+  bool has_crop = GetPostCropSize(&crop_h, &crop_w, img_height, img_width);
   CHECK_GT(img_channels, 0);
 
   // get mean
   GetMean(img_channels, img_height, img_width);
 
-  // advanced transformations
-  cv::Mat transformed_img = cv_img;
-  PeriodicResize(transformed_img);
-  GeometricalTransform(transformed_img);
-
   // get offset
   int h_off, w_off;
-  GetOffset(h_off, w_off, crop_h, crop_w, img_height, img_width);
+  GetOffset(&h_off, &w_off, crop_h, crop_w, img_height, img_width);
   CHECK_EQ(crop_h, height);
   CHECK_EQ(crop_w, width);
   if (has_crop) {
@@ -280,10 +278,9 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   }
 
   CHECK(transformed_img.data);
-  const Dtype* mean = NULL;
-  if (param_.has_mean_file()) {
-    data_mean_.mutable_cpu_data();
-  }
+
+  const Dtype* mean = param_.has_mean_file() ?
+      data_mean_.mutable_cpu_data() : NULL;
   Dtype* transformed_data = transformed_blob->mutable_cpu_data();
   int top_index;
   for (int h = 0; h < height; ++h) {
@@ -296,7 +293,6 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
         } else {
           top_index = (c*height+h)*width+w;
         }
-        // int top_index = (c * height + h) * width + w;
         Dtype pixel = static_cast<Dtype>(ptr[img_index++]);
         if (param_.has_mean_file()) {
           int mean_index = (c*img_height+h_off+h)*img_width+w_off+w;
@@ -347,7 +343,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
 
   // get crop
   int crop_h, crop_w;
-  bool has_crop = GetPostCropSize(crop_h, crop_w, img_height, img_width);
+  bool has_crop = GetPostCropSize(&crop_h, &crop_w, img_height, img_width);
   CHECK_GT(img_channels, 0);
 
   // get mean
@@ -355,7 +351,7 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
 
   // get offset
   int h_off, w_off;
-  GetOffset(h_off, w_off, crop_h, crop_w, img_height, img_width);
+  GetOffset(&h_off, &w_off, crop_h, crop_w, img_height, img_width);
   CHECK_EQ(crop_h, height);
   CHECK_EQ(crop_w, width);
   cv::Mat cv_cropped_img = cv_img;
@@ -369,10 +365,8 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   CHECK(cv_cropped_img.data);
   CHECK(cv_cropped_label.data);
 
-  const Dtype* mean = NULL;
-  if (param_.has_mean_file()) {
-    data_mean_.mutable_cpu_data();
-  }
+  const Dtype* mean = param_.has_mean_file() ?
+      data_mean_.mutable_cpu_data() : NULL;
   Dtype* transformed_data_img = transformed_blob_img->mutable_cpu_data();
   Dtype* transformed_data_lab = transformed_blob_lab->mutable_cpu_data();
   int top_index;
@@ -431,7 +425,7 @@ void DataTransformer<Dtype>::Transform(Blob<Dtype>* input_blob,
   NoAdvancedTransformations();
 
   int crop_h, crop_w;
-  GetPostCropSize(crop_h, crop_w, input_height, input_width);
+  GetPostCropSize(&crop_h, &crop_w, input_height, input_width);
   CHECK_GT(input_channels, 0);
 
   // Build BlobShape.
@@ -457,7 +451,7 @@ void DataTransformer<Dtype>::Transform(Blob<Dtype>* input_blob,
 
   // get offset
   int h_off, w_off;
-  GetOffset(h_off, w_off, crop_h, crop_w, input_height, input_width);
+  GetOffset(&h_off, &w_off, crop_h, crop_w, input_height, input_width);
   CHECK_EQ(crop_h, height);
   CHECK_EQ(crop_w, width);
 
@@ -544,7 +538,7 @@ vector<int> DataTransformer<Dtype>::InferBlobShape(const Datum& datum) {
   const int datum_width = datum.width();
   CHECK_GT(datum_channels, 0);
   int crop_h, crop_w;
-  GetPostCropSize(crop_h, crop_w, datum_height, datum_width);
+  GetPostCropSize(&crop_h, &crop_w, datum_height, datum_width);
   // Build BlobShape.
   vector<int> shape(4);
   shape[0] = 1;
@@ -575,7 +569,7 @@ vector<int> DataTransformer<Dtype>::InferBlobShape(const cv::Mat& cv_img) {
   const int img_width = cv_img.cols;
   CHECK_GT(img_channels, 0);
   int crop_h, crop_w;
-  GetPostCropSize(crop_h, crop_w, img_height, img_width);
+  GetPostCropSize(&crop_h, &crop_w, img_height, img_width);
   // Build BlobShape.
   vector<int> shape(4);
   shape[0] = 1;
@@ -640,23 +634,24 @@ void DataTransformer<Dtype>::NoAdvancedTransformations() {
 }
 
 template <typename Dtype>
-bool DataTransformer<Dtype>::GetPostCropSize(int& crop_h, int& crop_w,
+bool DataTransformer<Dtype>::GetPostCropSize(int* crop_h, int* crop_w,
     const int height, const int width) {
   const int crop_size = param_.crop_size();
-  crop_h = param_.crop_h();
-  crop_w = param_.crop_w();
+  *crop_h = param_.crop_h();
+  *crop_w = param_.crop_w();
   if (crop_size > 0) {
-    crop_h = crop_w = crop_size;
+    *crop_h = *crop_w = crop_size;
   }
-  CHECK_GE(height, crop_h);
-  CHECK_GE(width, crop_w);
-  if (crop_h == 0) {
-    crop_h = height;
+  CHECK_GE(height, *crop_h);
+  CHECK_GE(width, *crop_w);
+  bool has_crop = (*crop_h > 0 || *crop_w > 0);
+  if (*crop_h == 0) {
+    *crop_h = height;
   }
-  if (crop_w == 0) {
-    crop_w = width;
+  if (*crop_w == 0) {
+    *crop_w = width;
   }
-  return ((crop_h > 0 || crop_w > 0));
+  return has_crop;
 }
 
 template <typename Dtype>
@@ -680,17 +675,17 @@ void DataTransformer<Dtype>::GetMean(const int channels,
 }
 
 template <typename Dtype>
-void DataTransformer<Dtype>::GetOffset(int& h_off, int& w_off,
+void DataTransformer<Dtype>::GetOffset(int* h_off, int* w_off,
     const int crop_h, const int crop_w, const int height, const int width) {
   // We only do random crop when we do training.or have randome crop test
   CHECK_GE(height, crop_h);
   CHECK_GE(width, crop_w);
   if (phase_ == TRAIN || param_.random_crop_test()) {
-    h_off = Rand(height-crop_h+1);
-    w_off = Rand(width-crop_w+1);
+    *h_off = Rand(height-crop_h+1);
+    *w_off = Rand(width-crop_w+1);
   } else {
-    h_off = (height-crop_h)/2;
-    w_off = (width-crop_w)/2;
+    *h_off = (height-crop_h)/2;
+    *w_off = (width-crop_w)/2;
   }
 }
 
@@ -707,8 +702,9 @@ Dtype DataTransformer<Dtype>::GetScale() {
 }
 
 #ifdef USE_OPENCV
+
 template <typename Dtype>
-void DataTransformer<Dtype>::GeometricalTransform(cv::Mat& cv_img) {
+void DataTransformer<Dtype>::GeometricalTransform(cv::Mat* cv_img) {
   const bool has_rotation = param_.rotation_range() > 0;
   const bool has_perspective_transformation =
     param_.perspective_transformation_border() > 0;
@@ -719,20 +715,21 @@ void DataTransformer<Dtype>::GeometricalTransform(cv::Mat& cv_img) {
       const int rotation_range = param_.rotation_range();
       const float scale_jitter = exp(param_.scale_jitter_range()*
         static_cast<float>(Rand(201)-100)/200.0);
-      RandomRotateImage(cv_img, rotation_range, scale_jitter, &cv_img);
+      RandomRotateImage(*cv_img, rotation_range, scale_jitter, cv_img);
     }
     // perspective transform
     if (has_perspective_transformation) {
       const int perspective_transformation_border =
           param_.perspective_transformation_border();
-      RandomPerspectiveTransformImage(cv_img,
-          perspective_transformation_border, &cv_img);
+      RandomPerspectiveTransformImage(*cv_img,
+          perspective_transformation_border, cv_img);
     }
   }
 }
 
 template <typename Dtype>
-void DataTransformer<Dtype>::PeriodicResize(cv::Mat& cv_img) {
+void DataTransformer<Dtype>::PeriodicResize(cv::Mat* cv_img,
+    int* input_height, int* input_width) {
   if (param_.periodic_resize() !=
       TransformationParameter_PeriodicResizeMode_NONE) {
     int height = param_.periodic_resize_h();
@@ -743,18 +740,20 @@ void DataTransformer<Dtype>::PeriodicResize(cv::Mat& cv_img) {
         "preodic resize height has to be larger than zero";
     switch (param_.periodic_resize()) {
       case TransformationParameter_PeriodicResizeMode_CENTER:
-        ResizeImagePeriodic(cv_img, height/2 - cv_img.rows/2,
-            width/2 - cv_img.cols/2, &cv_img);
+        ResizeImagePeriodic(*cv_img, height/2 - cv_img->rows/2,
+            width/2 - cv_img->cols/2, cv_img);
         break;
       case TransformationParameter_PeriodicResizeMode_RANDOM:
-        ResizeImagePeriodic(cv_img, Rand(height), Rand(width), &cv_img);
+        ResizeImagePeriodic(*cv_img, Rand(height), Rand(width), cv_img);
         break;
       case TransformationParameter_PeriodicResizeMode_ZERO:
-        ResizeImagePeriodic(cv_img, 0, 0, &cv_img);
+        ResizeImagePeriodic(*cv_img, 0, 0, cv_img);
         break;
       default:
         LOG(FATAL) << "Unknown periodic resize method.";
     }
+    *input_height = height;
+    *input_width = width;
   }
 }
 #endif  // USE_OPENCV

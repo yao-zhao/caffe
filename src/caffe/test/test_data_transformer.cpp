@@ -1,4 +1,9 @@
 #ifdef USE_OPENCV
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#endif  // USE_OPENCV
+
 #include <string>
 #include <vector>
 
@@ -28,6 +33,9 @@ void FillDatum(const int label, const int channels, const int height,
     data->push_back(static_cast<uint8_t>(datum));
   }
 }
+
+// #ifdef USE_OPENCV
+// #endif  // USE_OPENCV
 
 template <typename Dtype>
 class DataTransformTest : public ::testing::Test {
@@ -386,4 +394,3 @@ TYPED_TEST(DataTransformTest, TestMeanFile) {
 }
 
 }  // namespace caffe
-#endif  // USE_OPENCV
