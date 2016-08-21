@@ -449,6 +449,19 @@ message TransformationParameter {
   optional float scale_jitter_range = 13 [default = 0];
   // the contranst jitter
   optional float contrast_jitter_range = 14 [default = 0];
+  // periodic resize options
+  // target height
+  optional uint32 periodic_resize_h = 15 [default = 0];
+  // target width
+  optional uint32 periodic_resize_w = 16 [default = 0];
+  // resize mode
+  optional PeriodicResizeMode periodic_resize = 17 [default = NONE];
+  enum PeriodicResizeMode {
+    NONE = 0;
+    CENTER = 1;
+    RANDOM = 2;
+    ZERO = 4;
+  }
 }
 
 // Message that stores parameters shared by loss layers

@@ -151,11 +151,86 @@ class DataTransformer {
    *    A uniformly random integer value from ({0, 1, ..., n-1}).
    */
   virtual int Rand(int n);
+   /**
+   * @brief Check if no advanced transformations parameters are set
+   * advanced transformations all require USE_OPENCV
+   */
+  void NoAdvancedTransformations();
+   /**
+   * @brief get the correct crop height and crop width and also compare
+   *    them with height width of input
+   *
+   * @param crop_h
+   *    cropped height
+   * @param crop_w
+   *    cropped width
+   * @param height
+   *    input height
+   * @param width
+   *    input width
+   * @return
+   *    if cropping is valid, has_crop
+   */
+  bool GetCropSize(int& crop_h, int& crop_w,
+      const int height, const int width);
+   /**
+   * @brief get the mean of the image, saved in data_mean, mean_values_
+   *
+   * @param height
+   *    input height
+   * @param width
+   *    input width
+   * @param channels
+   *    input channels
+   */
+  void GetMean(const int channels,
+      const int height, const int width);
+   /**
+   * @brief get the offset of crop
+   *
+   * @param off_h
+   *    offset height
+   * @param off_w
+   *    offset width
+   * @param crop_h
+   *    cropped height
+   * @param crop_w
+   *    cropped width
+   * @param height
+   *    input height
+   * @param crop_h
+   *    input width
+   */
+  void GetOffset(int& off_h, int& off_w,
+    const int crop_h, const int crop_w, const int height, const int width);
+   /**
+   * @brief get the factor to scale the intensity of the image
+   *
+   * @return
+   *    get the image intensity scale factor, contrast jitter included
+   */
+  Dtype GetScale();
+#ifdef USE_OPENCV
+   /**
+   * @brief apply geometrical transformations include rotation, scale jitter
+   *    and perspetcitive transformations
+   *
+   * @param cv_img
+   *    image to be transformed
+   */
+  void GeometricalTransform(cv::Mat& cv_img);
+   /**
+   * @brief resize an image using periodic boundary condition
+   *
+   * @param cv_img
+   *    image to be resize
+   */
+  void PeriodicResize(cv::Mat& cv_img);
+#endif  // USE_OPENCV
 
   void Transform(const Datum& datum, Dtype* transformed_data);
   // Tranformation parameters
   TransformationParameter param_;
-
 
   shared_ptr<Caffe::RNG> rng_;
   Phase phase_;

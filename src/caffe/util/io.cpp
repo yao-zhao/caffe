@@ -234,5 +234,24 @@ void CVMatToDatum(const cv::Mat& cv_img, Datum* datum) {
   }
   datum->set_data(buffer);
 }
+
+cv::Mat DatumToCVMat(const Datum& datum) {
+  const string& data = datum.data();
+  const int datum_channels = datum.channels();
+  const int datum_height = datum.height();
+  const int datum_width = datum.width();
+  // images are automatically converted to 8U
+  cv::Mat cv_img = cv::Mat(datum_height, datum_width, CV_8UC(datum_channels));
+  for (int h = 0; h < datum_height; ++h) {
+    uchar* ptr = cv_img.ptr<uchar>(h);
+    int img_index = 0;
+    for (int w = 0; w < datum_width; ++w) {
+      for (int c = 0; c < datum_channels; ++c) {
+        int datum_index = (c * datum_height + h) * datum_width + w;
+        ptr[img_index++] = static_cast<uint8_t>(data[datum_index]);
+      }
+    }
+  }
+}
 #endif  // USE_OPENCV
 }  // namespace caffe

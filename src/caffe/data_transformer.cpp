@@ -21,6 +21,7 @@ template<typename Dtype>
 DataTransformer<Dtype>::DataTransformer(const TransformationParameter& param,
     Phase phase)
     : param_(param), phase_(phase) {
+  // check crop parameter
   CHECK(param_.crop_size() == 0 ||
         (param_.crop_h() == 0 && param_.crop_w() == 0))
         << "Crop size is crop_size OR crop_h and crop_w; not both";
@@ -48,8 +49,6 @@ DataTransformer<Dtype>::DataTransformer(const TransformationParameter& param,
   }
 }
 
-// use master branch if without opencv
-#ifndef USE_OPENCV
 template<typename Dtype>
 void DataTransformer<Dtype>::Transform(const Datum& datum,
                                        Dtype* transformed_data) {
@@ -58,201 +57,47 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
   const int datum_height = datum.height();
   const int datum_width = datum.width();
 
-  const int crop_size = param_.crop_size();
-  const Dtype scale = param_.scale();
   const bool do_mirror = param_.mirror() && Rand(2);
-  const bool has_mean_file = param_.has_mean_file();
   const bool has_uint8 = data.size() > 0;
-  const bool has_mean_values = mean_values_.size() > 0;
+  const Dtype scale = GetScale();
 
+  // get crop
+  int crop_h, crop_w;
+  bool has_crop = GetCropSize(crop_h, crop_w, datum_height, datum_width);
   CHECK_GT(datum_channels, 0);
-  CHECK_GE(datum_height, crop_size);
-  CHECK_GE(datum_width, crop_size);
 
-  Dtype* mean = NULL;
-  if (has_mean_file) {
-    CHECK_EQ(datum_channels, data_mean_.channels());
-    CHECK_EQ(datum_height, data_mean_.height());
-    CHECK_EQ(datum_width, data_mean_.width());
-    mean = data_mean_.mutable_cpu_data();
-  }
-  if (has_mean_values) {
-    CHECK(mean_values_.size() == 1 || mean_values_.size() == datum_channels) <<
-     "Specify either 1 mean_value or as many as channels: " << datum_channels;
-    if (datum_channels > 1 && mean_values_.size() == 1) {
-      // Replicate the mean_value for simplicity
-      for (int c = 1; c < datum_channels; ++c) {
-        mean_values_.push_back(mean_values_[0]);
-      }
-    }
-  }
+  // get mean
+  GetMean(datum_channels, datum_height, datum_width);
 
-  int height = datum_height;
-  int width = datum_width;
-
-  int h_off = 0;
-  int w_off = 0;
-  if (crop_size) {
-    height = crop_size;
-    width = crop_size;
-    // We only do random crop when we do training.
-    if (phase_ == TRAIN) {
-      h_off = Rand(datum_height - crop_size + 1);
-      w_off = Rand(datum_width - crop_size + 1);
-    } else {
-      h_off = (datum_height - crop_size) / 2;
-      w_off = (datum_width - crop_size) / 2;
-    }
-  }
-
-  Dtype datum_element;
-  int top_index, data_index;
-  for (int c = 0; c < datum_channels; ++c) {
-    for (int h = 0; h < height; ++h) {
-      for (int w = 0; w < width; ++w) {
-        data_index = (c * datum_height + h_off + h) * datum_width + w_off + w;
-        if (do_mirror) {
-          top_index = (c * height + h) * width + (width - 1 - w);
-        } else {
-          top_index = (c * height + h) * width + w;
-        }
-        if (has_uint8) {
-          datum_element =
-            static_cast<Dtype>(static_cast<uint8_t>(data[data_index]));
-        } else {
-          datum_element = datum.float_data(data_index);
-        }
-        if (has_mean_file) {
-          transformed_data[top_index] =
-            (datum_element - mean[data_index]) * scale;
-        } else {
-          if (has_mean_values) {
-            transformed_data[top_index] =
-              (datum_element - mean_values_[c]) * scale;
-          } else {
-            transformed_data[top_index] = datum_element * scale;
-          }
-        }
-      }
-    }
-  }
-}
+  // use advanced transformation if USE_OPENCV
+  bool use_new_data = false;
+#ifdef USE_OPENCV
+  cv::Mat cv_img = DatumToCVMat(datum);
+  PeriodicResize(cv_img);
+  GeometricalTransform(cv_img);
+  use_new_data = true;
+#endif  // USE_OPENCV
+#ifndef USE_OPENCV
+  NoAdvancedTransformations();
 #endif  // USE_OPENCV
 
-#ifdef USE_OPENCV
-template<typename Dtype>
-void DataTransformer<Dtype>::Transform(const Datum& datum,
-                                       Dtype* transformed_data) {
-  const string& data = datum.data();
-  const int datum_channels = datum.channels();
-  const int datum_height = datum.height();
-  const int datum_width = datum.width();
-
-  const int crop_size = param_.crop_size();
-  Dtype scale = param_.scale();
-  const bool do_mirror = param_.mirror() && Rand(2);
-  const bool has_mean_file = param_.has_mean_file();
-  const bool has_uint8 = data.size() > 0;
-  const bool has_mean_values = mean_values_.size() > 0;
-  const bool has_rotation = param_.rotation_range() > 0;
-  const bool has_perspective_transformation =
-    param_.perspective_transformation_border() > 0;
-  const bool random_crop_test = param_.random_crop_test();
-  const bool has_scale_jitter = param_.scale_jitter_range() > 0;
-  const bool has_contrast_jitter = param_.contrast_jitter_range() > 0;
-
-  // Datum *newdatum = NULL;
-  cv::Mat cv_img;
-  bool use_new_data =false;
-
-  int crop_h = param_.crop_h();
-  int crop_w = param_.crop_w();
-  if (crop_size > 0) {
-    crop_h = crop_w = crop_size;
-  }
-
-  CHECK_GT(datum_channels, 0);
-  CHECK_GE(datum_height, crop_h);
-  CHECK_GE(datum_width, crop_w);
-
-  Dtype* mean = NULL;
-  if (has_mean_file) {
-    CHECK_EQ(datum_channels, data_mean_.channels());
-    CHECK_EQ(datum_height, data_mean_.height());
-    CHECK_EQ(datum_width, data_mean_.width());
-    mean = data_mean_.mutable_cpu_data();
-  }
-  if (has_mean_values) {
-    CHECK(mean_values_.size() == 1 || mean_values_.size() == datum_channels) <<
-     "Specify either 1 mean_value or as many as channels: " << datum_channels;
-    if (datum_channels > 1 && mean_values_.size() == 1) {
-      // Replicate the mean_value for simplicity
-      for (int c = 1; c < datum_channels; ++c) {
-        mean_values_.push_back(mean_values_[0]);
-      }
-    }
-  }
-  if (has_contrast_jitter) {
-    float contrast_jitter_range = param_.contrast_jitter_range();
-    CHECK_GE(contrast_jitter_range, 0);
-    scale = scale*exp(contrast_jitter_range*
-      static_cast<float>(Rand(201)-100)/200.0);
-  }
-
-  if ((has_perspective_transformation || has_rotation || has_scale_jitter)) {
-    // load the image
-    // in ReadImageToCVMat which is used in convert_imageset.cpp,
-    // if not converted, will convert here
-    // images are automatically converted to 8U
-    cv_img = cv::Mat(datum_height, datum_width, CV_8UC(datum_channels));
-    for (int h = 0; h < datum_height; ++h) {
-      uchar* ptr = cv_img.ptr<uchar>(h);
-      int img_index = 0;
-      for (int w = 0; w < datum_width; ++w) {
-        for (int c = 0; c < datum_channels; ++c) {
-          int datum_index = (c * datum_height + h) * datum_width + w;
-          ptr[img_index++] = static_cast<uint8_t>(data[datum_index]);
-        }
-      }
-    }
-
-    // if has rotation or scale jitter
-    if (has_rotation || has_scale_jitter) {
-      const int rotation_range = param_.rotation_range();
-      const float scale_jitter = exp(param_.scale_jitter_range()*
-        static_cast<float>(Rand(201)-100)/200.0);
-      RandomRotateImage(cv_img, rotation_range, scale_jitter, &cv_img);
-    }
-    // perspective transform
-    if (has_perspective_transformation) {
-      const int perspective_transformation_border =
-          param_.perspective_transformation_border();
-      RandomPerspectiveTransformImage(cv_img,
-          perspective_transformation_border, &cv_img);
-    }
-    // copy back to datum
-    // CVMatToDatum(cv_img, newdatum);
-    use_new_data = true;
-  }
-
+  // set new height
   int height = datum_height;
   int width = datum_width;
-
-  int h_off = 0;
-  int w_off = 0;
-  if (crop_h > 0 || crop_w > 0) {
+  if (has_crop) {
     height = crop_h;
     width = crop_w;
-    // We only do random crop when we do training.
-    if (phase_ == TRAIN || random_crop_test) {
-      h_off = Rand(datum_height-crop_h+1);
-      w_off = Rand(datum_width-crop_w+1);
-    } else {
-      h_off = (datum_height-crop_h)/2;
-      w_off = (datum_width-crop_w)/2;
-    }
   }
 
+  // get offset
+  int h_off, w_off;
+  GetOffset(h_off, w_off, crop_h, crop_w, datum_height, datum_width);
+
+  // assign values
+  const Dtype* mean = NULL;
+  if (param_.has_mean_file()) {
+    data_mean_.mutable_cpu_data();
+  }
   Dtype datum_element;
   int top_index, data_index;
   for (int c = 0; c < datum_channels; ++c) {
@@ -266,6 +111,7 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
         }
         if (has_uint8) {
           if (use_new_data) {
+#ifdef USE_OPENCV
             switch (datum_channels) {
               case 1:
                 datum_element =
@@ -278,6 +124,7 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
               default:
                 CHECK(0) << "wrong number of channels";
             }
+#endif  // USE_OPENCV
           } else {
             datum_element =
               static_cast<Dtype>(static_cast<uint8_t>(data[data_index]));
@@ -285,11 +132,11 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
         } else {
           datum_element = datum.float_data(data_index);
         }
-        if (has_mean_file) {
+        if (param_.has_mean_file()) {
           transformed_data[top_index] =
             (datum_element-mean[data_index])*scale;
         } else {
-          if (has_mean_values) {
+          if (mean_values_.size() > 0) {
             transformed_data[top_index] =
               (datum_element-mean_values_[c])*scale;
           } else {
@@ -300,7 +147,6 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
     }
   }
 }
-#endif  // USE_OPENCV
 
 template<typename Dtype>
 void DataTransformer<Dtype>::Transform(const Datum& datum,
@@ -328,7 +174,6 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
     }
   }
 
-  const int crop_size = param_.crop_size();
   const int datum_channels = datum.channels();
   const int datum_height = datum.height();
   const int datum_width = datum.width();
@@ -344,12 +189,11 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
   CHECK_LE(width, datum_width);
   CHECK_GE(num, 1);
 
-  int crop_h = param_.crop_h();
-  int crop_w = param_.crop_w();
-  if (crop_size > 0) {
-    crop_h = crop_w = crop_size;
-  }
-  if (crop_h > 0 || crop_w > 0) {
+  // get crop
+  int crop_h, crop_w;
+  bool has_crop = GetCropSize(crop_h, crop_w, datum_height, datum_width);
+  CHECK_GT(datum_channels, 0);
+  if (has_crop) {
     CHECK_EQ(crop_h, height);
     CHECK_EQ(crop_w, width);
   } else {
@@ -405,7 +249,6 @@ void DataTransformer<Dtype>::Transform(const vector<cv::Mat> & mat_vector,
 template<typename Dtype>
 void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
                                        Blob<Dtype>* transformed_blob) {
-  const int crop_size = param_.crop_size();
   const int img_channels = cv_img.channels();
   const int img_height = cv_img.rows;
   const int img_width = cv_img.cols;
@@ -423,83 +266,28 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
 
   CHECK(cv_img.depth() == CV_8U) << "Image data type must be unsigned byte";
 
-  int crop_h = param_.crop_h();
-  int crop_w = param_.crop_w();
-  Dtype scale = param_.scale();
+  const Dtype scale = GetScale();
   const bool do_mirror = param_.mirror() && Rand(2);
-  const bool has_mean_file = param_.has_mean_file();
-  const bool has_mean_values = mean_values_.size() > 0;
-  if (crop_size > 0) {
-    crop_h = crop_w = crop_size;
-  }
 
+  // get crop
+  int crop_h, crop_w;
+  bool has_crop = GetCropSize(crop_h, crop_w, img_height, img_width);
   CHECK_GT(img_channels, 0);
-  CHECK_GE(img_height, crop_h);
-  CHECK_GE(img_width, crop_w);
 
-  Dtype* mean = NULL;
-  if (has_mean_file) {
-    CHECK_EQ(img_channels, data_mean_.channels());
-    CHECK_EQ(img_height, data_mean_.height());
-    CHECK_EQ(img_width, data_mean_.width());
-    mean = data_mean_.mutable_cpu_data();
-  }
-  if (has_mean_values) {
-    CHECK(mean_values_.size() == 1 || mean_values_.size() == img_channels) <<
-      "Specify either 1 mean_value or as many as channels: " << img_channels;
-    if (img_channels > 1 && mean_values_.size() == 1) {
-      // Replicate the mean_value for simplicity
-      for (int c = 1; c < img_channels; ++c) {
-        mean_values_.push_back(mean_values_[0]);
-      }
-    }
-  }
+  // get mean
+  GetMean(img_channels, img_height, img_width);
 
-  const bool has_rotation = param_.rotation_range() > 0;
-  const bool has_perspective_transformation =
-    param_.perspective_transformation_border() > 0;
-  const bool random_crop_test = param_.random_crop_test();
-  const bool has_scale_jitter = param_.scale_jitter_range() > 0;
-  const bool has_contrast_jitter = param_.contrast_jitter_range() > 0;
-
-  if (has_contrast_jitter) {
-    float contrast_jitter_range = param_.contrast_jitter_range();
-    CHECK_GE(contrast_jitter_range, 0);
-    scale = scale*exp(contrast_jitter_range*
-      static_cast<float>(Rand(201)-100)/200.0);
-  }
-
+  // advanced transformations
   cv::Mat transformed_img = cv_img;
-  if ((has_perspective_transformation || has_rotation || has_scale_jitter)) {
-    // if has rotation or scale jitter
-    if (has_rotation || has_scale_jitter) {
-      const int rotation_range = param_.rotation_range();
-      const float scale_jitter = exp(param_.scale_jitter_range()*
-        static_cast<float>(Rand(201)-100)/200.0);
-      RandomRotateImage(transformed_img, rotation_range,
-          scale_jitter, &transformed_img);
-    }
-    // perspective transform
-    if (has_perspective_transformation) {
-      const int perspective_transformation_border =
-          param_.perspective_transformation_border();
-      RandomPerspectiveTransformImage(transformed_img,
-          perspective_transformation_border, &transformed_img);
-    }
-  }
-  int h_off = 0;
-  int w_off = 0;
-  if (crop_h > 0 || crop_w > 0) {
+  PeriodicResize(transformed_img);
+  GeometricalTransform(transformed_img);
+
+  // get offset
+  int h_off, w_off;
+  GetOffset(h_off, w_off, crop_h, crop_w, img_height, img_width);
+  if (has_crop) {
     CHECK_EQ(crop_h, height);
     CHECK_EQ(crop_w, width);
-    // We only do random crop when we do training.
-    if (phase_ == TRAIN || random_crop_test) {
-      h_off = Rand(img_height-crop_h+1);
-      w_off = Rand(img_width-crop_w+1);
-    } else {
-      h_off = (img_height-crop_h)/2;
-      w_off = (img_width-crop_w)/2;
-    }
     cv::Rect roi(w_off, h_off, crop_w, crop_h);
     transformed_img = cv_img(roi);
   } else {
@@ -508,7 +296,10 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   }
 
   CHECK(transformed_img.data);
-
+  const Dtype* mean = NULL;
+  if (param_.has_mean_file()) {
+    data_mean_.mutable_cpu_data();
+  }
   Dtype* transformed_data = transformed_blob->mutable_cpu_data();
   int top_index;
   for (int h = 0; h < height; ++h) {
@@ -523,12 +314,12 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
         }
         // int top_index = (c * height + h) * width + w;
         Dtype pixel = static_cast<Dtype>(ptr[img_index++]);
-        if (has_mean_file) {
+        if (param_.has_mean_file()) {
           int mean_index = (c*img_height+h_off+h)*img_width+w_off+w;
           transformed_data[top_index] =
             (pixel - mean[mean_index]) * scale;
         } else {
-          if (has_mean_values) {
+          if (mean_values_.size() > 0) {
             transformed_data[top_index] =
               (pixel - mean_values_[c]) * scale;
           } else {
@@ -550,6 +341,8 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   const int img_width = cv_img.cols;
   const int lab_channels =  cv_lab.channels();
 
+  NoAdvancedTransformations();
+
   CHECK_EQ(cv_lab.channels(), 1) << "Can only handle grayscale label images";
   CHECK(cv_lab.rows == img_height && cv_lab.cols == img_width) <<
     "Input and label image heights and widths must match";
@@ -565,56 +358,25 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   CHECK_GE(num, 1);
 
   CHECK(cv_img.depth() == CV_8U) << "Image data type must be unsigned byte";
-  const int crop_size = param_.crop_size();
-  const Dtype scale = param_.scale();
+  const Dtype scale = GetScale();
   const bool do_mirror = param_.mirror() && Rand(2);
-  const bool has_mean_file = param_.has_mean_file();
-  const bool has_mean_values = mean_values_.size() > 0;
 
-  // add crop h and w
-  int crop_h = param_.crop_h();
-  int crop_w = param_.crop_w();
-  if (crop_size > 0) {
-    crop_h = crop_w = crop_size;
-  }
-
+  // get crop
+  int crop_h, crop_w;
+  bool has_crop = GetCropSize(crop_h, crop_w, img_height, img_width);
   CHECK_GT(img_channels, 0);
-  CHECK_GE(img_height, crop_h);
-  CHECK_GE(img_width, crop_w);
 
-  Dtype* mean = NULL;
-  if (has_mean_file) {
-    CHECK_EQ(img_channels, data_mean_.channels());
-    CHECK_EQ(img_height, data_mean_.height());
-    CHECK_EQ(img_width, data_mean_.width());
-    mean = data_mean_.mutable_cpu_data();
-  }
-  if (has_mean_values) {
-    CHECK(mean_values_.size() == 1 || mean_values_.size() == img_channels) <<
-     "Specify either 1 mean_value or as many as channels: " << img_channels;
-    if (img_channels > 1 && mean_values_.size() == 1) {
-      // Replicate the mean_value for simplicity
-      for (int c = 1; c < img_channels; ++c) {
-        mean_values_.push_back(mean_values_[0]);
-      }
-    }
-  }
+  // get mean
+  GetMean(img_channels, img_height, img_width);
 
-  int h_off = 0;
-  int w_off = 0;
+  // get offset
+  int h_off, w_off;
+  GetOffset(h_off, w_off, crop_h, crop_w, img_height, img_width);
   cv::Mat cv_cropped_img = cv_img;
   cv::Mat cv_cropped_label = cv_lab;
-  if (crop_h > 0 || crop_w > 0) {
+  if (has_crop) {
     CHECK_EQ(crop_h, height);
     CHECK_EQ(crop_w, width);
-    // We only do random crop when we do training.
-    if (phase_ == TRAIN) {
-      h_off = Rand(img_height-crop_h+1);
-      w_off = Rand(img_width-crop_w+1);
-    } else {
-      h_off = (img_height-crop_h)/2;
-      w_off = (img_width-crop_w)/2;
-    }
     cv::Rect roi(w_off, h_off, crop_w, crop_h);
     cv_cropped_img = cv_img(roi);
     cv_cropped_label = cv_lab(roi);
@@ -626,6 +388,10 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   CHECK(cv_cropped_img.data);
   CHECK(cv_cropped_label.data);
 
+  const Dtype* mean = NULL;
+  if (param_.has_mean_file()) {
+    data_mean_.mutable_cpu_data();
+  }
   Dtype* transformed_data_img = transformed_blob_img->mutable_cpu_data();
   Dtype* transformed_data_lab = transformed_blob_lab->mutable_cpu_data();
   int top_index;
@@ -640,23 +406,20 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
         } else {
           top_index = (c*height+h)*width+w;
         }
-        // int top_index = (c * height + h) * width + w;
         Dtype pixel_img = static_cast<Dtype>(ptr_img[img_index]);
-        // Dtype pixel_lab = static_cast<Dtype>(ptr_lab[img_index]);
         img_index++;
-        if (has_mean_file) {
+        if (param_.has_mean_file()) {
           int mean_index = (c*img_height+h_off+h)*img_width+w_off+w;
           transformed_data_img[top_index] =
           (pixel_img-mean[mean_index])*scale;
         } else {
-          if (has_mean_values) {
+          if (mean_values_.size() > 0) {
             transformed_data_img[top_index] =
             (pixel_img-mean_values_[c])*scale;
           } else {
             transformed_data_img[top_index] = pixel_img*scale;
           }
         }
-        // transformed_data_lab[top_index] = pixel_lab;
       }
     }
     img_index = 0;
@@ -679,25 +442,21 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
 template<typename Dtype>
 void DataTransformer<Dtype>::Transform(Blob<Dtype>* input_blob,
                                        Blob<Dtype>* transformed_blob) {
-  const int crop_size = param_.crop_size();
-  int crop_h = param_.crop_h();
-  int crop_w = param_.crop_w();
   const int input_num = input_blob->num();
   const int input_channels = input_blob->channels();
   const int input_height = input_blob->height();
   const int input_width = input_blob->width();
 
-  CHECK(param_.crop_size() == 0 ||
-        (param_.crop_h() == 0 && param_.crop_w() == 0))
-        << "Crop size is crop_size OR crop_h and crop_w; not both";
-  CHECK((param_.crop_h() != 0) == (param_.crop_w() != 0))
-        << "For non-square crops both crop_h and crop_w are required.";
+  NoAdvancedTransformations();
+
+  int crop_h, crop_w;
+  bool has_crop = GetCropSize(crop_h, crop_w, input_height, input_width);
+  CHECK_GT(input_channels, 0);
+
+  // Build BlobShape.
   if (transformed_blob->count() == 0) {
     // Initialize transformed_blob with the right shape.
-    if (crop_size) {
-      transformed_blob->Reshape(
-        input_num, input_channels, crop_size, crop_size);
-    } else if (crop_h > 0 && crop_w > 0) {
+    if (has_crop) {
       transformed_blob->Reshape(
         input_num, input_channels, crop_h, crop_w);
     } else {
@@ -717,35 +476,22 @@ void DataTransformer<Dtype>::Transform(Blob<Dtype>* input_blob,
   CHECK_GE(input_height, height);
   CHECK_GE(input_width, width);
 
-
-  const Dtype scale = param_.scale();
+  const Dtype scale = GetScale();
   const bool do_mirror = param_.mirror() && Rand(2);
-  const bool has_mean_file = param_.has_mean_file();
-  const bool has_mean_values = mean_values_.size() > 0;
-  if (crop_size > 0) {
-    crop_h = crop_w = crop_size;
-  }
 
-  int h_off = 0;
-  int w_off = 0;
-  if (crop_h > 0 || crop_w > 0) {
+  // get offset
+  int h_off, w_off;
+  GetOffset(h_off, w_off, crop_h, crop_w, input_height, input_width);
+  if (has_crop) {
     CHECK_EQ(crop_h, height);
     CHECK_EQ(crop_w, width);
-    // We only do random crop when we do training.
-    if (phase_ == TRAIN) {
-      h_off = Rand(input_height-crop_h+1);
-      w_off = Rand(input_width-crop_w+1);
-    } else {
-      h_off = (input_height-crop_h)/2;
-      w_off = (input_width-crop_w)/2;
-    }
   } else {
     CHECK_EQ(input_height, height);
     CHECK_EQ(input_width, width);
   }
 
   Dtype* input_data = input_blob->mutable_cpu_data();
-  if (has_mean_file) {
+  if (param_.has_mean_file()) {
     CHECK_EQ(input_channels, data_mean_.channels());
     CHECK_EQ(input_height, data_mean_.height());
     CHECK_EQ(input_width, data_mean_.width());
@@ -756,7 +502,7 @@ void DataTransformer<Dtype>::Transform(Blob<Dtype>* input_blob,
     }
   }
 
-  if (has_mean_values) {
+  if (mean_values_.size() > 0) {
     CHECK(mean_values_.size() == 1 || mean_values_.size() == input_channels) <<
      "Specify either 1 mean_value or as many as channels: " << input_channels;
     if (mean_values_.size() == 1) {
@@ -821,31 +567,17 @@ vector<int> DataTransformer<Dtype>::InferBlobShape(const Datum& datum) {
     LOG(FATAL) << "Encoded datum requires OpenCV; compile with USE_OPENCV.";
 #endif  // USE_OPENCV
   }
-  const int crop_size = param_.crop_size();
-  const int crop_h = param_.crop_h();
-  const int crop_w = param_.crop_w();
   const int datum_channels = datum.channels();
   const int datum_height = datum.height();
   const int datum_width = datum.width();
-  // Check dimensions.
   CHECK_GT(datum_channels, 0);
-  CHECK_GE(datum_height, crop_size);
-  CHECK_GE(datum_width, crop_size);
-  CHECK_GE(datum_height, crop_h);
-  CHECK_GE(datum_width, crop_w);
+  int crop_h, crop_w;
+  bool has_crop = GetCropSize(crop_h, crop_w, datum_height, datum_width);
   // Build BlobShape.
   vector<int> shape(4);
   shape[0] = 1;
   shape[1] = datum_channels;
-  CHECK(param_.crop_size() == 0 ||
-    (param_.crop_h() == 0 && param_.crop_w() == 0))
-    << "Crop size is crop_size OR crop_h and crop_w; not both";
-  CHECK((param_.crop_h() != 0) == (param_.crop_w() != 0))
-    << "For non-square crops both crop_h and crop_w are required.";
-  if (crop_size) {
-    shape[2] = crop_size;
-    shape[3] = crop_size;
-  } else if (crop_h > 0 && crop_w > 0) {
+  if (has_crop) {
     shape[2] = crop_h;
     shape[3] = crop_w;
   } else {
@@ -870,31 +602,17 @@ vector<int> DataTransformer<Dtype>::InferBlobShape(
 #ifdef USE_OPENCV
 template<typename Dtype>
 vector<int> DataTransformer<Dtype>::InferBlobShape(const cv::Mat& cv_img) {
-  const int crop_size = param_.crop_size();
-  const int crop_h = param_.crop_h();
-  const int crop_w = param_.crop_w();
   const int img_channels = cv_img.channels();
   const int img_height = cv_img.rows;
   const int img_width = cv_img.cols;
-  // Check dimensions.
   CHECK_GT(img_channels, 0);
-  CHECK_GE(img_height, crop_size);
-  CHECK_GE(img_width, crop_size);
-  CHECK_GE(img_height, crop_h);
-  CHECK_GE(img_width, crop_w);
+  int crop_h, crop_w;
+  bool has_crop = GetCropSize(crop_h, crop_w, img_height, img_width);
   // Build BlobShape.
   vector<int> shape(4);
   shape[0] = 1;
   shape[1] = img_channels;
-  CHECK(param_.crop_size() == 0 ||
-        (param_.crop_h() == 0 && param_.crop_w() == 0))
-        << "Crop size is crop_size OR crop_h and crop_w; not both";
-  CHECK((param_.crop_h() != 0) == (param_.crop_w() != 0))
-        << "For non-square crops both crop_h and crop_w are required.";
-  if (crop_size) {
-    shape[2] = crop_size;
-    shape[3] = crop_size;
-  } else if (crop_h > 0 && crop_w > 0) {
+  if (has_crop) {
     shape[2] = crop_h;
     shape[3] = crop_w;
   } else {
@@ -939,6 +657,138 @@ int DataTransformer<Dtype>::Rand(int n) {
       static_cast<caffe::rng_t*>(rng_->generator());
   return ((*rng)() % n);
 }
+
+template <typename Dtype>
+void DataTransformer<Dtype>::NoAdvancedTransformations() {
+  CHECK_EQ(param_.rotation_range(), 0) << "does not support rotation";
+  CHECK_EQ(param_.perspective_transformation_border(), 0) <<
+      "does not support perspective transformations";
+  CHECK_EQ(param_.scale_jitter_range(), 0) <<
+      "does not support scale jitter";
+  CHECK_EQ(param_.contrast_jitter_range(), 0) <<
+      "does not support contrast jitter";
+  CHECK_EQ(param_.periodic_resize(),
+      TransformationParameter_PeriodicResizeMode_NONE) <<
+      "does not support periodic resize";
+  CHECK_EQ(param_.periodic_resize_h(), 0) <<
+      "does not support periodic resize";
+  CHECK_EQ(param_.periodic_resize_w(), 0) <<
+      "does not support periodic resize";
+}
+
+template <typename Dtype>
+bool DataTransformer<Dtype>::GetCropSize(int& crop_h, int& crop_w,
+    const int height, const int width) {
+  const int crop_size = param_.crop_size();
+  crop_h = param_.crop_h();
+  crop_w = param_.crop_w();
+  if (crop_size > 0) {
+    crop_h = crop_w = crop_size;
+  }
+  CHECK_GE(height, crop_h);
+  CHECK_GE(width, crop_w);
+  return ((crop_h > 0 || crop_w > 0));
+}
+
+template <typename Dtype>
+void DataTransformer<Dtype>::GetMean(const int channels,
+      const int height, const int width) {
+  if (param_.has_mean_file()) {
+    CHECK_EQ(channels, data_mean_.channels());
+    CHECK_EQ(height, data_mean_.height());
+    CHECK_EQ(width, data_mean_.width());
+  }
+  if (mean_values_.size() > 0) {
+    CHECK(mean_values_.size() == 1 || mean_values_.size() == channels) <<
+     "Specify either 1 mean_value or as many as channels: " << channels;
+    if (channels > 1 && mean_values_.size() == 1) {
+      // Replicate the mean_value for simplicity
+      for (int c = 1; c < channels; ++c) {
+        mean_values_.push_back(mean_values_[0]);
+      }
+    }
+  }
+}
+
+template <typename Dtype>
+void DataTransformer<Dtype>::GetOffset(int& h_off, int& w_off,
+    const int crop_h, const int crop_w, const int height, const int width) {
+  if ((crop_h > 0 || crop_w > 0)) {
+    // We only do random crop when we do training.or have randome crop test
+    if (phase_ == TRAIN || param_.random_crop_test()) {
+      h_off = Rand(height-crop_h+1);
+      w_off = Rand(width-crop_w+1);
+    } else {
+      h_off = (height-crop_h)/2;
+      w_off = (width-crop_w)/2;
+    }
+  }
+}
+
+template <typename Dtype>
+Dtype DataTransformer<Dtype>::GetScale() {
+  Dtype scale = param_.scale();
+  float contrast_jitter_range = param_.contrast_jitter_range();
+  CHECK_GE(contrast_jitter_range, 0);
+  if (contrast_jitter_range > 0) {
+    scale = scale*exp(contrast_jitter_range*
+      static_cast<float>(Rand(201)-100)/200.0);
+  }
+  return scale;
+}
+
+#ifdef USE_OPENCV
+template <typename Dtype>
+void DataTransformer<Dtype>::GeometricalTransform(cv::Mat& cv_img) {
+  const bool has_rotation = param_.rotation_range() > 0;
+  const bool has_perspective_transformation =
+    param_.perspective_transformation_border() > 0;
+  const bool has_scale_jitter = param_.scale_jitter_range() > 0;
+  if ((has_perspective_transformation || has_rotation || has_scale_jitter)) {
+    // if has rotation or scale jitter
+    if (has_rotation || has_scale_jitter) {
+      const int rotation_range = param_.rotation_range();
+      const float scale_jitter = exp(param_.scale_jitter_range()*
+        static_cast<float>(Rand(201)-100)/200.0);
+      RandomRotateImage(cv_img, rotation_range, scale_jitter, &cv_img);
+    }
+    // perspective transform
+    if (has_perspective_transformation) {
+      const int perspective_transformation_border =
+          param_.perspective_transformation_border();
+      RandomPerspectiveTransformImage(cv_img,
+          perspective_transformation_border, &cv_img);
+    }
+  }
+}
+
+template <typename Dtype>
+void DataTransformer<Dtype>::PeriodicResize(cv::Mat& cv_img) {
+  if (param_.periodic_resize() !=
+      TransformationParameter_PeriodicResizeMode_NONE) {
+    int height = param_.periodic_resize_h();
+    int width = param_.periodic_resize_w();
+    CHECK_GT(width, 0) <<
+        "preodic resize width has to be larger than zero";
+    CHECK_GT(height, 0) <<
+        "preodic resize height has to be larger than zero";
+    switch (param_.periodic_resize()) {
+      case TransformationParameter_PeriodicResizeMode_CENTER:
+        ResizeImagePeriodic(cv_img, height/2 - cv_img.rows/2,
+            width/2 - cv_img.cols/2, &cv_img);
+        break;
+      case TransformationParameter_PeriodicResizeMode_RANDOM:
+        ResizeImagePeriodic(cv_img, Rand(height), Rand(width), &cv_img);
+        break;
+      case TransformationParameter_PeriodicResizeMode_ZERO:
+        ResizeImagePeriodic(cv_img, 0, 0, &cv_img);
+        break;
+      default:
+        LOG(FATAL) << "Unknown periodic resize method.";
+    }
+  }
+}
+#endif  // USE_OPENCV
 
 INSTANTIATE_CLASS(DataTransformer);
 
