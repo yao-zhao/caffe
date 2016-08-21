@@ -157,7 +157,7 @@ class DataTransformer {
    */
   void NoAdvancedTransformations();
    /**
-   * @brief get the correct crop height and crop width and also compare
+   * @brief get the correct height and width after cropping and also compare
    *    them with height width of input
    *
    * @param crop_h
@@ -171,7 +171,7 @@ class DataTransformer {
    * @return
    *    if cropping is valid, has_crop
    */
-  bool GetCropSize(int& crop_h, int& crop_w,
+  bool GetPostCropSize(int& crop_h, int& crop_w,
       const int height, const int width);
    /**
    * @brief get the mean of the image, saved in data_mean, mean_values_
