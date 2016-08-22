@@ -773,7 +773,7 @@ void DataTransformer<Dtype>::PeriodicResize(cv::Mat* cv_img,
         "preodic resize width has to be larger than zero";
     CHECK_GT(height, 0) <<
         "preodic resize height has to be larger than zero";
-    cv::Mat resize_img = cv::Mat(height, width, cv_img->depth());
+    cv::Mat resize_img = cv::Mat(height, width, cv_img->type());
     switch (param_.periodic_resize()) {
       case TransformationParameter_PeriodicResizeMode_CENTER:
         ResizeImagePeriodic(*cv_img, height/2 - cv_img->rows/2,
