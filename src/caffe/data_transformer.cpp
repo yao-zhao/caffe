@@ -78,7 +78,12 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
 
   // get post crop height and width
   int height, width;
+#ifdef USE_OPENCV
   bool has_crop = GetPostCropSize(&height, &width, datum_height, datum_width);
+#endif  // USE_OPENCV
+#ifndef USE_OPENCV
+  GetPostCropSize(&height, &width, datum_height, datum_width);
+#endif  // USE_OPENCV
   CHECK_GT(datum_channels, 0);
 
   // get mean
