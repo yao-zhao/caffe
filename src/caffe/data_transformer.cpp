@@ -271,11 +271,6 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   const int width = transformed_blob->width();
   const int num = transformed_blob->num();
 
-  CHECK_EQ(channels, img_channels);
-  CHECK_LE(height, img_height);
-  CHECK_LE(width, img_width);
-  CHECK_GE(num, 1);
-
   CHECK(cv_img.depth() == CV_8U) << "Image data type must be unsigned byte";
 
   const Dtype scale = GetScale();
@@ -289,7 +284,10 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   // get crop
   int crop_h, crop_w;
   bool has_crop = GetPostCropSize(&crop_h, &crop_w, img_height, img_width);
-  CHECK_GT(img_channels, 0);
+  CHECK_EQ(channels, img_channels);
+  CHECK_LE(height, img_height);
+  CHECK_LE(width, img_width);
+  CHECK_GE(num, 1);
 
   // get mean
   GetMean(img_channels, img_height, img_width);
@@ -669,8 +667,17 @@ bool DataTransformer<Dtype>::GetPostCropSize(int* crop_h, int* crop_w,
   if (crop_size > 0) {
     *crop_h = *crop_w = crop_size;
   }
-  CHECK_GE(height, *crop_h);
-  CHECK_GE(width, *crop_w);
+  int new_height = height;
+  int new_width = width;
+#ifdef USE_OPENCV
+  if (param_.periodic_resize() !=
+      TransformationParameter_PeriodicResizeMode_NONE) {
+    new_height = param_.periodic_resize_h();
+    new_width = param_.periodic_resize_w();
+  }
+#endif  // USE_OPENCV
+  CHECK_GE(new_height, *crop_h);
+  CHECK_GE(new_width, *crop_w);
   bool has_crop = (*crop_h > 0 || *crop_w > 0);
   if (*crop_h == 0) {
     *crop_h = height;
@@ -766,22 +773,24 @@ void DataTransformer<Dtype>::PeriodicResize(cv::Mat* cv_img,
         "preodic resize width has to be larger than zero";
     CHECK_GT(height, 0) <<
         "preodic resize height has to be larger than zero";
+    cv::Mat resize_img = cv::Mat(height, width, cv_img->depth());
     switch (param_.periodic_resize()) {
       case TransformationParameter_PeriodicResizeMode_CENTER:
         ResizeImagePeriodic(*cv_img, height/2 - cv_img->rows/2,
-            width/2 - cv_img->cols/2, cv_img);
+            width/2 - cv_img->cols/2, &resize_img);
         break;
       case TransformationParameter_PeriodicResizeMode_RANDOM:
-        ResizeImagePeriodic(*cv_img, Rand(height), Rand(width), cv_img);
+        ResizeImagePeriodic(*cv_img, Rand(height), Rand(width), &resize_img);
         break;
       case TransformationParameter_PeriodicResizeMode_ZERO:
-        ResizeImagePeriodic(*cv_img, 0, 0, cv_img);
+        ResizeImagePeriodic(*cv_img, 0, 0, &resize_img);
         break;
       default:
         LOG(FATAL) << "Unknown periodic resize method.";
     }
     *input_height = height;
     *input_width = width;
+    cv_img = &resize_img;
   }
 }
 #endif  // USE_OPENCV

@@ -18,6 +18,7 @@ void ResizeImagePeriodic(const cv::Mat& src_img,
   const int num_channels = src_img.channels();
   CHECK_EQ(num_channels, dst_img->channels()) <<
     "number of channels of source and destimation images have to be equal";
+  CHECK_NE(dst_img, &src_img) << "doesn't support in place calculation";
   const int cvwidth_src = w_src * num_channels;
   for (int h = 0; h < h_dst; ++h) {
     uchar* ptr_dst = dst_img->ptr<uchar>(h);
