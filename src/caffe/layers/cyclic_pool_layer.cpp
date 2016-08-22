@@ -46,31 +46,31 @@ void CyclicPoolLayer<Dtype>::Forward_cpu(
   // different pooling method
   switch (this->layer_param_.cyclic_pool_param().pool()) {
     case CyclicPoolParameter_PoolMethod_AVE:
-    caffe_set(top_count, Dtype(0), top_data);
-    for (int i = 0; i < num; ++i) {
-      for (int j = 0; j < batch_dim; ++j) {
-        top_data[i/4*batch_dim+j] += bottom_data[i*batch_dim+j]/4.;
-      }
-    }
-    break;
-    case CyclicPoolParameter_PoolMethod_MAX:
-    caffe_set(top_count, -1, mask);
-    caffe_set(top_count, Dtype(-FLT_MAX), top_data);
-    int bottom_index, top_index;
-    for (int i = 0; i < num; ++i) {
-      for (int j = 0; j < batch_dim; ++j) {
-        bottom_index = i * batch_dim + j;
-        top_index = i/4 * batch_dim + j;
-        if (top_data[top_index] < bottom_data[bottom_index]) {
-          top_data[top_index] =  bottom_data[bottom_index];
-          mask[top_index] = bottom_index;
+      caffe_set(top_count, Dtype(0), top_data);
+      for (int i = 0; i < num; ++i) {
+        for (int j = 0; j < batch_dim; ++j) {
+          top_data[i/4*batch_dim+j] += bottom_data[i*batch_dim+j]/4.;
         }
       }
-    }
-    break;
+      break;
+    case CyclicPoolParameter_PoolMethod_MAX:
+      caffe_set(top_count, -1, mask);
+      caffe_set(top_count, Dtype(-FLT_MAX), top_data);
+      int bottom_index, top_index;
+      for (int i = 0; i < num; ++i) {
+        for (int j = 0; j < batch_dim; ++j) {
+          bottom_index = i * batch_dim + j;
+          top_index = i/4 * batch_dim + j;
+          if (top_data[top_index] < bottom_data[bottom_index]) {
+            top_data[top_index] =  bottom_data[bottom_index];
+            mask[top_index] = bottom_index;
+          }
+        }
+      }
+      break;
     case CyclicPoolParameter_PoolMethod_RMS:
-    CHECK(0) << "currently not supported";
-    break;
+      NOT_IMPLEMENTED;
+      break;
     default:
     break;
   }
@@ -93,20 +93,20 @@ void CyclicPoolLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
   // different pooling method
   switch (this->layer_param_.cyclic_pool_param().pool()) {
     case CyclicPoolParameter_PoolMethod_AVE:
-    for (int i = 0; i < num; ++i) {
-      for (int j = 0; j < batch_dim; ++j) {
-        bottom_diff[i*batch_dim+j] += top_diff[i/4*batch_dim+j]/Dtype(4);
+      for (int i = 0; i < num; ++i) {
+        for (int j = 0; j < batch_dim; ++j) {
+          bottom_diff[i*batch_dim+j] += top_diff[i/4*batch_dim+j]/Dtype(4);
+        }
       }
-    }
-    break;
+      break;
     case CyclicPoolParameter_PoolMethod_MAX:
-    for (int i = 0; i < top_count; ++i) {
-      bottom_diff[mask[i]] += top_diff[i];
-    }
-    break;
+      for (int i = 0; i < top_count; ++i) {
+        bottom_diff[mask[i]] += top_diff[i];
+      }
+      break;
     case CyclicPoolParameter_PoolMethod_RMS:
-    CHECK(0) << "currently not supported";
-    break;
+      NOT_IMPLEMENTED;
+      break;
     default:
     break;
   }
