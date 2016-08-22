@@ -382,6 +382,7 @@ class BuildNet:
             # pre-checking solver
             solver.test_initialization = True
             solver.max_iter = 1
+            solver.test_iter = 1
             with open(self.model_path+'solver_checking_'
                     +str(stage)+'.prototxt', 'w+') as f:
                 f.write(str(solver))
