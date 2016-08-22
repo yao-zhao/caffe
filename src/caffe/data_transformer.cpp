@@ -297,6 +297,11 @@ void DataTransformer<Dtype>::Transform(const cv::Mat& cv_img,
   GetOffset(&h_off, &w_off, crop_h, crop_w, img_height, img_width);
   CHECK_EQ(crop_h, height);
   CHECK_EQ(crop_w, width);
+  CHECK((0 <= w_off && 0 <= width && w_off+width <= img_width &&
+      0 <= h_off && 0 <= height && h_off+height <= img_height)) <<
+      " crop_h " << crop_h << " crop_w " << crop_w <<
+      " height " << height << " width " << width <<
+      " img_height " << img_height << "img_width" << img_width;
   if (has_crop) {
     cv::Rect roi(w_off, h_off, crop_w, crop_h);
     transformed_img = cv_img(roi);
@@ -788,9 +793,9 @@ void DataTransformer<Dtype>::PeriodicResize(cv::Mat* cv_img,
       default:
         LOG(FATAL) << "Unknown periodic resize method.";
     }
+    cv_img = &resize_img;
     *input_height = height;
     *input_width = width;
-    cv_img = &resize_img;
   }
 }
 #endif  // USE_OPENCV
