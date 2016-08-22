@@ -462,6 +462,8 @@ message TransformationParameter {
     RANDOM = 2;
     ZERO = 4;
   }
+  // random cropping train data
+  optional bool random_crop_train = 17 [default = true];
 }
 
 // Message that stores parameters shared by loss layers

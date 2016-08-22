@@ -707,7 +707,8 @@ void DataTransformer<Dtype>::GetOffset(int* h_off, int* w_off,
   // We only do random crop when we do training.or have randome crop test
   CHECK_GE(height, crop_h);
   CHECK_GE(width, crop_w);
-  if (phase_ == TRAIN || param_.random_crop_test()) {
+  if ((phase_ == TRAIN && param_.random_crop_train) ||
+      (phase == TEST && param_.random_crop_test())) {
     *h_off = Rand(height-crop_h+1);
     *w_off = Rand(width-crop_w+1);
   } else {
