@@ -64,10 +64,13 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
   // use advanced transformation if USE_OPENCV
   bool convert_to_cv = false;
 #ifdef USE_OPENCV
-  cv::Mat cv_img = DatumToCVMat(datum);
-  PeriodicResize(&cv_img, &datum_height, &datum_width);
-  GeometricalTransform(&cv_img);
-  convert_to_cv = true;
+  cv::Mat cv_img;
+  if (has_uint8) {
+    cv_img = DatumToCVMat(datum);
+    PeriodicResize(&cv_img, &datum_height, &datum_width);
+    GeometricalTransform(&cv_img);
+    convert_to_cv = true;
+  }
 #endif  // USE_OPENCV
 #ifndef USE_OPENCV
   NoAdvancedTransformations();
@@ -75,7 +78,7 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
 
   // get post crop height and width
   int height, width;
-  GetPostCropSize(&height, &width, datum_height, datum_width);
+  bool has_crop = GetPostCropSize(&height, &width, datum_height, datum_width);
   CHECK_GT(datum_channels, 0);
 
   // get mean
@@ -88,49 +91,68 @@ void DataTransformer<Dtype>::Transform(const Datum& datum,
   // assign values
   const Dtype* mean = param_.has_mean_file() ?
       data_mean_.mutable_cpu_data() : NULL;
-  Dtype datum_element;
-  int top_index, data_index;
-  for (int c = 0; c < datum_channels; ++c) {
-    for (int h = 0; h < height; ++h) {
-      for (int w = 0; w < width; ++w) {
-        data_index = (c*datum_height+h_off+h)*datum_width+w_off+w;
-        if (do_mirror) {
-          top_index = (c*height+h)*width+(width-1-w);
-        } else {
-          top_index = (c*height+h)*width+w;
-        }
-        if (has_uint8) {
-          if (convert_to_cv) {
+  if (convert_to_cv) {
 #ifdef USE_OPENCV
-            switch (datum_channels) {
-              case 1:
-                datum_element =
-                static_cast<Dtype>(cv_img.at<uchar>(h+h_off, w+w_off));
-                break;
-              case 3:
-                datum_element =
-                static_cast<Dtype>(cv_img.at<cv::Vec3b>(h+h_off, w+w_off)[c]);
-                break;
-              default:
-                CHECK(0) << "wrong number of channels";
-            }
-#endif  // USE_OPENCV
+    if (has_crop) {
+      cv::Rect roi(w_off, h_off, width, height);
+      cv_img = cv_img(roi);
+    }
+    int top_index;
+    for (int h = 0; h < height; ++h) {
+      const uchar* ptr = cv_img.ptr<uchar>(h);
+      int img_index = 0;
+      for (int w = 0; w < width; ++w) {
+        for (int c = 0; c < datum_channels; ++c) {
+          if (do_mirror) {
+            top_index = (c*height+h)*width+(width-1-w);
           } else {
+            top_index = (c*height+h)*width+w;
+          }
+          Dtype pixel = static_cast<Dtype>(ptr[img_index++]);
+          if (param_.has_mean_file()) {
+            int mean_index = (c*datum_height+h_off+h)*datum_width+w_off+w;
+            transformed_data[top_index] =
+              (pixel - mean[mean_index]) * scale;
+          } else {
+            if (mean_values_.size() > 0) {
+              transformed_data[top_index] =
+                (pixel - mean_values_[c]) * scale;
+            } else {
+              transformed_data[top_index] = pixel*scale;
+            }
+          }
+        }
+      }
+    }
+#endif  // USE_OPENCV
+  } else {
+    Dtype datum_element;
+    int top_index, data_index;
+    for (int c = 0; c < datum_channels; ++c) {
+      for (int h = 0; h < height; ++h) {
+        for (int w = 0; w < width; ++w) {
+          data_index = (c * datum_height + h_off + h) * datum_width + w_off + w;
+          if (do_mirror) {
+            top_index = (c * height + h) * width + (width - 1 - w);
+          } else {
+            top_index = (c * height + h) * width + w;
+          }
+          if (has_uint8) {
             datum_element =
               static_cast<Dtype>(static_cast<uint8_t>(data[data_index]));
-          }
-        } else {
-          datum_element = datum.float_data(data_index);
-        }
-        if (param_.has_mean_file()) {
-          transformed_data[top_index] =
-            (datum_element-mean[data_index])*scale;
-        } else {
-          if (mean_values_.size() > 0) {
-            transformed_data[top_index] =
-              (datum_element-mean_values_[c])*scale;
           } else {
-            transformed_data[top_index] = datum_element*scale;
+            datum_element = datum.float_data(data_index);
+          }
+          if (param_.has_mean_file()) {
+            transformed_data[top_index] =
+              (datum_element - mean[data_index]) * scale;
+          } else {
+            if (mean_values_.size() > 0) {
+              transformed_data[top_index] =
+                (datum_element - mean_values_[c]) * scale;
+            } else {
+              transformed_data[top_index] = datum_element * scale;
+            }
           }
         }
       }
