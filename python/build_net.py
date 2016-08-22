@@ -12,12 +12,14 @@ import numpy as np
 
 class BuildNet:
     # ini def
-    def __init__(self, func, name = 'net', savepath = 'models/'):
+    def __init__(self, func, name = 'net', savepath = 'models/',\
+                 caffe_path = '~/caffe-yao/'):
         self.func = func
         self.model_path = savepath + name +'/'
         self.name = name
         self.reset()
         self.number_stages = len(self.solvers)
+        self.caffe_path = caffe_path
         print "initialization done"
 
 # common task
@@ -428,7 +430,7 @@ class BuildNet:
             self.gen_runfile_header(f)
             self.reset()
             for stage in range(self.number_stages):
-                f.write('~/caffe-yao/build/tools/caffe train -gpu $GPU'+
+                f.write(self.caffe_path+'build/tools/caffe train -gpu $GPU'+
                         ' \\\n--solver=models/'+self.name+
                         '/solver_'+str(stage)+'.prototxt')
                 if stage > 0:
@@ -451,7 +453,7 @@ class BuildNet:
             self.reset()
             f.write('set -e\n')
             for stage in range(self.number_stages):
-                f.write('~/caffe-yao/build/tools/caffe train -gpu $GPU'+
+                f.write(self.caffe_path+'build/tools/caffe train -gpu $GPU'+
                         ' \\\n--solver=models/'+self.name+
                         '/solver_checking_'+str(stage)+'.prototxt \\\n')
                 if stage == 0:
