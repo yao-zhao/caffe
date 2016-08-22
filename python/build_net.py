@@ -383,7 +383,7 @@ class BuildNet:
             solver.test_initialization = True
             solver.max_iter = 1
             for test_iter_id in range(len(solver.test_iter)):
-                solvers.test_iter[test_iter_id] = 1
+                solver.test_iter[test_iter_id] = 1
             with open(self.model_path+'solver_checking_'
                     +str(stage)+'.prototxt', 'w+') as f:
                 f.write(str(solver))
