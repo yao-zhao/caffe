@@ -462,8 +462,10 @@ message TransformationParameter {
     RANDOM = 2;
     ZERO = 4;
   }
+  // resize periodic
+  optional bool periodic_resize_mirror = 18 [default = false];
   // random cropping train data
-  optional bool random_crop_train = 18 [default = true];
+  optional bool random_crop_train = 19 [default = true];
 }
 
 // Message that stores parameters shared by loss layers

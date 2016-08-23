@@ -774,19 +774,38 @@ void DataTransformer<Dtype>::PeriodicResize(cv::Mat* cv_img,
     CHECK_GT(height, 0) <<
         "preodic resize height has to be larger than zero";
     cv::Mat resize_img = cv::Mat(height, width, cv_img->type());
-    switch (param_.periodic_resize()) {
-      case TransformationParameter_PeriodicResizeMode_CENTER:
-        ResizeImagePeriodic(*cv_img, height/2 - cv_img->rows/2,
-            width/2 - cv_img->cols/2, &resize_img);
-        break;
-      case TransformationParameter_PeriodicResizeMode_RANDOM:
-        ResizeImagePeriodic(*cv_img, Rand(height), Rand(width), &resize_img);
-        break;
-      case TransformationParameter_PeriodicResizeMode_ZERO:
-        ResizeImagePeriodic(*cv_img, 0, 0, &resize_img);
-        break;
-      default:
-        LOG(FATAL) << "Unknown periodic resize method.";
+    if (param_.periodic_resize_mirror()) {
+      switch (param_.periodic_resize()) {
+        case TransformationParameter_PeriodicResizeMode_CENTER:
+          ResizeImagePeriodicMirror(*cv_img, height/2 - cv_img->rows/2,
+              width/2 - cv_img->cols/2, &resize_img);
+          break;
+        case TransformationParameter_PeriodicResizeMode_RANDOM:
+          ResizeImagePeriodicMirror(*cv_img, Rand(height), Rand(width),
+              &resize_img);
+          break;
+        case TransformationParameter_PeriodicResizeMode_ZERO:
+          ResizeImagePeriodicMirror(*cv_img, 0, 0, &resize_img);
+          break;
+        default:
+          LOG(FATAL) << "Unknown periodic resize method.";
+      }
+    } else {
+      switch (param_.periodic_resize()) {
+        case TransformationParameter_PeriodicResizeMode_CENTER:
+          ResizeImagePeriodic(*cv_img, height/2 - cv_img->rows/2,
+              width/2 - cv_img->cols/2, &resize_img);
+          break;
+        case TransformationParameter_PeriodicResizeMode_RANDOM:
+          ResizeImagePeriodic(*cv_img, Rand(height), Rand(width),
+              &resize_img);
+          break;
+        case TransformationParameter_PeriodicResizeMode_ZERO:
+          ResizeImagePeriodic(*cv_img, 0, 0, &resize_img);
+          break;
+        default:
+          LOG(FATAL) << "Unknown periodic resize method.";
+      }
     }
     *cv_img = resize_img;
     *input_height = height;
