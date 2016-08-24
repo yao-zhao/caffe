@@ -4,6 +4,10 @@
 
 #include <opencv2/core/core.hpp>
 
+#include <vector>
+
+#include "caffe/common.hpp"
+
 namespace caffe {
 
   /**
@@ -41,7 +45,8 @@ void ResizeImagePeriodicMirror(const cv::Mat& src_img,
    *    factor to rescale the image by, usually set at 1 for no scales
    */
 void RandomRotateImage(const cv::Mat& src_img, const int rotation_range,
-    const float rescale_factor, cv::Mat* dst_img);
+    const float rescale_factor, const vector<int> & border_value,
+    cv::Mat* dst_img);
 
   /**
    * @brief use random perspective transformation on the image

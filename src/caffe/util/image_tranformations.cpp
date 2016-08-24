@@ -3,6 +3,8 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#include <vector>
+
 #include "caffe/common.hpp"
 #include "caffe/util/image_transformations.hpp"
 #include "caffe/util/math_functions.hpp"
@@ -62,10 +64,35 @@ void ResizeImagePeriodicMirror(const cv::Mat& src_img,
 }
 
 void RandomRotateImage(const cv::Mat& src_img, const int rotation_range,
-    const float rescale_factor, cv::Mat* dst_img) {
+    const float rescale_factor, const vector<int> & border_value,
+    cv::Mat* dst_img) {
   CHECK_GT(rescale_factor, 0);
   CHECK_GE(rotation_range, 0);
   CHECK_LE(rotation_range, 360);
+  CHECK(border_value.size() ==  src_img.channels() ||
+      border_value.size() == 1) << "border value can either has the dimension"
+      << "of 1 or euqals to the channels dimension of the input image";
+  cv::Scalar scalar;
+  switch (border_value.size()) {
+    case 0:
+      scalar = cv::Scalar(0);
+      break;
+    case 1:
+      scalar = cv::Scalar(border_value[0]);
+      break;
+    case 2:
+      scalar = cv::Scalar(border_value[0], border_value[1]);
+      break;
+    case 3:
+      scalar = cv::Scalar(border_value[0], border_value[1], border_value[2]);
+      break;
+    case 4:
+      scalar = cv::Scalar(border_value[0], border_value[1],
+          border_value[3], border_value[4]);
+      break;
+    default:
+      LOG(FATAL) << "border value can only be equal or less then 4";
+  }
   cv::Point2f pt(src_img.cols/2, src_img.rows/2);
   cv::Mat r;
   if (rotation_range != 0) {
@@ -74,11 +101,13 @@ void RandomRotateImage(const cv::Mat& src_img, const int rotation_range,
   } else {
     r = cv::getRotationMatrix2D(pt, 0, rescale_factor);
   }
-  cv::warpAffine(src_img, *dst_img, r, cv::Size(src_img.cols, src_img.rows));
+  cv::warpAffine(src_img, *dst_img, r, cv::Size(src_img.cols, src_img.rows),
+      cv::INTER_LINEAR, cv::BORDER_CONSTANT, scalar);
 }
 
 void RandomPerspectiveTransformImage(const cv::Mat& src_img,
-    const int perspective_transformation_border, cv::Mat* dst_img) {
+    const int perspective_transformation_border,
+    cv::Mat* dst_img) {
   CHECK_GE(perspective_transformation_border, 0);
   CHECK_LE(perspective_transformation_border, src_img.rows/2);
   CHECK_LE(perspective_transformation_border, src_img.cols/2);

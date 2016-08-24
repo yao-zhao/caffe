@@ -466,6 +466,8 @@ message TransformationParameter {
   optional bool periodic_resize_mirror = 18 [default = false];
   // random cropping train data
   optional bool random_crop_train = 19 [default = true];
+  // border values of rotation or perspective transformation
+  repeated uint32 border_value = 20;
 }
 
 // Message that stores parameters shared by loss layers

@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "caffe/data_transformer.hpp"
+#include "caffe/common.hpp"
 #include "caffe/util/image_transformations.hpp"
 #include "caffe/util/io.hpp"
 #include "caffe/util/math_functions.hpp"
@@ -744,13 +745,18 @@ void DataTransformer<Dtype>::GeometricalTransform(cv::Mat* cv_img) {
   const bool has_perspective_transformation =
     param_.perspective_transformation_border() > 0;
   const bool has_scale_jitter = param_.scale_jitter_range() > 0;
+  vector<int> border_value;
+  for (int i = 0; i < param_.border_value_size(); i++) {
+    border_value.push_back(param_.border_value(i));
+  }
   if ((has_perspective_transformation || has_rotation || has_scale_jitter)) {
     // if has rotation or scale jitter
     if (has_rotation || has_scale_jitter) {
       const int rotation_range = param_.rotation_range();
       const float scale_jitter = exp(param_.scale_jitter_range()*
         static_cast<float>(Rand(201)-100)/200.0);
-      RandomRotateImage(*cv_img, rotation_range, scale_jitter, cv_img);
+      RandomRotateImage(*cv_img, rotation_range, scale_jitter, border_value,
+          cv_img);
     }
     // perspective transform
     if (has_perspective_transformation) {
