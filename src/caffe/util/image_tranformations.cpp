@@ -70,7 +70,8 @@ void RandomRotateImage(const cv::Mat& src_img, const int rotation_range,
   CHECK_GE(rotation_range, 0);
   CHECK_LE(rotation_range, 360);
   CHECK(border_value.size() ==  src_img.channels() ||
-      border_value.size() == 1) << "border value can either has the dimension"
+      border_value.size() == 1 || border_value.size() == 0)
+      << "border value can either has the dimension"
       << "of 1 or euqals to the channels dimension of the input image";
   cv::Scalar scalar;
   switch (border_value.size()) {
