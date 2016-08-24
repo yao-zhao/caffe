@@ -117,10 +117,12 @@ class BuildNet:
     def add_image(self, transformer_dict = None, batch_size = 32,
                  test_batch_size = None, deploy_batch_size = 1,
                  source_path = 'data/', root_folder = 'data/',
-                 label_scale = 1,
+                 label_scale = 1, test_transformer_dict = None,
                  shuffle = True, is_color = True, height = None, width = None):
         if test_batch_size is None:
             test_batch_size = batch_size
+        if test_transformer_dict is None:
+            test_transformer_dict = transformer_dict
         # probe image data dimension
         tmpnet = caffe.NetSpec()
         tmpnet.data, tmpnet.label = L.ImageData(
@@ -150,7 +152,7 @@ class BuildNet:
                     source = source_path + 'val.txt',
                     root_folder = root_folder, is_color = is_color,
                     shuffle = False, label_scale = label_scale,
-                    transform_param = transformer_dict, ntop = 2,
+                    transform_param = test_transformer_dict, ntop = 2,
                     new_height = height, new_width = width,
                     include = dict(phase = caffe.TEST))
         elif self.phase == 'deploy':
