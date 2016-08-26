@@ -117,6 +117,7 @@ class BuildNet:
     def add_image(self, transformer_dict = None, batch_size = 32,
                  test_batch_size = None, deploy_batch_size = 1,
                  source_path = 'data/', root_folder = 'data/',
+                 source_train = 'train.txt', source_test = 'val.txt',
                  label_scale = 1, test_transformer_dict = None,
                  shuffle = True, is_color = True, height = None, width = None):
         if test_batch_size is None:
@@ -126,7 +127,7 @@ class BuildNet:
         # probe image data dimension
         tmpnet = caffe.NetSpec()
         tmpnet.data, tmpnet.label = L.ImageData(
-            source = source_path+'train.txt',
+            source = source_path+source_train,
             root_folder = root_folder, is_color = is_color,
             batch_size = 1, ntop = 2)
         with open('tmpnet.prototxt', 'w+') as f:
@@ -141,7 +142,7 @@ class BuildNet:
         # add layer
         if self.phase == 'train':
             self.bottom, self.label = L.ImageData(batch_size = batch_size,
-                    source = source_path + 'train.txt',
+                    source = source_path + source_train,
                     root_folder = root_folder, is_color = is_color,
                     shuffle = shuffle, label_scale = label_scale,
                     transform_param = transformer_dict, ntop = 2,
@@ -149,7 +150,7 @@ class BuildNet:
                     include = dict(phase = caffe.TRAIN))
         elif self.phase == 'test':
             self.bottom, self.label = L.ImageData(batch_size = test_batch_size,
-                    source = source_path + 'val.txt',
+                    source = source_path + source_test,
                     root_folder = root_folder, is_color = is_color,
                     shuffle = False, label_scale = label_scale,
                     transform_param = test_transformer_dict, ntop = 2,
