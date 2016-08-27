@@ -27,6 +27,16 @@ __global__ void SoftmaxROCLossForwardGPU(const int nthreads,
 }
 
 template <typename Dtype>
+__global__ void ProbToPosNegGPU(const int nthreads,
+          const Dtype* prob_data,
+          Dtype* pos_data, Dtype* neg_data) {
+  CUDA_KERNEL_LOOP(index, nthreads) {
+    pos_data[index] = prob_data[2*index+1];
+    neg_data[index] = prob_data[2*index];
+  }
+}
+
+template <typename Dtype>
 void SoftmaxWithROCLossLayer<Dtype>::Forward_gpu(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   const Dtype* ones_data = ones_.gpu_data();
@@ -40,7 +50,11 @@ void SoftmaxWithROCLossLayer<Dtype>::Forward_gpu(
   const Dtype* is_negative_data = is_negative_.mutable_gpu_data();
   // The forward pass computes the softmax prob values.
   softmax_layer_->Forward(softmax_bottom_vec_, softmax_top_vec_);
-  ProbToPosNeg();
+  // NOLINT_NEXT_LINE(whitespace/operators)
+  ProbToPosNegGPU<Dtype> <<<CAFFE_GET_BLOCKS(count),
+      CAFFE_CUDA_NUM_THREADS>>>(count, prob_.gpu_data(),
+      prob_positive_.mutable_gpu_data(), prob_negative_.mutable_gpu_data());
+  CUDA_POST_KERNEL_CHECK;
   const Dtype* positive_data = prob_positive_.gpu_data();
   const Dtype* negative_data = prob_negative_.gpu_data();
   // calculate diff
@@ -81,6 +95,16 @@ __global__ void SoftmaxROCLossBackwardGPU(const int nthreads,
 }
 
 template <typename Dtype>
+__global__ void PosNegToProbGPU(const int nthreads,
+          const Dtype* pos_data, const Dtype* neg_data,
+          Dtype* prob_data) {
+  CUDA_KERNEL_LOOP(index, nthreads) {
+    prob_data[2*index+1] = pos_data[index];
+    prob_data[2*index] = neg_data[index];
+  }
+}
+
+template <typename Dtype>
 void SoftmaxWithROCLossLayer<Dtype>::Backward_gpu(
     const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
@@ -108,7 +132,11 @@ void SoftmaxWithROCLossLayer<Dtype>::Backward_gpu(
         -alpha, tmp_data, is_negative_data, Dtype(0), positive_diff);
     caffe_gpu_gemm(CblasNoTrans, CblasNoTrans, 1, count, count,
         alpha, is_positive_data, tmp_data, Dtype(0), negative_diff);
-    PosNegToProb();
+    // NOLINT_NEXT_LINE(whitespace/operators)
+    PosNegToProbGPU<Dtype> <<<CAFFE_GET_BLOCKS(count),
+        CAFFE_CUDA_NUM_THREADS>>>(count, positive_diff, negative_diff,
+        prob_.mutable_gpu_diff());
+    CUDA_POST_KERNEL_CHECK;
     softmax_layer_->Backward(softmax_top_vec_, propagate_down,
         softmax_bottom_vec_);
   }
