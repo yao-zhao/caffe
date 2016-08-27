@@ -175,6 +175,18 @@ void caffe_div<double>(const int n, const double* a, const double* b,
 }
 
 template <>
+void caffe_eq<float>(const int n, const float* a, const float* b,
+    float* y) {
+  vsEq(n, a, b, y);
+}
+
+template <>
+void caffe_eq<double>(const int n, const double* a, const double* b,
+    double* y) {
+  vdEq(n, a, b, y);
+}
+
+template <>
 void caffe_powx<float>(const int n, const float* a, const float b,
     float* y) {
   vsPowx(n, a, b, y);
