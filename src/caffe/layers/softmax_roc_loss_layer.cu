@@ -3,147 +3,115 @@
 #include <algorithm>
 #include <cfloat>
 #include <vector>
-
+#include <iostream>
 #include "caffe/layers/softmax_roc_loss_layer.hpp"
 #include "caffe/util/math_functions.hpp"
 
 namespace caffe {
 
-// template <typename Dtype>
-// __global__ void SoftmaxLossForwardGPU(const int nthreads,
-//           const Dtype* prob_data, const Dtype* label,
-//           const bool weight_by_label_freqs, const float* label_counts,
-//           Dtype* loss, const int num, const int dim, const int spatial_dim,
-//           const bool has_ignore_label_, const int ignore_label_,
-//           Dtype* counts) {
-//   CUDA_KERNEL_LOOP(index, nthreads) {
-//     const int n = index / spatial_dim;
-//     const int s = index % spatial_dim;
-//     const int label_value = static_cast<int>(label[n * spatial_dim + s]);
-//     if (has_ignore_label_ && label_value == ignore_label_) {
-//       loss[index] = 0;
-//       counts[index] = 0;
-//     } else {
-//       loss[index] = -log(max(prob_data[n * dim + label_value * spatial_dim + s],
-//                       Dtype(FLT_MIN)));
-//       if (weight_by_label_freqs) {
-//         loss[index] *= static_cast<Dtype>(label_counts[label_value]);
-//       }
-//       counts[index] = 1;
-//     }
-//   }
-// }
+template <typename Dtype>
+__global__ void SoftmaxROCLossForwardGPU(const int nthreads,
+          const Dtype* diff_data,
+          const Dtype eps, Dtype* is_positive_negative_data) {
+  CUDA_KERNEL_LOOP(index, nthreads) {
+    if (is_positive_negative_data[index] != 0) {
+      if (diff_data[index] > eps) {
+        is_positive_negative_data[index] = 1;
+      } else if (diff_data[index] > -eps) {
+        is_positive_negative_data[index] = 0.5 + 0.5 * diff_data[index] / eps;
+      } else {
+        is_positive_negative_data[index] = 0;
+      }
+    }
+  }
+}
 
 template <typename Dtype>
 void SoftmaxWithROCLossLayer<Dtype>::Forward_gpu(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
-  // softmax_layer_->Forward(softmax_bottom_vec_, softmax_top_vec_);
-  // const Dtype* prob_data = prob_.gpu_data();
-  // const Dtype* label = bottom[1]->gpu_data();
-  // const int dim = prob_.count() / outer_num_;
-  // const int nthreads = outer_num_ * inner_num_;
-  // // Since this memory is not used for anything until it is overwritten
-  // // on the backward pass, we use it here to avoid having to allocate new GPU
-  // // memory to accumulate intermediate results in the kernel.
-  // Dtype* loss_data = bottom[0]->mutable_gpu_diff();
-  // // Similarly, this memory is never used elsewhere, and thus we can use it
-  // // to avoid having to allocate additional GPU memory.
-  // Dtype* counts = prob_.mutable_gpu_diff();
-  // const float* label_count_data =
-  //     weight_by_label_freqs_ ? label_counts_.gpu_data() : NULL;
-  // // NOLINT_NEXT_LINE(whitespace/operators)
-  // SoftmaxLossForwardGPU<Dtype><<<CAFFE_GET_BLOCKS(nthreads),
-  //     CAFFE_CUDA_NUM_THREADS>>>(nthreads, prob_data, label,
-  //     weight_by_label_freqs_, label_count_data , loss_data,
-  //     outer_num_, dim, inner_num_,
-  //     has_ignore_label_, ignore_label_, counts);
-  // Dtype loss;
-  // caffe_gpu_asum(nthreads, loss_data, &loss);
-  // Dtype valid_count = -1;
-  // // Only launch another CUDA kernel if we actually need the count of valid
-  // // outputs.
-  // if (normalization_ == LossParameter_NormalizationMode_VALID &&
-  //     has_ignore_label_) {
-  //   caffe_gpu_asum(nthreads, counts, &valid_count);
-  // }
-  // top[0]->mutable_cpu_data()[0] = loss / get_normalizer(normalization_,
-  //                                                       valid_count);
-  // if (top.size() == 2) {
-  //   top[1]->ShareData(prob_);
-  // }
+  const Dtype* ones_data = ones_.gpu_data();
+  const int count = bottom[1]->count();
+  const int count2 = count * count;
+  Dtype* diff_data = diff_.mutable_gpu_data();
+  Dtype* tmp_data = diff_.mutable_gpu_diff();
+  // set is positive data
+  SetIsPositiveNegative(count, bottom[1]->cpu_data());
+  const Dtype* is_positive_data = is_positive_.mutable_gpu_data();
+  const Dtype* is_negative_data = is_negative_.mutable_gpu_data();
+  // The forward pass computes the softmax prob values.
+  softmax_layer_->Forward(softmax_bottom_vec_, softmax_top_vec_);
+  ProbToPosNeg();
+  const Dtype* positive_data = prob_positive_.gpu_data();
+  const Dtype* negative_data = prob_negative_.gpu_data();
+  // calculate diff
+  caffe_gpu_gemm(CblasNoTrans, CblasNoTrans, count, count, 1,
+      Dtype(1), positive_data, ones_data, Dtype(0), diff_data);
+  caffe_gpu_gemm(CblasNoTrans, CblasNoTrans, count, count, 1,
+      Dtype(1), ones_data, negative_data, Dtype(0), tmp_data);
+  caffe_gpu_sub(count*count, diff_data, tmp_data, diff_data);
+  caffe_gpu_gemm(CblasNoTrans, CblasNoTrans, count, count, 1,
+      Dtype(1), is_positive_data, is_negative_data, Dtype(0), tmp_data);
+  // NOLINT_NEXT_LINE(whitespace/operators)
+  SoftmaxROCLossForwardGPU<Dtype> <<<CAFFE_GET_BLOCKS(count2),
+      CAFFE_CUDA_NUM_THREADS>>>(count2, diff_data, eps_, tmp_data);
+  CUDA_POST_KERNEL_CHECK;
+  // calculate auc
+  Dtype auc = 0;
+  if (normalizer_ == 0) {
+    // if all positive or negative set normalizer to 0, otherwise calculate
+    auc = 0.5;
+  } else {
+    caffe_gpu_asum(count2, tmp_data, &auc);
+    auc /= normalizer_;
+  }
+  // optimize 1-auc
+  top[0]->mutable_cpu_data()[0] = 1-auc;
 }
 
-// template <typename Dtype>
-// __global__ void SoftmaxLossBackwardGPU(const int nthreads, const Dtype* top,
-//           const Dtype* label, const bool weight_by_label_freqs,
-//           const float* label_counts, Dtype* bottom_diff,
-//           const int num, const int dim, const int spatial_dim,
-//           const bool has_ignore_label_, const int ignore_label_,
-//           Dtype* counts) {
-//   const int channels = dim / spatial_dim;
-
-//   CUDA_KERNEL_LOOP(index, nthreads) {
-//     const int n = index / spatial_dim;
-//     const int s = index % spatial_dim;
-//     const int label_value = static_cast<int>(label[n * spatial_dim + s]);
-
-//     if (has_ignore_label_ && label_value == ignore_label_) {
-//       for (int c = 0; c < channels; ++c) {
-//         bottom_diff[n * dim + c * spatial_dim + s] = 0;
-//       }
-//       counts[index] = 0;
-//     } else {
-//       const int idx = n * dim + label_value * spatial_dim + s;
-//       bottom_diff[idx] -= 1;
-//       if (weight_by_label_freqs) {
-//         for (int c = 0; c < channels; ++c) {
-//           bottom_diff[n * dim + c * spatial_dim + s] *=
-//             static_cast<Dtype>(label_counts[label_value]);
-//         }
-//       }
-//       counts[index] = 1;
-//     }
-//   }
-// }
+template <typename Dtype>
+__global__ void SoftmaxROCLossBackwardGPU(const int nthreads,
+          const Dtype* diff_data, const Dtype eps,
+          Dtype* is_positive_negative_data) {
+  CUDA_KERNEL_LOOP(index, nthreads) {
+    if (is_positive_negative_data[index] != 0 &&
+        (diff_data[index] > eps || diff_data[index] < -eps)) {
+      is_positive_negative_data[index] = 0;
+    }
+  }
+}
 
 template <typename Dtype>
-void SoftmaxWithROCLossLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
+void SoftmaxWithROCLossLayer<Dtype>::Backward_gpu(
+    const vector<Blob<Dtype>*>& top,
     const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
-  // if (propagate_down[1]) {
-  //   LOG(FATAL) << this->type()
-  //              << " Layer cannot backpropagate to label inputs.";
-  // }
-  // if (propagate_down[0]) {
-  //   Dtype* bottom_diff = bottom[0]->mutable_gpu_diff();
-  //   const Dtype* prob_data = prob_.gpu_data();
-  //   const Dtype* top_data = top[0]->gpu_data();
-  //   caffe_gpu_memcpy(prob_.count() * sizeof(Dtype), prob_data, bottom_diff);
-  //   const Dtype* label = bottom[1]->gpu_data();
-  //   const int dim = prob_.count() / outer_num_;
-  //   const int nthreads = outer_num_ * inner_num_;
-  //   // Since this memory is never used for anything else,
-  //   // we use to to avoid allocating new GPU memory.
-  //   Dtype* counts = prob_.mutable_gpu_diff();
-  //   const float* label_count_data =
-  //       weight_by_label_freqs_ ? label_counts_.gpu_data() : NULL;
-  //   // NOLINT_NEXT_LINE(whitespace/operators)
-  //   SoftmaxLossBackwardGPU<Dtype><<<CAFFE_GET_BLOCKS(nthreads),
-  //       CAFFE_CUDA_NUM_THREADS>>>(nthreads, top_data, label,
-  //       weight_by_label_freqs_, label_count_data, bottom_diff,
-  //       outer_num_, dim, inner_num_, has_ignore_label_,
-  //       ignore_label_, counts);
-
-  //   Dtype valid_count = -1;
-  //   // Only launch another CUDA kernel if we actually need the count of valid
-  //   // outputs.
-  //   if (normalization_ == LossParameter_NormalizationMode_VALID &&
-  //       has_ignore_label_) {
-  //     caffe_gpu_asum(nthreads, counts, &valid_count);
-  //   }
-  //   const Dtype loss_weight = top[0]->cpu_diff()[0] /
-  //                             get_normalizer(normalization_, valid_count);
-  //   caffe_gpu_scal(prob_.count(), loss_weight , bottom_diff);
-  // }
+  if (propagate_down[1]) {
+    LOG(FATAL) << this->type()
+               << " Layer cannot backpropagate to label inputs.";
+  }
+  if (propagate_down[0] && normalizer_ != 0) {
+    const int count = bottom[1]->count();
+    const int count2 = count * count;
+    const Dtype* is_positive_data = is_positive_.gpu_data();
+    const Dtype* is_negative_data = is_negative_.gpu_data();
+    const Dtype* diff_data = diff_.gpu_data();
+    const Dtype alpha = top[0]->cpu_diff()[0] * 0.5 / eps_ / normalizer_;
+    Dtype* tmp_data = diff_.mutable_gpu_diff();
+    Dtype* positive_diff = prob_positive_.mutable_gpu_diff();
+    Dtype* negative_diff = prob_negative_.mutable_gpu_diff();
+    caffe_gpu_gemm(CblasNoTrans, CblasNoTrans, count, count, 1,
+        Dtype(1), is_positive_data, is_negative_data, Dtype(0), tmp_data);
+    // NOLINT_NEXT_LINE(whitespace/operators)
+    SoftmaxROCLossBackwardGPU<Dtype> <<<CAFFE_GET_BLOCKS(count2),
+        CAFFE_CUDA_NUM_THREADS>>>(count2, diff_data, eps_, tmp_data);
+    CUDA_POST_KERNEL_CHECK;
+    caffe_gpu_gemm(CblasNoTrans, CblasNoTrans, count, 1, count,
+        -alpha, tmp_data, is_negative_data, Dtype(0), positive_diff);
+    caffe_gpu_gemm(CblasNoTrans, CblasNoTrans, 1, count, count,
+        alpha, is_positive_data, tmp_data, Dtype(0), negative_diff);
+    PosNegToProb();
+    softmax_layer_->Backward(softmax_top_vec_, propagate_down,
+        softmax_bottom_vec_);
+  }
 }
 
 INSTANTIATE_LAYER_GPU_FUNCS(SoftmaxWithROCLossLayer);

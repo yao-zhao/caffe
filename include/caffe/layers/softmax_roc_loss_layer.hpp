@@ -41,6 +41,9 @@ class SoftmaxWithROCLossLayer : public LossLayer<Dtype> {
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
   virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+  virtual void SetIsPositiveNegative(const int count, const Dtype* label);
+  virtual void ProbToPosNeg();
+  virtual void PosNegToProb();
 
   /// The internal SoftmaxLayer used to map predictions to a distribution.
   shared_ptr<Layer<Dtype> > softmax_layer_;
@@ -57,8 +60,11 @@ class SoftmaxWithROCLossLayer : public LossLayer<Dtype> {
   /// linear region approximation for backprop
   Dtype eps_;
   /// blobs that whether a prediction is postive or not
-  Blob<bool> is_positive_;
-  Blob<bool> is_negative_;
+  Blob<Dtype> is_positive_;
+  Blob<Dtype> is_negative_;
+  /// hold reorgaized probs for both positive and negative
+  Blob<Dtype> prob_positive_;
+  Blob<Dtype> prob_negative_;
   /// blobs that stores the diff between postive and negative
   Blob<Dtype> diff_;
   /// ones

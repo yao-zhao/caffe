@@ -42,71 +42,118 @@ void SoftmaxWithROCLossLayer<Dtype>::Reshape(
       << "e.g., if softmax axis == 1 and prediction shape is (N, C, H, W), "
       << "label count (number of labels) must be N, "
       << "with integer values in {0, 1, ..., C-1}.";
-  CHECK_EQ(inner_num_,1)
+  CHECK_EQ(inner_num_, 1)
       << "Number of labels must match number of predictions; "
       << "e.g., if softmax axis == 1 and prediction shape is (N, C, H, W), "
       << "H * W must be 1, "
       << "with integer values in {0, 1, ..., C-1}.";
   CHECK_EQ(bottom[0]->shape(softmax_axis_), 2)
       << "The number of channels for the softmax has to equal exactly to 2";
-  is_positive_.Reshape(outer_num_, 1, 1, 1);
-  is_negative_.Reshape(outer_num_, 1, 1, 1);
-  ones_.ReshapeLike(*bottom[1]);
+  vector<int> shape(4,1);
+  shape[0] = outer_num_;
+  is_positive_.Reshape(shape);
+  is_negative_.Reshape(shape);
+  prob_positive_.Reshape(shape);
+  prob_negative_.Reshape(shape);
+  ones_.Reshape(shape);
   caffe_set(ones_.count(), Dtype(1), ones_.mutable_cpu_data());
-  diff_.Reshape(outer_num_, outer_num_, 1, 1);
+  shape[1] = outer_num_;
+  diff_.Reshape(shape);
+}
+
+template<typename Dtype>
+void SoftmaxWithROCLossLayer<Dtype>::SetIsPositiveNegative(const int count,
+    const Dtype* label) {
+  Dtype* is_positive_data = is_positive_.mutable_cpu_data();
+  Dtype* is_negative_data = is_negative_.mutable_cpu_data();
+  int num_positive = 0;
+  int num_negative = 0;
+  // set is positive data
+  for (int i = 0; i < count; ++i) {
+    const int label_value = static_cast<int>(label[i]);
+    if (label_value == positive_label_) {
+      is_positive_data[i] = 1;
+      is_negative_data[i] = 0;
+      num_positive++;
+    } else if (label_value == negative_label_) {
+      is_negative_data[i] = 1;
+      is_positive_data[i] = 0;
+      num_negative++;
+    }
+  }
+  normalizer_ = num_positive * num_negative;
+}
+
+template<typename Dtype>
+void SoftmaxWithROCLossLayer<Dtype>::ProbToPosNeg() {
+  const Dtype* prob_data = prob_.cpu_data();
+  Dtype* prob_positive_data = prob_positive_.mutable_cpu_data();
+  Dtype* prob_negative_data = prob_negative_.mutable_cpu_data();
+  const int count = prob_.count()/2;
+  for (int i = 0; i < count; ++i) {
+    prob_positive_data[i] = prob_data[2*i+1];
+    prob_negative_data[i] = prob_data[2*i];
+  }
+}
+
+template<typename Dtype>
+void SoftmaxWithROCLossLayer<Dtype>::PosNegToProb() {
+  Dtype* prob_diff = prob_.mutable_cpu_diff();
+  const Dtype* prob_positive_diff = prob_positive_.cpu_diff();
+  const Dtype* prob_negative_diff = prob_negative_.cpu_diff();
+  const int count = prob_.count()/2;
+  for (int i = 0; i < count; ++i) {
+    prob_diff[2*i+1] = prob_positive_diff[i];
+    prob_diff[2*i] = prob_negative_diff[i];
+  }
 }
 
 template <typename Dtype>
 void SoftmaxWithROCLossLayer<Dtype>::Forward_cpu(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
-  // The forward pass computes the softmax prob values.
-  softmax_layer_->Forward(softmax_bottom_vec_, softmax_top_vec_);
   const Dtype* label = bottom[1]->cpu_data();
   const Dtype* ones_data = ones_.cpu_data();
   const int count = bottom[1]->count();
-  const Dtype* positive_data = prob_.cpu_data()+count;
-  const Dtype* negative_data = prob_.cpu_data();
   Dtype* diff_data = diff_.mutable_cpu_data();
   Dtype* tmp_data = diff_.mutable_cpu_diff();
-  bool* is_positive_data = is_positive_.mutable_cpu_data();
-  bool* is_negative_data = is_negative_.mutable_cpu_data();
-  // set is positive data
-  for (int i = 0; i < count; ++i) {
-    const int label_value = static_cast<int>(label[i]);
-    is_positive_data[i] = label_value == positive_label_;
-    is_negative_data[i] = label_value == negative_label_;
-  }
+  // set positive and negative label
+  SetIsPositiveNegative(count, label);
+  const Dtype* is_positive_data = is_positive_.mutable_cpu_data();
+  const Dtype* is_negative_data = is_negative_.mutable_cpu_data();
+  // The forward pass computes the softmax prob values.
+  softmax_layer_->Forward(softmax_bottom_vec_, softmax_top_vec_);
+  ProbToPosNeg();
+  const Dtype* positive_data = prob_positive_.cpu_data();
+  const Dtype* negative_data = prob_negative_.cpu_data();
   // calculate diff
-  caffe_cpu_gemm(CblasNoTrans, CblasNoTrans, count, 1, count,
-      Dtype(1), positive_data, ones_data, Dtype(1), diff_data);
-  caffe_cpu_gemm(CblasNoTrans, CblasNoTrans, count, 1, count,
-      Dtype(1), ones_data, negative_data, Dtype(1), tmp_data);
+  caffe_cpu_gemm(CblasNoTrans, CblasNoTrans, count, count, 1,
+      Dtype(1), positive_data, ones_data, Dtype(0), diff_data);
+  caffe_cpu_gemm(CblasNoTrans, CblasNoTrans, count, count, 1,
+      Dtype(1), ones_data, negative_data, Dtype(0), tmp_data);
   caffe_sub(count*count, diff_data, tmp_data, diff_data);
   // calculate total AUC
   Dtype auc = 0;
-  normalizer_ = 0;
-  for (int i = 0; i < count; ++i) {
-    if (!is_positive_data[i]) {
-      continue;
-    }
-    for (int j = 0; j < count; ++j) {
-      if (!is_negative_data[i]) {
-        continue;
-      }
-      normalizer_++;
-      Dtype diff_value = diff_data[i * count + j];
-      if (diff_value > eps_) {
-        auc += 1;
-      } else if (diff_value < -eps_) {
-      } else {
-        auc += 0.5 + 0.5 * diff_value / eps_;
-      }
-    }
-  }
-  // if all positive or negative set normalizer to 0, otherwise calculate
   if (normalizer_ == 0) {
+    // if all positive or negative set normalizer to 0, otherwise calculate
     auc = 0.5;
   } else {
+    for (int i = 0; i < count; ++i) {
+      if (is_positive_data[i] == 0) {
+        continue;
+      }
+      for (int j = 0; j < count; ++j) {
+        if (is_negative_data[j] == 0) {
+          continue;
+        }
+        Dtype diff_value = diff_data[i * count + j];
+        if (diff_value > eps_) {
+          auc += 1;
+        } else if (diff_value < -eps_) {
+        } else {
+          auc += 0.5 + 0.5 * diff_value / eps_;
+        }
+      }
+    }
     auc /= normalizer_;
   }
   // optimize 1-auc
@@ -121,30 +168,33 @@ void SoftmaxWithROCLossLayer<Dtype>::Backward_cpu(
     LOG(FATAL) << this->type()
                << " Layer cannot backpropagate to label inputs.";
   }
-  if (propagate_down[0]) {
+  if (propagate_down[0] && normalizer_ != 0) {
     const int count = bottom[1]->count();
     const Dtype* diff_data = diff_.cpu_data();
-    const bool* is_positive_data = is_positive_.cpu_data();
-    const bool* is_negative_data = is_negative_.cpu_data();
-    Dtype* positive_diff = prob_.mutable_cpu_diff()+count;
-    Dtype* negative_diff = prob_.mutable_cpu_diff();
+    const Dtype* is_positive_data = is_positive_.cpu_data();
+    const Dtype* is_negative_data = is_negative_.cpu_data();
+    Dtype* positive_diff = prob_positive_.mutable_cpu_diff();
+    Dtype* negative_diff = prob_negative_.mutable_cpu_diff();
     Dtype* prob_diff = prob_.mutable_cpu_diff();
+    caffe_set(count, Dtype(0), positive_diff);
+    caffe_set(count, Dtype(0), negative_diff);
     for (int i = 0; i < count; ++i) {
-      if (!is_positive_data[i]) {
+      if (is_positive_data[i] == 0) {
         continue;
       }
       for (int j = 0; j < count; ++j) {
-        if (!is_negative_data[i]) {
+        if (is_negative_data[j] == 0) {
           continue;
         }
         Dtype diff_value = diff_data[i * count + j];
         if (diff_value < eps_ && diff_value > -eps_) {
           positive_diff[i] -= 1;
-          negative_diff[i] += 1;
+          negative_diff[j] += 1;
         }
       }
     }
-    Dtype alpha = top[0]->cpu_diff()[0] * Dtype(0.5) / eps_ / normalizer_;
+    PosNegToProb();
+    Dtype alpha = top[0]->cpu_diff()[0] * 0.5 / eps_ / normalizer_;
     caffe_scal(2*count, alpha, prob_diff);
     softmax_layer_->Backward(softmax_top_vec_, propagate_down,
         softmax_bottom_vec_);
