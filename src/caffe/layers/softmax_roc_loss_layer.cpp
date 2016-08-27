@@ -49,7 +49,7 @@ void SoftmaxWithROCLossLayer<Dtype>::Reshape(
       << "with integer values in {0, 1, ..., C-1}.";
   CHECK_EQ(bottom[0]->shape(softmax_axis_), 2)
       << "The number of channels for the softmax has to equal exactly to 2";
-  vector<int> shape(4,1);
+  vector<int> shape(4, 1);
   shape[0] = outer_num_;
   is_positive_.Reshape(shape);
   is_negative_.Reshape(shape);

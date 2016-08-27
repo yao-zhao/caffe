@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cfloat>
 #include <vector>
-#include <iostream>
+
 #include "caffe/layers/softmax_roc_loss_layer.hpp"
 #include "caffe/util/math_functions.hpp"
 

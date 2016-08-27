@@ -1,7 +1,5 @@
 #include <cmath>
 #include <vector>
-#include <iostream>
-using namespace std;
 
 #include "boost/scoped_ptr.hpp"
 #include "gtest/gtest.h"
