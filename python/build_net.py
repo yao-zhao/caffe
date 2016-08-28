@@ -134,31 +134,45 @@ class BuildNet:
             f.write(str(tmpnet.to_proto()))
         nb, nc, h, w = caffe.Net('tmpnet.prototxt', caffe.TRAIN).\
             blobs['data'].data.shape
-        if not height:
-            height = h
-        if not width:
-            width = w
         os.remove('tmpnet.prototxt')
         # add layer
         if self.phase == 'train':
-            self.bottom, self.label = L.ImageData(batch_size = batch_size,
-                    source = source_path + source_train,
-                    root_folder = root_folder, is_color = is_color,
-                    shuffle = shuffle, label_scale = label_scale,
-                    transform_param = transformer_dict, ntop = 2,
-                    new_height = height, new_width = width,
-                    include = dict(phase = caffe.TRAIN))
+            if height and width:
+                self.bottom, self.label = L.ImageData(batch_size = batch_size,
+                        source = source_path + source_train,
+                        root_folder = root_folder, is_color = is_color,
+                        shuffle = shuffle, label_scale = label_scale,
+                        transform_param = transformer_dict, ntop = 2,
+                        new_height = height, new_width = width,
+                        include = dict(phase = caffe.TRAIN))
+            else:
+                self.bottom, self.label = L.ImageData(batch_size = batch_size,
+                        source = source_path + source_train,
+                        root_folder = root_folder, is_color = is_color,
+                        shuffle = shuffle, label_scale = label_scale,
+                        transform_param = transformer_dict, ntop = 2,
+                        include = dict(phase = caffe.TRAIN))
         elif self.phase == 'test':
-            self.bottom, self.label = L.ImageData(batch_size = test_batch_size,
-                    source = source_path + source_test,
-                    root_folder = root_folder, is_color = is_color,
-                    shuffle = False, label_scale = label_scale,
-                    transform_param = test_transformer_dict, ntop = 2,
-                    new_height = height, new_width = width,
-                    include = dict(phase = caffe.TEST))
+            if height and width:
+                self.bottom, self.label = L.ImageData(
+                        batch_size = test_batch_size,
+                        source = source_path + source_test,
+                        root_folder = root_folder, is_color = is_color,
+                        shuffle = False, label_scale = label_scale,
+                        transform_param = test_transformer_dict, ntop = 2,
+                        new_height = height, new_width = width,
+                        include = dict(phase = caffe.TEST))
+            else:
+                self.bottom, self.label = L.ImageData(
+                        batch_size = test_batch_size,
+                        source = source_path + source_test,
+                        root_folder = root_folder, is_color = is_color,
+                        shuffle = False, label_scale = label_scale,
+                        transform_param = test_transformer_dict, ntop = 2,
+                        include = dict(phase = caffe.TEST))
         elif self.phase == 'deploy':
             self.bottom = L.Input(input_param = dict(shape = dict(dim =
-                                 [deploy_batch_size, nc, height, width])))
+                                 [deploy_batch_size, nc, h, w])))
         self.net.data = self.bottom
         if not self.phase == 'deploy':
             self.net.label = self.label
@@ -228,6 +242,22 @@ class BuildNet:
                     loss_weight = loss_weight)
                 setattr(self.net, name+'loss', prob)
 
+    # add roc loss layer to the output
+    def add_roc(self, label = None, loss_weight = 1,\
+        stage = None, name = 'roc', eps = 0.1):
+        if self.check_stage(stage):
+            if not label:
+                label = self.label
+            if self.phase == 'train' or self.phase == 'test':
+                roc = L.SoftmaxWithROCLoss(self.bottom, self.label,\
+                    softmax_roc_loss_param = dict(eps = eps),\
+                                            loss_weight = loss_weight)
+                accuracy = L.Accuracy(self.bottom, self.label)
+                setattr(self.net, name+'loss', roc)
+                setattr(self.net, 'accuracy', accuracy)
+            elif self.phase == 'deploy':
+                softmax = L.Softmax(self.bottom)
+                setattr(self.net, name+'prob', softmax)
 # common building components
 ################################################################################
     # convolutional layer 
