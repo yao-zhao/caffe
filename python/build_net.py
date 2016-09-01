@@ -355,7 +355,7 @@ class BuildNet:
 ################################################################################
     def add_cslice(self):
         self.bottom = L.CyclicSlice(self.bottom)
-        setattr(self.net, 'cslice', self.bottom)
+        setattr(self.net, 'cslice'+str(self.index), self.bottom)
         self.index += 1
         return self.bottom
 
@@ -367,7 +367,7 @@ class BuildNet:
 
     def add_cpool(self):
         self.bottom = L.CyclicPool(self.bottom, pool = P.CyclicPool.AVE)
-        setattr(self.net, 'cpool', self.bottom)
+        setattr(self.net, 'cpool'+str(self.index), self.bottom)
         self.index += 1
         return self.bottom
 
