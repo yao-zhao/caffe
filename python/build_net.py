@@ -56,35 +56,35 @@ class BuildNet:
 # function groups
 ################################################################################
     # add a typical block
-    def add_normal_block(self, num_output, lr = 1):
-        self.add_conv(num_output, lr = lr)
-        self.add_batchnorm()
-        self.add_scale(lr = lr)
-        self.add_relu()
+    def add_normal_block(self, num_output, lr = 1, stage = None):
+        self.add_conv(num_output, lr = lr, stage = stage)
+        self.add_batchnorm(stage = stage)
+        self.add_scale(lr = lr, stage = stage)
+        self.add_relu(stage = stage)
         self.index += 1
 
     # add a prelu block
-    def add_prelu_block(self, num_output, lr = 1):
-        self.add_conv(num_output, lr = lr)
-        self.add_batchnorm()
-        self.add_scale(lr = lr)
-        self.add_prelu()
+    def add_prelu_block(self, num_output, lr = 1, stage = None):
+        self.add_conv(num_output, lr = lr, stage = stage)
+        self.add_batchnorm(stage = stage)
+        self.add_scale(lr = lr, stage = stage)
+        self.add_prelu(stage = stage)
         self.index += 1
 
     # add a conv pool block
-    def add_convpool_block(self, num_output, lr = 1):
-        self.add_conv(num_output, lr = lr, stride = 2)
-        self.add_batchnorm()
-        self.add_scale(lr = lr)
-        self.add_relu()
+    def add_convpool_block(self, num_output, lr = 1, stage = None):
+        self.add_conv(num_output, lr = lr, stride = 2, stage = stage)
+        self.add_batchnorm(stage = stage)
+        self.add_scale(lr = lr, stage = stage)
+        self.add_relu(stage = stage)
         self.index += 1
 
     # add a prelu conv pool block
-    def add_prelu_convpool_block(self, num_output, lr = 1):
-        self.add_conv(num_output, lr = lr, stride = 2)
-        self.add_batchnorm()
-        self.add_scale(lr = lr)
-        self.add_prelu()
+    def add_prelu_convpool_block(self, num_output, lr = 1, stage = None):
+        self.add_conv(num_output, lr = lr, stride = 2, stage = stage)
+        self.add_batchnorm(stage = stage)
+        self.add_scale(lr = lr, stage = stage)
+        self.add_prelu(stage = stage)
         self.index += 1
 
 # input layers
@@ -181,18 +181,20 @@ class BuildNet:
 # pooling layers
 ################################################################################
     # add pooling layer of 2
-    def add_maxpool_2(self):
-        self.bottom = L.Pooling(self.bottom,
-            kernel_size = 2, stride = 2, pool = P.Pooling.MAX)
-        setattr(self.net, 'pool'+str(self.index), self.bottom)
+    def add_maxpool_2(self, stage = None):
+        if self.check_stage(stage):
+            self.bottom = L.Pooling(self.bottom,
+                kernel_size = 2, stride = 2, pool = P.Pooling.MAX)
+            setattr(self.net, 'pool'+str(self.index), self.bottom)
         self.index += 1
         return self.bottom
 
     # add final mean pool
-    def add_meanpool_final(self):
-        self.bottom = L.Pooling(self.bottom, global_pooling = True,
-            stride = 1, pool = P.Pooling.AVE)
-        setattr(self.net, 'pool'+str(self.index), self.bottom)
+    def add_meanpool_final(self, stage = None):
+        if self.check_stage(stage):
+            self.bottom = L.Pooling(self.bottom, global_pooling = True,
+                stride = 1, pool = P.Pooling.AVE)
+            setattr(self.net, 'pool'+str(self.index), self.bottom)
         self.index += 1
         return self.bottom
 
@@ -262,56 +264,59 @@ class BuildNet:
 ################################################################################
     # convolutional layer 
     def add_conv(self, num_output, lr = 1, kernel_size = 3,
-        pad = 1, stride = 1):
-        if self.phase == 'train' or self.phase == 'test':
-            self.bottom = L.Convolution(self.bottom,
-                kernel_size = kernel_size, pad = pad,
-                stride = stride, num_output = num_output,
-                weight_filler = dict(type = 'xavier'),
-                param = dict(lr_mult = lr), bias_term = False)
-        elif self.phase == 'deploy':
-            self.bottom = L.Convolution(self.bottom,
-                kernel_size = kernel_size, pad = pad,
-                stride = stride, num_output = num_output,
-                bias_term = False)
-        else:
-            print "phase not supported"
-        setattr(self.net, 'conv'+str(self.index), self.bottom)
+        pad = 1, stride = 1, stage = None):
+        if self.check_stage(stage):
+            if self.phase == 'train' or self.phase == 'test':
+                self.bottom = L.Convolution(self.bottom,
+                    kernel_size = kernel_size, pad = pad,
+                    stride = stride, num_output = num_output,
+                    weight_filler = dict(type = 'xavier'),
+                    param = dict(lr_mult = lr), bias_term = False)
+            elif self.phase == 'deploy':
+                self.bottom = L.Convolution(self.bottom,
+                    kernel_size = kernel_size, pad = pad,
+                    stride = stride, num_output = num_output,
+                    bias_term = False)
+            else:
+                print "phase not supported"
+            setattr(self.net, 'conv'+str(self.index), self.bottom)
         return self.bottom
 
     # add batch normalization
-    def add_batchnorm(self):
-        if self.phase == 'train':
-            self.bottom = L.BatchNorm(self.bottom,
-                param = [dict(lr_mult = 0),
-                         dict(lr_mult = 0), dict(lr_mult = 0)],
-                batch_norm_param = dict(use_global_stats = False),
-                in_place = True)
-        elif self.phase == 'test':
-            self.bottom = L.BatchNorm(self.bottom,
-                param = [dict(lr_mult = 0),
-                         dict(lr_mult = 0), dict(lr_mult = 0)],
-                batch_norm_param = dict(use_global_stats = True),
-                in_place = True)
-        elif self.phase == 'deploy':
-            self.bottom = L.BatchNorm(self.bottom,
-                batch_norm_param = dict(use_global_stats = True),
-                in_place = True)
-        setattr(self.net, 'bn'+str(self.index), self.bottom)
+    def add_batchnorm(self, stage = None):
+        if self.check_stage(stage):
+            if self.phase == 'train':
+                self.bottom = L.BatchNorm(self.bottom,
+                    param = [dict(lr_mult = 0),
+                             dict(lr_mult = 0), dict(lr_mult = 0)],
+                    batch_norm_param = dict(use_global_stats = False),
+                    in_place = True)
+            elif self.phase == 'test':
+                self.bottom = L.BatchNorm(self.bottom,
+                    param = [dict(lr_mult = 0),
+                             dict(lr_mult = 0), dict(lr_mult = 0)],
+                    batch_norm_param = dict(use_global_stats = True),
+                    in_place = True)
+            elif self.phase == 'deploy':
+                self.bottom = L.BatchNorm(self.bottom,
+                    batch_norm_param = dict(use_global_stats = True),
+                    in_place = True)
+            setattr(self.net, 'bn'+str(self.index), self.bottom)
         return self.bottom
 
     # add scale function
-    def add_scale(self, lr = 1):
-        if self.phase == 'train' or self.phase == 'test':
-            self.bottom = L.Scale(self.bottom,
-                  param = [dict(lr_mult = lr), dict(lr_mult = lr)],
-                  bias_term = True, in_place = True,
-                  bias_filler = dict(type = 'constant', value = 0))
-        else:
-            self.bottom = L.Scale(self.bottom,
-                  param = [dict(lr_mult = lr), dict(lr_mult = lr)],
-                  bias_term = True, in_place = True)
-        setattr(self.net, 'scale'+str(self.index), self.bottom)
+    def add_scale(self, lr = 1, stage = None):
+        if self.check_stage(stage):
+            if self.phase == 'train' or self.phase == 'test':
+                self.bottom = L.Scale(self.bottom,
+                      param = [dict(lr_mult = lr), dict(lr_mult = lr)],
+                      bias_term = True, in_place = True,
+                      bias_filler = dict(type = 'constant', value = 0))
+            else:
+                self.bottom = L.Scale(self.bottom,
+                      param = [dict(lr_mult = lr), dict(lr_mult = lr)],
+                      bias_term = True, in_place = True)
+            setattr(self.net, 'scale'+str(self.index), self.bottom)
         return self.bottom
 
     # ReLU 
@@ -322,10 +327,11 @@ class BuildNet:
         return self.bottom
 
     # Parameterized ReLU 
-    def add_prelu(self, lr = 1):
-        self.bottom = L.PReLU(self.bottom, in_place = True, 
-              param = [dict(lr_mult = lr)])
-        setattr(self.net, 'prelu'+str(self.index), self.bottom)
+    def add_prelu(self, lr = 1, stage = None):
+        if self.check_stage(stage):
+            self.bottom = L.PReLU(self.bottom, in_place = True, 
+                  param = [dict(lr_mult = lr)])
+            setattr(self.net, 'prelu'+str(self.index), self.bottom)
         return self.bottom
 
     # add fc
@@ -353,21 +359,24 @@ class BuildNet:
 
 # cyclic functions
 ################################################################################
-    def add_cslice(self):
-        self.bottom = L.CyclicSlice(self.bottom)
-        setattr(self.net, 'cslice'+str(self.index), self.bottom)
+    def add_cslice(self, stage = None):
+        if self.check_stage(stage):
+            self.bottom = L.CyclicSlice(self.bottom)
+            setattr(self.net, 'cslice'+str(self.index), self.bottom)
         self.index += 1
         return self.bottom
 
-    def add_croll(self):
-        self.bottom = L.CyclicRoll(self.bottom)
-        setattr(self.net, 'croll'+str(self.index), self.bottom)
+    def add_croll(self, stage = None):
+        if self.check_stage(stage):
+            self.bottom = L.CyclicRoll(self.bottom)
+            setattr(self.net, 'croll'+str(self.index), self.bottom)
         self.index += 1
         return self.bottom
 
-    def add_cpool(self):
-        self.bottom = L.CyclicPool(self.bottom, pool = P.CyclicPool.AVE)
-        setattr(self.net, 'cpool'+str(self.index), self.bottom)
+    def add_cpool(self, stage = None):
+        if self.check_stage(stage):
+            self.bottom = L.CyclicPool(self.bottom, pool = P.CyclicPool.AVE)
+            setattr(self.net, 'cpool'+str(self.index), self.bottom)
         self.index += 1
         return self.bottom
 
