@@ -306,8 +306,8 @@ message ParamSpec {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-
 // LayerParameter next available layer-specific ID: 147 (last added: recurrent_param)
+// LayerParameter next availabel layer-specific ID: 217
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -391,6 +391,8 @@ message LayerParameter {
   optional LorentzianProbLossParameter lorentzian_prob_loss_param = 211;
   optional LRNParameter lrn_param = 118;
   optional MemoryDataParameter memory_data_param = 119;
+  optional MILDataParameter mil_data_param = 215;
+  optional MILParameter mil_param = 216;
   optional MVNParameter mvn_param = 120;
   optional NoiseParameter noise_param = 206;
   optional ParameterParameter parameter_param = 145;
@@ -402,8 +404,10 @@ message LayerParameter {
   optional ReductionParameter reduction_param = 136;
   optional ReLUParameter relu_param = 123;
   optional ReshapeParameter reshape_param = 133;
+  optional ROIPoolingParameter roi_pooling_param = 213;
   optional ScaleParameter scale_param = 142;
   optional SigmoidParameter sigmoid_param = 124;
+  optional SmoothL1LossParameter smooth_l1_loss_param = 214;
   optional SoftmaxParameter softmax_param = 125;
   optional SoftmaxWithROCLossParameter softmax_roc_loss_param = 212;
   optional SPPParameter spp_param = 132;
@@ -1195,6 +1199,17 @@ message ReshapeParameter {
   optional int32 num_axes = 3 [default = -1];
 }
 
+// Message that stores parameters used by ROIPoolingLayer
+message ROIPoolingParameter {
+  // Pad, kernel size, and stride are all given as a single value for equal
+  // dimensions in height and width or as Y, X pairs.
+  optional uint32 pooled_h = 1 [default = 0]; // The pooled output height
+  optional uint32 pooled_w = 2 [default = 0]; // The pooled output width
+  // Multiplicative spatial scale factor to translate ROI coords from their
+  // input scale to the scale used when pooling
+  optional float spatial_scale = 3 [default = 1];
+}
+
 message ScaleParameter {
   // The first axis of bottom[0] (the first input Blob) along which to apply
   // bottom[1] (the second input Blob).  May be negative to index from the end
@@ -1250,6 +1265,13 @@ message SliceParameter {
 
   // DEPRECATED: alias for "axis" -- does not support negative indexing.
   optional uint32 slice_dim = 1 [default = 1];
+}
+
+message SmoothL1LossParameter {
+  // SmoothL1Loss(x) =
+  //   0.5 * (sigma * x) ** 2    -- if x < 1.0 / sigma / sigma
+  //   |x| - 0.5 / sigma / sigma -- otherwise
+  optional float sigma = 1 [default = 1];
 }
 
 // Message that stores parameters used by SoftmaxLayer, SoftmaxWithLossLayer
@@ -1320,6 +1342,15 @@ message UpsampleParameter {
   optional uint32 upsample_w = 7;
 }
 
+// Message that stores parameters used by MILLayer
+message MILParameter {
+  enum MILType {
+    MAX = 0;
+    NOR = 1;
+  }
+  optional MILType type = 1 [default = MAX]; // The MIL method
+}
+
 message WindowDataParameter {
   // Specify the data source.
   optional string source = 1;
@@ -1351,6 +1382,35 @@ message WindowDataParameter {
   optional bool cache_images = 12 [default = false];
   // append root_folder to locate images
   optional string root_folder = 13 [default = ""];
+}
+
+message MILDataParameter {
+  // Specify the data source.
+  optional string source = 1;
+  
+  // Number of scales for each image
+  optional uint32 num_scales = 2 [default = 1];
+  
+  // Side length ratio between neighbouring scales
+  optional float scale_factor = 6 [default = 1];
+  
+  // Number of channels in the image
+  optional uint32 channels = 4 [default = 3];
+  
+  // Specify the number of images per batch
+  optional uint32 images_per_batch = 3;
+  // Specify the number of classes
+  optional uint32 n_classes = 5;
+  // specify the box_dir and label_dir
+  optional string label_file = 7;
+  
+  // Root directory which contains all the images
+  optional string root_dir = 11;
+  // Extention for the file
+  optional string ext = 12;
+  
+  // To randomize or not
+  optional bool randomize = 13 [default = true];
 }
 
 message SPPParameter {

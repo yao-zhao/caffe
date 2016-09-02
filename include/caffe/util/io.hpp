@@ -23,8 +23,18 @@ using ::boost::filesystem::path;
 
 inline void MakeTempDir(string* temp_dirname) {
   temp_dirname->clear();
-  const path& model =
+#ifdef _MSC_VER
+  // Place all temp directories under temp_root, to be able to delete all of
+  // them at once, without knowing their name.
+  const path& temp_root =
+    boost::filesystem::temp_directory_path() / "caffe_test";
+  boost::filesystem::create_directory(temp_root);
+  const path& model = temp_root / "%%%%-%%%%";
+#endif // _MSC_VER
+#ifndef _MSC_VER
+const path& model =
     boost::filesystem::temp_directory_path()/"caffe_test.%%%%-%%%%";
+#endif // _MSC_VER
   for ( int i = 0; i < CAFFE_TMP_DIR_RETRIES; i++ ) {
     const path& dir = boost::filesystem::unique_path(model).string();
     bool done = boost::filesystem::create_directory(dir);
@@ -37,7 +47,13 @@ inline void MakeTempDir(string* temp_dirname) {
 }
 
 inline void MakeTempFilename(string* temp_filename) {
+#ifdef _MSC_VER
+  path temp_files_subpath;
+#endif // _MSC_VER
+#ifndef _MSC_VER
   static path temp_files_subpath;
+#endif // _MSC_VER
+  path temp_files_subpath;
   static uint64_t next_temp_file = 0;
   temp_filename->clear();
   if ( temp_files_subpath.empty() ) {
@@ -48,6 +64,21 @@ inline void MakeTempFilename(string* temp_filename) {
   *temp_filename =
     (temp_files_subpath/caffe::format_int(next_temp_file++, 9)).string();
 }
+
+#ifdef _MSC_VER
+
+inline void RemoveCaffeTempDir() {
+  boost::system::error_code err;
+  boost::filesystem::remove_all(
+    boost::filesystem::temp_directory_path() / "caffe_test", err);
+}
+
+#else
+
+inline void RemoveCaffeTempDir() {
+}
+
+#endif
 
 bool ReadProtoFromTextFile(const char* filename, Message* proto);
 
