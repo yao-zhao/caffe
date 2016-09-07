@@ -95,7 +95,7 @@ with open(inputfile, 'rb') as csvfile:
 # inference to get data and probability
 prob0 = []
 prob1 = []
-labels2 = []
+# labels2 = []
 numfiles = min(len(filenames), maxnumfiles)
 num_batches = numfiles/batch_size+1
 for i in range(num_batches):
@@ -103,7 +103,8 @@ for i in range(num_batches):
     tmp = net.blobs[presoftmax].data
     tmp0 = np.exp(tmp[:, 0]) / (np.exp(tmp[:, 0]) + np.exp(tmp[:, 1]))
     prob0 = np.append(prob0, tmp0)
-    labels2 = np.append(labels2, net.blobs['label'].data)
+    # labels2 = np.append(labels2, net.blobs['label'].data)
+    # print net.blobs['softmaxloss'].data
 prob0 = prob0[0:numfiles]
 prob1 = 1-prob0
 
@@ -113,5 +114,5 @@ os.remove('tempnet.prototxt')
 with open(destination, 'wb') as csvfile:
     csvwriter = csv.writer(csvfile, delimiter = ' ')
     for i in range(numfiles):
-      csvwriter.writerow([filenames[i], labels[i], labels2[i],\
+      csvwriter.writerow([filenames[i], labels[i], \
         prob0[i], prob1[i]])
