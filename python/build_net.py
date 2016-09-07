@@ -150,8 +150,8 @@ class BuildNet:
                         source = source_path + source_train,
                         root_folder = root_folder, is_color = is_color,
                         shuffle = shuffle, label_scale = label_scale,
-                        transform_param = transformer_dict, ntop = 2,
-                        include = dict(phase = caffe.TRAIN))
+                        transform_param = transformer_dict, ntop = 2)
+                        # include = dict(phase = caffe.TRAIN))
         elif self.phase == 'test':
             if height and width:
                 self.bottom, self.label = L.ImageData(
