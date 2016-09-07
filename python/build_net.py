@@ -143,8 +143,8 @@ class BuildNet:
                         root_folder = root_folder, is_color = is_color,
                         shuffle = shuffle, label_scale = label_scale,
                         transform_param = transformer_dict, ntop = 2,
-                        new_height = height, new_width = width,
-                        include = dict(phase = caffe.TRAIN))
+                        new_height = height, new_width = width)
+                        # include = dict(phase = caffe.TRAIN))
             else:
                 self.bottom, self.label = L.ImageData(batch_size = batch_size,
                         source = source_path + source_train,
@@ -160,16 +160,16 @@ class BuildNet:
                         root_folder = root_folder, is_color = is_color,
                         shuffle = False, label_scale = label_scale,
                         transform_param = test_transformer_dict, ntop = 2,
-                        new_height = height, new_width = width,
-                        include = dict(phase = caffe.TEST))
+                        new_height = height, new_width = width)
+                        # include = dict(phase = caffe.TEST))
             else:
                 self.bottom, self.label = L.ImageData(
                         batch_size = test_batch_size,
                         source = source_path + source_test,
                         root_folder = root_folder, is_color = is_color,
                         shuffle = False, label_scale = label_scale,
-                        transform_param = test_transformer_dict, ntop = 2,
-                        include = dict(phase = caffe.TEST))
+                        transform_param = test_transformer_dict, ntop = 2)
+                        # include = dict(phase = caffe.TEST))
         elif self.phase == 'deploy':
             self.bottom = L.Input(input_param = dict(shape = dict(dim =
                                  [deploy_batch_size, nc, h, w])))
