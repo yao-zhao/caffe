@@ -28,7 +28,29 @@ __global__ void CyclicSliceForward(const int n,
   }
 }
 
-
+template <typename Dtype>
+__global__ void CyclicSliceBackward(const int n,
+  const Dtype* top_diff,
+  const int inner_dim, const int channels, const int size,
+  Dtype* bottom_diff) {
+  // each kernel moves one
+  CUDA_KERNEL_LOOP(index, n) {
+    const int inner_index = index % inner_dim;
+    const int batch_index = index / (channels * inner_dim);
+    const int channel_index = (index / inner_dim) % channels;
+    const int h = inner_index / size;
+    const int w = inner_index % size;
+    bottom_diff[index] =
+      top_diff[(4*batch_index*channels + channel_index) * inner_dim
+      + inner_index] +
+      top_diff[((4*batch_index+1)*channels + channel_index) * inner_dim
+      + w*size + (size-1-h)] +
+      top_diff[((4*batch_index+2)*channels + channel_index) * inner_dim
+      + (size-1-h)*size + (size-1-w)] +
+      top_diff[((4*batch_index+3)*channels + channel_index) * inner_dim
+      + (size-1-w)*size + h];
+  }
+}
 
 template <typename Dtype>
 void CyclicSliceLayer<Dtype>::Forward_gpu(
@@ -44,6 +66,24 @@ void CyclicSliceLayer<Dtype>::Forward_gpu(
     CAFFE_CUDA_NUM_THREADS>>>(count,
     bottom_data, inner_dim, channels, size, top_data);
   CUDA_POST_KERNEL_CHECK;
+}
+
+template <typename Dtype>
+void CyclicSliceLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
+    const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
+  if (propagate_down[0] == true) {
+    const int inner_dim = bottom[0]->count(2);
+    const int size = bottom[0]->shape(2);
+    const int channels = bottom[0]->shape(1);
+    const int count = bottom[0]->count();
+    const Dtype* top_diff = top[0]->gpu_diff();
+    Dtype* bottom_diff = bottom[0]->mutable_gpu_diff();
+    // NOLINT_NEXT_LINE(whitespace/operators)
+    CyclicSliceBackward<Dtype> <<<CAFFE_GET_BLOCKS(count),
+      CAFFE_CUDA_NUM_THREADS>>>(count,
+      top_diff, inner_dim, channels, size, bottom_diff);
+    CUDA_POST_KERNEL_CHECK;
+  }
 }
 
 INSTANTIATE_LAYER_GPU_FUNCS(CyclicSliceLayer);

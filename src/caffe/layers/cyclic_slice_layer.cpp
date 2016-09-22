@@ -61,6 +61,46 @@ void CyclicSliceLayer<Dtype>::Forward_cpu(
   }
 }
 
+template <typename Dtype>
+void CyclicSliceLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
+    const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom) {
+  if (propagate_down[0] == true) {
+    const int num = bottom[0]->shape(0);
+    const int channels = bottom[0]->shape(1);
+    const int height = bottom[0]->shape(2);
+    const int width = bottom[0]->shape(3);
+    const Dtype* top_diff = top[0]->cpu_diff();
+    Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
+    int bottom_outer_index, top_outer_index_0, top_outer_index_1,
+      top_outer_index_2, top_outer_index_3,
+      inner_index_a, inner_index_b, inner_index_c, inner_index_d;
+    for (int i = 0; i < num; ++i) {
+      for (int c = 0; c < channels; ++c) {
+        for (int h = 0; h < height; ++h) {
+          for (int w = 0; w < width; ++w) {
+            bottom_outer_index = (i*channels + c)*height*width;
+            top_outer_index_0 = (4*i*channels + c)*height*width;
+            top_outer_index_1 = ((4*i+1)*channels + c)*height*width;
+            top_outer_index_2 = ((4*i+2)*channels + c)*height*width;
+            top_outer_index_3 = ((4*i+3)*channels + c)*height*width;
+            // a b c d counter clock wise
+            inner_index_a = h*width + w;
+            inner_index_b = w*width + (width-1-h);
+            inner_index_c = (height-1-h)*width + (width-1-w);
+            inner_index_d = (height-1-w)*width + h;
+            // assign values
+            bottom_diff[bottom_outer_index+inner_index_a] =
+              top_diff[top_outer_index_0+inner_index_a] +
+              top_diff[top_outer_index_1+inner_index_b] +
+              top_diff[top_outer_index_2+inner_index_c] +
+              top_diff[top_outer_index_3+inner_index_d];
+          }
+        }
+      }
+    }
+  }
+}
+
 #ifdef CPU_ONLY
 STUB_GPU_FORWARD(CyclicSliceLayer, Forward);
 #endif
