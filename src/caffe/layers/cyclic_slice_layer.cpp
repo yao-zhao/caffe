@@ -102,7 +102,7 @@ void CyclicSliceLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
 }
 
 #ifdef CPU_ONLY
-STUB_GPU_FORWARD(CyclicSliceLayer, Forward);
+STUB_GPU(CyclicSliceLayer);
 #endif
 
 INSTANTIATE_CLASS(CyclicSliceLayer);
