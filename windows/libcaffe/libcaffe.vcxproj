@@ -164,6 +164,15 @@
     <ClCompile Include="..\..\src\caffe\layers\threshold_layer.cpp" />
     <ClCompile Include="..\..\src\caffe\layers\tile_layer.cpp" />
     <ClCompile Include="..\..\src\caffe\layers\window_data_layer.cpp" />
+    <ClCompile Include="..\..\src\caffe\layers\cyclic_slice_layer.cpp" />
+    <ClCompile Include="..\..\src\caffe\layers\cyclic_roll_layer.cpp" />
+    <ClCompile Include="..\..\src\caffe\layers\cyclic_pool_layer.cpp" />
+    <ClCompile Include="..\..\src\caffe\layers\gaussian_prob_loss_layer.cpp" />
+    <ClCompile Include="..\..\src\caffe\layers\lorentzian_prob_loss_layer.cpp" />
+    <ClCompile Include="..\..\src\caffe\layers\noise_layer.cpp" />
+    <ClCompile Include="..\..\src\caffe\layers\vanilla_ladder_combinator_layer.cpp" />
+    <ClCompile Include="..\..\src\caffe\layers\upsample_layer.cpp" />
+    <ClCompile Include="..\..\src\caffe\layers\bell_loss_layer.cpp" />
     <ClCompile Include="..\..\src\caffe\layer_factory.cpp" />
     <ClCompile Include="..\..\src\caffe\net.cpp" />
     <ClCompile Include="..\..\src\caffe\parallel.cpp" />
@@ -187,6 +196,7 @@
     <ClCompile Include="..\..\src\caffe\util\insert_splits.cpp" />
     <ClCompile Include="..\..\src\caffe\util\io.cpp" />
     <ClCompile Include="..\..\src\caffe\util\math_functions.cpp" />
+    <ClCompile Include="..\..\src\caffe\util\image_transformations.cpp" />
     <ClCompile Include="..\..\src\caffe\util\signal_handler.cpp" />
     <ClCompile Include="..\..\src\caffe\util\upgrade_proto.cpp" />
   </ItemGroup>
@@ -267,6 +277,15 @@
     <ClInclude Include="..\..\include\caffe\layers\threshold_layer.hpp" />
     <ClInclude Include="..\..\include\caffe\layers\tile_layer.hpp" />
     <ClInclude Include="..\..\include\caffe\layers\window_data_layer.hpp" />
+    <ClInclude Include="..\..\include\caffe\layers\cyclic_slice_layer.hpp" />
+    <ClInclude Include="..\..\include\caffe\layers\cyclic_roll_layer.hpp" />
+    <ClInclude Include="..\..\include\caffe\layers\cyclic_pool_layer.hpp" />
+    <ClInclude Include="..\..\include\caffe\layers\gaussian_prob_loss_layer.hpp" />
+    <ClInclude Include="..\..\include\caffe\layers\lorentzian_prob_loss_layer.hpp" />
+    <ClInclude Include="..\..\include\caffe\layers\noise_layer.hpp" />
+    <ClInclude Include="..\..\include\caffe\layers\vanilla_ladder_combinator_layer.hpp" />
+    <ClInclude Include="..\..\include\caffe\layers\upsample_layer.hpp" />
+    <ClInclude Include="..\..\include\caffe\layers\bell_loss_layer.hpp" />
     <ClInclude Include="..\..\include\caffe\layer_factory.hpp" />
     <ClInclude Include="..\..\include\caffe\net.hpp" />
     <ClInclude Include="..\..\include\caffe\parallel.hpp" />
@@ -287,6 +306,7 @@
     <ClInclude Include="..\..\include\caffe\util\insert_splits.hpp" />
     <ClInclude Include="..\..\include\caffe\util\io.hpp" />
     <ClInclude Include="..\..\include\caffe\util\math_functions.hpp" />
+    <ClInclude Include="..\..\include\caffe\util\image_transformations.hpp" />
     <ClInclude Include="..\..\include\caffe\util\mkl_alternate.hpp" />
     <ClInclude Include="..\..\include\caffe\util\rng.hpp" />
     <ClInclude Include="..\..\include\caffe\util\signal_handler.h" />
@@ -342,6 +362,15 @@
     <CudaCompile Include="..\..\src\caffe\layers\tanh_layer.cu" />
     <CudaCompile Include="..\..\src\caffe\layers\threshold_layer.cu" />
     <CudaCompile Include="..\..\src\caffe\layers\tile_layer.cu" />
+    <CudaCompile Include="..\..\src\caffe\layers\cyclic_slice_layer.cu" />
+    <CudaCompile Include="..\..\src\caffe\layers\cyclic_roll_layer.cu" />
+    <CudaCompile Include="..\..\src\caffe\layers\cyclic_pool_layer.cu" />
+    <CudaCompile Include="..\..\src\caffe\layers\gaussian_prob_loss_layer.cu" />
+    <CudaCompile Include="..\..\src\caffe\layers\lorentzian_prob_loss_layer.cu" />
+    <CudaCompile Include="..\..\src\caffe\layers\noise_layer.cu" />
+    <CudaCompile Include="..\..\src\caffe\layers\vanilla_ladder_combinator_layer.cu" />
+    <CudaCompile Include="..\..\src\caffe\layers\upsample_layer.cu" />
+    <CudaCompile Include="..\..\src\caffe\layers\bell_loss_layer.cu" />
     <CudaCompile Include="..\..\src\caffe\solvers\adadelta_solver.cu" />
     <CudaCompile Include="..\..\src\caffe\solvers\adagrad_solver.cu" />
     <CudaCompile Include="..\..\src\caffe\solvers\adam_solver.cu" />

@@ -54,6 +54,9 @@
     <ClCompile Include="..\..\src\caffe\util\math_functions.cpp">
       <Filter>src\util</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\caffe\util\image_transformations.cpp">
+      <Filter>src\util</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\caffe\util\upgrade_proto.cpp">
       <Filter>src\util</Filter>
     </ClCompile>
@@ -333,6 +336,33 @@
     <ClCompile Include="..\..\src\caffe\layers\scale_layer.cpp">
       <Filter>src\layers</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\caffe\layers\cyclic_slice_layer.cpp">
+      <Filter>src\layers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\caffe\layers\cyclic_roll_layer.cpp">
+      <Filter>src\layers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\caffe\layers\cyclic_pool_layer.cpp">
+      <Filter>src\layers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\caffe\layers\gaussian_prob_loss_layer.cpp">
+      <Filter>src\layers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\caffe\layers\lorentzian_prob_loss_layer.cpp">
+      <Filter>src\layers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\caffe\layers\noise_layer.cpp">
+      <Filter>src\layers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\caffe\layers\vanilla_ladder_combinator_layer.cpp">
+      <Filter>src\layers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\caffe\layers\upsample_layer.cpp">
+      <Filter>src\layers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\caffe\layers\bell_loss_layer.cpp">
+      <Filter>src\layers</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\caffe\util\signal_handler.cpp">
       <Filter>src\util</Filter>
     </ClCompile>
@@ -360,6 +390,9 @@
       <Filter>include\util</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\caffe\util\math_functions.hpp">
+      <Filter>include\util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\caffe\util\image_transformations.hpp">
       <Filter>include\util</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\caffe\util\mkl_alternate.hpp">
@@ -582,6 +615,33 @@
       <Filter>include\layers</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\caffe\layers\window_data_layer.hpp">
+      <Filter>include\layers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\caffe\layers\cyclic_slice_layer.hpp">
+      <Filter>include\layers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\caffe\layers\cyclic_roll_layer.hpp">
+      <Filter>include\layers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\caffe\layers\cyclic_pool_layer.hpp">
+      <Filter>include\layers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\caffe\layers\gaussian_prob_loss_layer.hpp">
+      <Filter>include\layers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\caffe\layers\lorentzian_prob_loss_layer.hpp">
+      <Filter>include\layers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\caffe\layers\noise_layer.hpp">
+      <Filter>include\layers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\caffe\layers\vanilla_ladder_combinator_layer.hpp">
+      <Filter>include\layers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\caffe\layers\upsample_layer.hpp">
+      <Filter>include\layers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\caffe\layers\bell_loss_layer.hpp">
       <Filter>include\layers</Filter>
     </ClInclude>
     <ClInclude Include="..\..\include\caffe\blob.hpp">
