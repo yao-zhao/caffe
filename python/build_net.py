@@ -198,6 +198,15 @@ class BuildNet:
         self.index += 1
         return self.bottom
 
+    # add final mean pool
+    def add_maxpool_final(self, stage = None):
+        if self.check_stage(stage):
+            self.bottom = L.Pooling(self.bottom, global_pooling = True,
+                stride = 1, pool = P.Pooling.MAX)
+            setattr(self.net, 'pool'+str(self.index), self.bottom)
+        self.index += 1
+        return self.bottom
+
 # output layers
 ################################################################################
     def add_softmax(self, loss_weight = 1, name = 'softmax', stage = None):
