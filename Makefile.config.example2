@@ -56,8 +56,7 @@ BLAS := atlas
 
 # This is required only if you will compile the matlab interface.
 # MATLAB directory should contain the mex binary in /bin.
-# MATLAB_DIR := /usr/local
-# MATLAB_DIR := /Applications/MATLAB_R2012b.app
+MATLAB_DIR := /usr/local/MATLAB/R2015b
 
 # NOTE: this is required only if you will compile the python interface.
 # We need to be able to find Python.h and numpy/arrayobject.h.
