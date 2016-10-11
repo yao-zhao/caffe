@@ -221,11 +221,17 @@ class BuildNet:
                 softmax = L.Softmax(self.bottom)
                 setattr(self.net, name+'prob', softmax)
 
+
     # add softmax
-    def add_euclidean(self, loss_weight = 1, name = 'euclidean', stage = None):
+    def add_euclidean(self, loss_weight = 1, name = 'euclidean',\
+                    label = None, stage = None):
         if self.check_stage(stage):
             if self.phase == 'train' or self.phase == 'test':
-                euclidean = L.EuclideanLoss(self.bottom, self.label,
+                if not label:
+                    label = self.label
+                else:
+                    label = getattr(self.net, label)
+                euclidean = L.EuclideanLoss(self.bottom, label,
                                           loss_weight = loss_weight)
                 setattr(self.net, name+'loss', euclidean)
 
@@ -233,9 +239,11 @@ class BuildNet:
     def add_gaussian_prob(self, mean, var, label = None,
         eps = 1e-2, loss_weight = 1, name = 'gaussianprob', stage = None):
         if self.check_stage(stage):
-            if not label:
-                label = self.label
             if self.phase == 'train' or self.phase == 'test':
+                if not label:
+                    label = self.label
+                else:
+                    label = getattr(self.net, label)
                 gaussianprob = L.GaussianProbLoss(mean, var, label,
                     gaussian_prob_loss_param = dict(eps = eps),
                     loss_weight = loss_weight)
@@ -245,9 +253,11 @@ class BuildNet:
     def add_lorentzian_prob(self, mean, var, label = None,
         eps = 1e-2, loss_weight = 1, name = 'lorentzianprob', stage = None):
         if self.check_stage(stage):
-            if not label:
-                label = self.label
             if self.phase == 'train' or self.phase == 'test':
+                if not label:
+                    label = self.label
+                else:
+                    label = getattr(self.net, label)
                 prob = L.LorentzianProbLoss(mean, var, label,
                     gaussian_prob_loss_param = dict(eps = eps),
                     loss_weight = loss_weight)
@@ -257,9 +267,11 @@ class BuildNet:
     def add_roc(self, label = None, loss_weight = 1,\
         stage = None, name = 'roc', eps = 0.1):
         if self.check_stage(stage):
-            if not label:
-                label = self.label
             if self.phase == 'train' or self.phase == 'test':
+                if not label:
+                    label = self.label
+                else:
+                    label = getattr(self.net, label)
                 roc = L.SoftmaxWithROCLoss(self.bottom, self.label,\
                     softmax_roc_loss_param = dict(eps = eps),\
                                             loss_weight = loss_weight)
@@ -269,6 +281,19 @@ class BuildNet:
             elif self.phase == 'deploy':
                 softmax = L.Softmax(self.bottom)
                 setattr(self.net, name+'prob', softmax)
+
+    # add regression layer on label
+    def add_regression_label(self, lb = 0, ub = 1, stage = None):
+        if self.check_stage(stage) and \
+                ( self.phase =='train' or self.phase == 'test'):
+            label0, label1 = L.RegressionLabel(self.label,\
+                name = 'regression_label',\
+                regression_label_param = \
+                dict(upper_bound = ub, lower_bound = lb), \
+                ntop = 2)
+            setattr(self.net, 'label0', label0)
+            setattr(self.net, 'label1', label1)
+
 # common building components
 ################################################################################
     # convolutional layer 
@@ -447,6 +472,7 @@ class BuildNet:
         for phase in ['train', 'test', 'deploy']:
             for stage in range(self.number_stages):
                 self.reset(phase, stage)
+                print self.net
                 with open(self.model_path+self.phase+'_'
                         +str(stage)+'.prototxt', 'w+') as f:
                     f.write('name: "'+self.name+'"\n')
