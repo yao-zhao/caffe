@@ -46,6 +46,7 @@ class BuildNet:
         self.bottom = None
         self.label = None
         self.phase = phase
+        self.unpool_array = []
         self.func(self)
 
     # check stage
@@ -178,14 +179,66 @@ class BuildNet:
             self.net.label = self.label
         return self.bottom
 
-# pooling layers
+    # set image data layer
+    def add_dense_image(self, transformer_dict = dict(), batch_size = 32,
+                test_batch_size = None, deploy_batch_size = 1,
+                source_path = 'data/', root_folder = 'data/',
+                source_train = 'train.txt', source_test = 'val.txt',
+                test_transformer_dict = None,
+                shuffle = True, is_color = True):
+        if test_batch_size is None:
+            test_batch_size = batch_size
+        if test_transformer_dict is None:
+            test_transformer_dict = transformer_dict
+        # probe image data dimension
+        tmpnet = caffe.NetSpec()
+        tmpnet.data, tmpnet.label = L.DenseImageData(
+            source = source_path+source_train,
+            root_folder = root_folder, is_color = is_color,
+            batch_size = 1, ntop = 2)
+        with open('tmpnet.prototxt', 'w+') as f:
+            f.write(str(tmpnet.to_proto()))
+        nb, nc, h, w = caffe.Net('tmpnet.prototxt', caffe.TRAIN).\
+            blobs['data'].data.shape
+        os.remove('tmpnet.prototxt')
+        # add layer
+        if self.phase == 'train':
+                self.bottom, self.label = L.DenseImageData(
+                        batch_size = batch_size,
+                        source = source_path + source_train,
+                        root_folder = root_folder, is_color = is_color,
+                        shuffle = shuffle,
+                        transform_param = transformer_dict, ntop = 2)
+                        # include = dict(phase = caffe.TRAIN))
+        elif self.phase == 'test':
+                self.bottom, self.label = L.DenseImageData(
+                        batch_size = test_batch_size,
+                        source = source_path + source_test,
+                        root_folder = root_folder, is_color = is_color,
+                        shuffle = False,
+                        transform_param = test_transformer_dict, ntop = 2)
+                        # include = dict(phase = caffe.TEST))
+        elif self.phase == 'deploy':
+            self.bottom = L.Input(input_param = dict(shape = dict(dim =
+                                 [deploy_batch_size, nc, h, w])))
+        self.net.data = self.bottom
+        if not self.phase == 'deploy':
+            self.net.label = self.label
+        return self.bottom
+# pooling layers and upsample layers
 ################################################################################
     # add pooling layer of 2
-    def add_maxpool_2(self, stage = None):
+    def add_maxpool_2(self, stage = None, use_unpool = False):
         if self.check_stage(stage):
-            self.bottom = L.Pooling(self.bottom,
-                kernel_size = 2, stride = 2, pool = P.Pooling.MAX)
-            setattr(self.net, 'pool'+str(self.index), self.bottom)
+            if use_unpool is False:
+                self.bottom = L.Pooling(self.bottom,
+                    kernel_size = 2, stride = 2, pool = P.Pooling.MAX)
+                setattr(self.net, 'pool'+str(self.index), self.bottom)
+            else:
+                self.bottom, unpool = L.Pooling(self.bottom,
+                    kernel_size = 2, stride = 2, pool = P.Pooling.MAX, ntop = 2)
+                setattr(self.net, 'pool'+str(self.index), self.bottom)
+                self.unpool_array.append(unpool)
         self.index += 1
         return self.bottom
 
@@ -207,13 +260,28 @@ class BuildNet:
         self.index += 1
         return self.bottom
 
+    # add upsample layers
+    def add_upsample(self, stage = None):
+        if self.check_stage(stage):
+            self.bottom = L.Upsample(self.bottom, self.unpool_array.pop(),
+                scale = 2)
+        self.index += 1
+        return self.bottom
+
 # output layers
 ################################################################################
-    def add_softmax(self, loss_weight = 1, name = 'softmax', stage = None):
+    def add_softmax(self, loss_weight = 1, name = 'softmax', stage = None,
+                    class_weights = None):
         if self.check_stage(stage):
+            if class_weights is None:
+                loss_param = dict(weight_by_label_freqs = False)
+            else:
+                loss_param = dict(weight_by_label_freqs = True,
+                    class_weighting = class_weights)
             if self.phase == 'train' or self.phase == 'test':
                 softmax = L.SoftmaxWithLoss(self.bottom, self.label,
-                                            loss_weight = loss_weight)
+                                            loss_weight = loss_weight,
+                                            loss_param = loss_param)
                 accuracy = L.Accuracy(self.bottom, self.label)
                 setattr(self.net, name+'loss', softmax)
                 setattr(self.net, 'accuracy', accuracy)
