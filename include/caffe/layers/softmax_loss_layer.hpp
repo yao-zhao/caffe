@@ -123,7 +123,7 @@ class SoftmaxWithLossLayer : public LossLayer<Dtype> {
   LossParameter_NormalizationMode normalization_;
   // frequency dependent tags
   bool weight_by_label_freqs_;
-  Blob<float> label_counts_;
+  Blob<Dtype> label_counts_;
   int softmax_axis_, outer_num_, inner_num_;
 };
 

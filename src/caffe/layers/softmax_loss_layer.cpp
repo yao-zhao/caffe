@@ -45,11 +45,11 @@ void SoftmaxWithLossLayer<Dtype>::LayerSetUp(
     CHECK_EQ(this->layer_param_.loss_param().class_weighting_size(),
       bottom[0]->channels())
       << "Number of class weight values does not match the number of classes.";
-    float* label_count_data = label_counts_.mutable_cpu_data();
+    Dtype* label_count_data = label_counts_.mutable_cpu_data();
     for (int i = 0; i < this->layer_param_.loss_param().class_weighting_size();
       i++) {
         label_count_data[i] =
-          this->layer_param_.loss_param().class_weighting(i);
+          Dtype(this->layer_param_.loss_param().class_weighting(i));
     }
   }
 }
@@ -129,9 +129,9 @@ void SoftmaxWithLossLayer<Dtype>::Forward_cpu(
       DCHECK_LT(label_value, prob_.shape(softmax_axis_));
       const int idx = i * dim + label_value * inner_num_ + j;
       if (weight_by_label_freqs_) {
-        const float* label_count_data = label_counts_.cpu_data();
+        const Dtype* label_count_data = label_counts_.cpu_data();
         loss -= log(std::max(prob_data[idx], Dtype(FLT_MIN)))
-            * static_cast<Dtype>(label_count_data[label_value]);
+            * label_count_data[label_value];
       } else {
         loss -= log(std::max(prob_data[idx], Dtype(FLT_MIN)));
       }
@@ -158,7 +158,7 @@ void SoftmaxWithLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     const Dtype* label = bottom[1]->cpu_data();
     int dim = prob_.count() / outer_num_;
     int count = 0;
-    const float* label_count_data =
+    const Dtype* label_count_data =
         weight_by_label_freqs_ ? label_counts_.cpu_data() : NULL;
     for (int i = 0; i < outer_num_; ++i) {
       for (int j = 0; j < inner_num_; ++j) {
@@ -173,7 +173,7 @@ void SoftmaxWithLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
           if (weight_by_label_freqs_) {
             for (int c = 0; c < bottom[0]->shape(softmax_axis_); ++c) {
               bottom_diff[i * dim + c * inner_num_ + j] *=
-                static_cast<Dtype>(label_count_data[label_value]);
+                label_count_data[label_value];
             }
           }
           ++count;
