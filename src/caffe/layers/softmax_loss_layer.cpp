@@ -125,8 +125,8 @@ void SoftmaxWithLossLayer<Dtype>::Forward_cpu(
       if (has_ignore_label_ && label_value == ignore_label_) {
         continue;
       }
-      DCHECK_GE(label_value, 0);
-      DCHECK_LT(label_value, prob_.shape(softmax_axis_));
+      CHECK_GE(label_value, 0);
+      CHECK_LT(label_value, prob_.shape(softmax_axis_));
       const int idx = i * dim + label_value * inner_num_ + j;
       if (weight_by_label_freqs_) {
         const Dtype* label_count_data = label_counts_.cpu_data();
