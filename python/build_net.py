@@ -488,9 +488,10 @@ class BuildNet:
     def add_solver_sdg(self, test_interval = 100, test_iter = 1,
                 max_iter = 6e3, base_lr = 0.01, momentum = 0.9,
                 weight_decay = 1e-5, gamma = 0.1, stepsize = 2e3,
-                display = 10, snapshot = 1e3):
+                display = 10, snapshot = 1e3, fix_seed = False):
         solver = caffe_pb2.SolverParameter()
-        # solver.random_seed = 0xCAFFE
+        if fix_seed:
+            solver.random_seed = 0xCAFFE
         stage_str = str(len(self.solvers))
         solver.train_net = self.model_path+'train_'+stage_str+'.prototxt'
         solver.test_net.append(self.model_path+'test_'+stage_str+'.prototxt')
