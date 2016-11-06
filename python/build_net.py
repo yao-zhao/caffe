@@ -2,6 +2,7 @@
 """
 collection of quick helper to build layers
 """
+from __future__ import print_function
 
 import os
 os.environ["GLOG_minloglevel"] = "2"
@@ -20,7 +21,7 @@ class BuildNet:
         self.reset()
         self.number_stages = len(self.solvers)
         self.caffe_path = caffe_path
-        print "initialization done"
+        print("initialization done")
 
 # common task
 ################################################################################
@@ -87,6 +88,19 @@ class BuildNet:
         self.add_scale(lr = lr, stage = stage)
         self.add_prelu(stage = stage)
         self.index += 1
+
+    # add bottle neck block
+    def add_bottleneck_block(self, num_output, num_bottleneck=None,
+                             first_stride=1, lr = 1, stage = None):
+        if num_bottleneck is None:
+            num_bottleneck = num_output/4
+        self.add_conv(num_bottleneck, lr=lr, stage=stage, kernel_size=1,
+                      pad=0, stride=first_stride)
+        self.add_conv(num_bottleneck, lr=lr, stage=stage)
+        self.add_conv(num_output, lr=lr, stage=stage, kernel_size=1,
+                      pad=0, stride=1)
+
+    # add resnet block
 
 # input layers
 ################################################################################
@@ -380,7 +394,7 @@ class BuildNet:
                     stride = stride, num_output = num_output,
                     bias_term = False)
             else:
-                print "phase not supported"
+                print("phase not supported")
             setattr(self.net, 'conv'+str(self.index), self.bottom)
         return self.bottom
 
@@ -407,7 +421,7 @@ class BuildNet:
         return self.bottom
 
     # add scale function
-    def add_scale(self, lr = 1, stage = None):
+    def add_scale(self, lr=1, stage=None):
         if self.check_stage(stage):
             if self.phase == 'train' or self.phase == 'test':
                 self.bottom = L.Scale(self.bottom,
@@ -436,9 +450,31 @@ class BuildNet:
             setattr(self.net, 'prelu'+str(self.index), self.bottom)
         return self.bottom
 
+    # sinh layer
+    def add_sinh(self, stage = None):
+        if self.check_stage(stage):
+            self.bottom = L.SinH(self.bottom, in_place = True)
+            setattr(self.net, 'sinh'+str(self.index), self.bottom)
+        return self.bottom
+
+    # add scale function
+    def add_const_scale(self, scale, stage=None):
+        if self.check_stage(stage):
+            if self.phase == 'train' or self.phase == 'test':
+                self.bottom = L.Scale(self.bottom,
+                      param = [dict(lr_mult=0)],
+                      bias_term=False, in_place=True,
+                      filler = dict(type='constant', value=scale))
+            else:
+                self.bottom = L.Scale(self.bottom,
+                      param = [dict(lr_mult=0)],
+                      bias_term=False, in_place=True)
+            setattr(self.net, 'scale'+str(self.index), self.bottom)
+        return self.bottom
+
     # add fc
     def add_fc(self, num_output, lr = 1, dropout = 0, bias_value = 0,
-            weight_filler = 'xavier', name = None, stage = None):
+            weight_filler=dict(type='xavier'), name = None, stage = None):
         if self.check_stage(stage):
             if not name:
                 name = 'fc'+str(self.index)
@@ -446,7 +482,7 @@ class BuildNet:
                 self.bottom = L.InnerProduct(self.bottom,
                     num_output = num_output,
                     param = [dict(lr_mult = lr), dict(lr_mult = lr)],
-                    weight_filler = dict(type = weight_filler),
+                    weight_filler=weight_filler,
                     bias_filler = dict(type = 'constant', value = bias_value))
             elif self.phase == 'deploy':
                 self.bottom = L.InnerProduct(self.bottom,
@@ -532,7 +568,7 @@ class BuildNet:
             with open(self.model_path+'solver_checking_'
                     +str(stage)+'.prototxt', 'w+') as f:
                 f.write(str(solver))
-            print self.name+': '+'solver stage '+str(stage)+' writing finished'
+            print(self.name+': '+'solver stage '+str(stage)+' writing finished')
 
     # save net
     def save_net(self):
@@ -541,13 +577,12 @@ class BuildNet:
         for phase in ['train', 'test', 'deploy']:
             for stage in range(self.number_stages):
                 self.reset(phase, stage)
-                print self.net
                 with open(self.model_path+self.phase+'_'
                         +str(stage)+'.prototxt', 'w+') as f:
                     f.write('name: "'+self.name+'"\n')
                     f.write(str(self.net.to_proto()))
-                    print self.name+': stage '+str(stage)+' '+ \
-                            self.phase+' net writing finished!'
+                    print(self.name+': stage '+str(stage)+' '+ \
+                            self.phase+' net writing finished!')
 
     # generate runfile header
     def gen_runfile_header(self, f):
