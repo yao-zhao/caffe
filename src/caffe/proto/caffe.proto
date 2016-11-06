@@ -307,7 +307,7 @@ message ParamSpec {
 // Update the next available ID when you add a new LayerParameter field.
 //
 // LayerParameter next available layer-specific ID: 147 (last added: recurrent_param)
-// LayerParameter next availabel layer-specific ID: 218 (last added: regression_label_param)
+// LayerParameter next availabel layer-specific ID: 219 (last added: sinhlayer)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -414,6 +414,7 @@ message LayerParameter {
   optional SPPParameter spp_param = 132;
   optional SliceParameter slice_param = 126;
   optional TanHParameter tanh_param = 127;
+  optional SinHParameter sinh_param = 219;
   optional ThresholdParameter threshold_param = 128;
   optional TileParameter tile_param = 138;
   optional UpsampleParameter upsample_param = 202;
@@ -1307,6 +1308,15 @@ message SoftmaxWithROCLossParameter {
   optional uint32 positive_label = 2 [default = 1];
   // negative label id
   optional uint32 negative_label = 3 [default = 0];
+}
+
+message SinHParameter {
+  enum Engine {
+    DEFAULT = 0;
+    CAFFE = 1;
+    CUDNN = 2;
+  }
+  optional Engine engine = 1 [default = DEFAULT];
 }
 
 message TanHParameter {
