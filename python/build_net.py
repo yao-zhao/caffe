@@ -283,6 +283,12 @@ class BuildNet:
         self.index += 1
         return self.bottom
 
+    # add discretize label
+    def add_discrete_label(self, separator, stage = None):
+        if self.check_stage(stage):
+            self.label = L.Discretize(self.label,
+                discretize_param=dict(separator=separator));
+
 # output layers
 ################################################################################
     def add_softmax(self, loss_weight = 1, name = 'softmax', stage = None,
