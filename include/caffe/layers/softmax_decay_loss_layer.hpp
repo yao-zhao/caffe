@@ -36,8 +36,11 @@ class SoftmaxWithDecayLossLayer : public SoftmaxWithLossLayer<Dtype> {
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
 
   int method_;
+  int softmax_dim_;
   Dtype rate_;
   Blob<Dtype> weights_;
+  Blob<Dtype> label_idx_;
+  Blob<Dtype> mid_inner_multiplier_;
 
 };
 

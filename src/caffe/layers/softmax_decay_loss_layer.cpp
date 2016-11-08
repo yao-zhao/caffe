@@ -13,7 +13,7 @@ void SoftmaxWithDecayLossLayer<Dtype>::LayerSetUp(
   SoftmaxWithLossLayer<Dtype>::LayerSetUp(bottom, top);
   method_ = this->layer_param_->softmax_decay_loss_param()->method();
   rate_ = this->layer_param_->softmax_decay_loss_param()->rate();
-  num_classes_ = bottom[0]->shape(softmax_axis_);
+  softmax_dim_ = bottom[0]->shape(softmax_axis_);
   CHECK_NE(has_ignore_label_, true) << "doesn't alow ignore label";
   CHECK_NE(weight_by_label_freqs_, true) << "doesn't alow label frequency"
 }
@@ -23,58 +23,46 @@ void SoftmaxWithDecayLossLayer<Dtype>::Reshape(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   SoftmaxWithLossLayer<Dtype>::Reshape(bottom, top);
   weights_.ReshapeLike(*bottom[0]);
+  label_idx_.ReshapeLike(*bottom[0]);
+  vector<int> dims_mid_inner(1, bottom[0]->count(softmax_axis_));
+  mid_inner_multiplier_.Reshape(dims_mid_inner);
+  caffe_set(mid_inner_multiplier_.count(), Dtype(1),
+      mid_inner_multiplier_.mutable_cpu_data());
+  Dtype* label_idx_data = label_idx_.mutable_cpu_data();
+  for (int i = 0; i < outer_num_; ++i) {
+    for (int j = 0; j < softmax_dim_; ++j) {
+      caffe_set(inner_num_, Dtype(j), label_idx_data);
+      label_idx_data += inner_num_;
+    }
+  }
 }
-
-// template <typename Dtype>
-// inline Dtype get_weight_gaussian_cpu(int diff_label) {
-//   return exp(-(diff_label*diff_label)/2);
-// }
-
-// template <typename Dtype>
-// inline void forward_cpu_kernel(Dtype(*weight_func)(int),
-//     const Dtype* prob_data, const Dtype* label_data, Dtype* weight_data,
-//     const int outer_num, const int inner_num, const int dim,
-//     Dtype* loss, Dtype* count) {
-//   for (int i = 0; i < outer_num; ++i) {
-//     for (int j = 0; j < inner_num; j++) {
-//       const int label_value = static_cast<int>(label_data[i * inner_num + j]);
-//       Dtype sum_weights = 0;
-//       Dtype sum_loss = 0;
-//       for (int l = 0; l < dim; ++l) {
-//         const int idx = i * dim + label_value * inner_num + j;
-//         const Dtype weight = weight_func(l - label_value);
-//         sum_weights += weight;
-//         sum_loss -= log(std::max(prob_data[idx], Dtype(FLT_MIN))) * weight;
-//         weight_data[idx] = weight;
-//       }
-//       if (sum_weights > 0) {
-//         loss += sum_loss/sum_weights;
-//         for (int l = 0; l < dim; ++l) {
-//           const int idx = i * dim + label_value * inner_num + j;
-//           weight_data[idx] /= sum_weights;
-//         }
-//         ++count;
-//       }
-//     }
-//   }
-// }
 
 template <typename Dtype>
 void SoftmaxWithDecayLossLayer<Dtype>::Forward_cpu(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   // The forward pass computes the softmax prob values.
   softmax_layer_->Forward(softmax_bottom_vec_, softmax_top_vec_);
-  const Dtype* prob_data = prob_.cpu_data();
-  const Dtype* label = bottom[1]->cpu_data();
-  const Dtype* weight_data = weights_.cpu_data();
-  int dim = prob_.count() / outer_num_;
-  const int count = 0;
-
+  Dtype* prob_data = prob_.cpu_data();
+  const Dtype* label_idx_data = label_idx_.cpu_data();
+  Dtype* weight_data = weights_.mutable_cpu_data();
+  const int count = prob_.count();
+  // expand label data to channel dimension
+  Dtype* weight_iter = weights_.mutable_cpu_data();
+  const Dtype* label_iter = bottom[1]->cpu_data();
+  for (int i = 0; i < outer_num_; ++i) {
+    for (int j = 0; j < softmax_dim_; ++j) {
+      caffe_copy(inner_num_, label_iter, weight_iter);
+      weight_iter += inner_num_;
+      label_iter += inner_num_;
+    }
+  }
+  // calculate weight
   switch (method_) {
     case SoftmaxWithDecayLossParameter_Decay_GAUSSIAN:
-    weight_data = caffe_sub
-    // forward_cpu_kernel(&get_weight_gaussian_cpu, prob_data, label_data,
-    //     weight_data, outer_num_, inner_num_, dim, &loss, &count) 
+    weight_data = caffe_sub(count, label_idx_data, weight_data, weight_data);
+    weight_data = caffe_sqr(count, weight_data, weight_data);
+    weight_data = caffe_cpu_scale(count, Dtype(-1), weight_data);
+    weight_data = caffe_exp(count, weight_data);
     break;
     case SoftmaxWithDecayLossParameter_Decay_POWER:
     NOT_IMPLEMENTED;
@@ -83,6 +71,8 @@ void SoftmaxWithDecayLossLayer<Dtype>::Forward_cpu(
     LOG(FATAL) << "Unknown decay method: "
         << SoftmaxWithDecayLossParameter_Decay_Name(method_);
   }
+  // weight the prob
+
   top[0]->mutable_cpu_data()[0] = loss / get_normalizer(normalization_, count);
   if (top.size() == 2) {
     top[1]->ShareData(prob_);
