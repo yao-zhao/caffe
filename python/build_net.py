@@ -134,7 +134,8 @@ class BuildNet:
                  source_path = 'data/', root_folder = 'data/',
                  source_train = 'train.txt', source_test = 'val.txt',
                  label_scale = 1, test_transformer_dict = None,
-                 shuffle = True, is_color = True, height = None, width = None):
+                 shuffle = True, test_shuffle=False,
+                 is_color = True, height = None, width = None):
         if test_batch_size is None:
             test_batch_size = batch_size
         if test_transformer_dict is None:
@@ -173,7 +174,7 @@ class BuildNet:
                         batch_size = test_batch_size,
                         source = source_path + source_test,
                         root_folder = root_folder, is_color = is_color,
-                        shuffle = False, label_scale = label_scale,
+                        shuffle = test_shuffle, label_scale = label_scale,
                         transform_param = test_transformer_dict, ntop = 2,
                         new_height = height, new_width = width)
                         # include = dict(phase = caffe.TEST))
@@ -182,7 +183,7 @@ class BuildNet:
                         batch_size = test_batch_size,
                         source = source_path + source_test,
                         root_folder = root_folder, is_color = is_color,
-                        shuffle = False, label_scale = label_scale,
+                        shuffle = test_shuffle, label_scale = label_scale,
                         transform_param = test_transformer_dict, ntop = 2)
                         # include = dict(phase = caffe.TEST))
         elif self.phase == 'deploy':
@@ -379,20 +380,23 @@ class BuildNet:
 # common building components
 ################################################################################
     # convolutional layer 
-    def add_conv(self, num_output, lr = 1, kernel_size = 3,
-        pad = 1, stride = 1, stage = None):
+    def add_conv(self, num_output, lr = 1, kernel_size = 3, weight_filler=None,
+        pad = 1, stride = 1, stage = None, bias_term=False):
         if self.check_stage(stage):
+            if weight_filler is None:
+                weight_filler = dict(type = 'xavier')
             if self.phase == 'train' or self.phase == 'test':
                 self.bottom = L.Convolution(self.bottom,
                     kernel_size = kernel_size, pad = pad,
                     stride = stride, num_output = num_output,
-                    weight_filler = dict(type = 'xavier'),
-                    param = dict(lr_mult = lr), bias_term = False)
+                    weight_filler = weight_filler,
+                    param = dict(lr_mult = lr), bias_term = bias_term,
+                    bias_filler=dict(type='constant', value=0))
             elif self.phase == 'deploy':
                 self.bottom = L.Convolution(self.bottom,
                     kernel_size = kernel_size, pad = pad,
                     stride = stride, num_output = num_output,
-                    bias_term = False)
+                    bias_term = bias_term)
             else:
                 print("phase not supported")
             setattr(self.net, 'conv'+str(self.index), self.bottom)
@@ -442,6 +446,13 @@ class BuildNet:
             setattr(self.net, 'relu'+str(self.index), self.bottom)
         return self.bottom
 
+    def add_dropout(self, dropout, stage=None):
+        if self.check_stage(stage):
+            self.bottom = L.Dropout(self.bottom, dropout_ratio = dropout,
+                in_place = True)
+            setattr(self.net, 'dropout'+str(self.index), self.bottom)
+        return self.bottom
+
     # Parameterized ReLU 
     def add_prelu(self, lr = 1, stage = None):
         if self.check_stage(stage):
@@ -473,7 +484,7 @@ class BuildNet:
         return self.bottom
 
     # add fc
-    def add_fc(self, num_output, lr = 1, dropout = 0, bias_value = 0,
+    def add_fc(self, num_output, lr = 1, bias_value = 0,
             weight_filler=dict(type='xavier'), name = None, stage = None):
         if self.check_stage(stage):
             if not name:
@@ -488,10 +499,10 @@ class BuildNet:
                 self.bottom = L.InnerProduct(self.bottom,
                     num_output = num_output)
             setattr(self.net, name, self.bottom)
-            if dropout > 0:
-                self.bottom = L.Dropout(self.bottom, dropout_ratio = dropout,
-                    in_place = True)
-                setattr(self.net, 'dropout'+str(self.index), self.bottom)
+            # if dropout > 0:
+            #     self.bottom = L.Dropout(self.bottom, dropout_ratio = dropout,
+            #         in_place = True)
+            #     setattr(self.net, 'dropout'+str(self.index), self.bottom)
         self.index += 1
         return self.bottom
 
@@ -523,7 +534,7 @@ class BuildNet:
     # define sdg solver
     def add_solver_sdg(self, test_interval = 100, test_iter = 1,
                 max_iter = 6e3, base_lr = 0.01, momentum = 0.9,
-                weight_decay = 1e-5, gamma = 0.1, stepsize = 2e3,
+                weight_decay = 1e-5, gamma = 0.1, stepsize = 2e3, iter_size=1,
                 display = 10, snapshot = 1e3, fix_seed = False):
         solver = caffe_pb2.SolverParameter()
         if fix_seed:
@@ -534,6 +545,7 @@ class BuildNet:
         solver.test_interval = test_interval
         solver.test_iter.append(test_iter)
         solver.max_iter = int(max_iter)
+        solver.iter_size = int(iter_size)
         solver.type = "SGD"
         solver.base_lr = base_lr
         solver.momentum = momentum
