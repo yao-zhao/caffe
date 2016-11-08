@@ -307,7 +307,7 @@ message ParamSpec {
 // Update the next available ID when you add a new LayerParameter field.
 //
 // LayerParameter next available layer-specific ID: 147 (last added: recurrent_param)
-// LayerParameter next availabel layer-specific ID: 220 (last added: discretize)
+// LayerParameter next availabel layer-specific ID: 221 (last added: softmaxdecayloss)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -412,6 +412,7 @@ message LayerParameter {
   optional SmoothL1LossParameter smooth_l1_loss_param = 214;
   optional SoftmaxParameter softmax_param = 125;
   optional SoftmaxWithROCLossParameter softmax_roc_loss_param = 212;
+  optional SoftmaxWithDecayLossParameter softmax_decay_loss_param = 220;
   optional SPPParameter spp_param = 132;
   optional SliceParameter slice_param = 126;
   optional TanHParameter tanh_param = 127;
@@ -1314,6 +1315,21 @@ message SoftmaxWithROCLossParameter {
   optional uint32 positive_label = 2 [default = 1];
   // negative label id
   optional uint32 negative_label = 3 [default = 0];
+}
+
+// Message that stores parameters used by SoftmaxWithDecayLossLayer
+message SoftmaxWithDecayLossParameter {
+  // decay options
+  enum Decay {
+    GAUSSIAN = 0
+    POWER = 1
+  }
+  // decal methods
+  optional Decay method = 1 [default = GAUSSIAN]
+  // decal rate
+  optional float rate = 2 [default = 1.0]
+  // number of classes
+  optional int num_classes = 3 [default = 0]
 }
 
 message SinHParameter {
