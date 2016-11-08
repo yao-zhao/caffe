@@ -307,7 +307,7 @@ message ParamSpec {
 // Update the next available ID when you add a new LayerParameter field.
 //
 // LayerParameter next available layer-specific ID: 147 (last added: recurrent_param)
-// LayerParameter next availabel layer-specific ID: 219 (last added: sinhlayer)
+// LayerParameter next availabel layer-specific ID: 220 (last added: discretize)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -371,6 +371,7 @@ message LayerParameter {
   optional CyclicPoolParameter cyclic_pool_param = 208;
   optional DataParameter data_param = 107;
   optional DenseImageDataParameter dense_image_data_param = 201;
+  optional DiscretizeParameter discretize_param = 219;
   optional DropoutParameter dropout_param = 108;
   optional DummyDataParameter dummy_data_param = 109;
   optional EltwiseParameter eltwise_param = 110;
@@ -414,7 +415,7 @@ message LayerParameter {
   optional SPPParameter spp_param = 132;
   optional SliceParameter slice_param = 126;
   optional TanHParameter tanh_param = 127;
-  optional SinHParameter sinh_param = 219;
+  optional SinHParameter sinh_param = 218;
   optional ThresholdParameter threshold_param = 128;
   optional TileParameter tile_param = 138;
   optional UpsampleParameter upsample_param = 202;
@@ -750,6 +751,11 @@ message DenseImageDataParameter {
   optional string mean_file = 8;
   optional string root_folder = 9 [default = ""];
 }
+
+message DiscretizeParameter {
+  repeated float separator = 1;
+}
+
 message DropoutParameter {
   optional float dropout_ratio = 1 [default = 0.5]; // dropout ratio
   optional bool sample_weights_test = 2 [default = false]; // Sample weights for testing or use the mean
