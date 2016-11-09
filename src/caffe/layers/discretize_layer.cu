@@ -32,6 +32,18 @@ void DiscretizeLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
   DiscretizeForward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
       count, num_separators_, separators_data, bottom_data, top_data);
   CUDA_POST_KERNEL_CHECK;
+  if (top.size() >= 2) {
+    Dtype* centers_data = top[1]->mutable_cpu_data();
+    centers_data[0] = separators_data[0] * Dtype(1.5) -
+        separators_data[1] * Dtype(0.5);
+    centers_data[num_separators_] =
+        separators_data[num_separators_-1] * Dtype(1.5) -
+        separators_data[num_separators_-2] * Dtype(0.5);
+    for (int i = 0; i < num_separators_-1; ++i) {
+      centers_data[i+1] =
+          (separators_data[i] + separators_data[i+1]) / Dtype(2);
+    }
+  }
 }
 
 
