@@ -307,7 +307,7 @@ message ParamSpec {
 // Update the next available ID when you add a new LayerParameter field.
 //
 // LayerParameter next available layer-specific ID: 147 (last added: recurrent_param)
-// LayerParameter next availabel layer-specific ID: 221 (last added: softmaxdecayloss)
+// LayerParameter next availabel layer-specific ID: 222 (last added: softmaxinterpolation)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -410,6 +410,7 @@ message LayerParameter {
   optional ScaleParameter scale_param = 142;
   optional SigmoidParameter sigmoid_param = 124;
   optional SmoothL1LossParameter smooth_l1_loss_param = 214;
+  optional SoftmaxinterpolationParameter softmax_interpolation_param = 221;
   optional SoftmaxParameter softmax_param = 125;
   optional SoftmaxWithROCLossParameter softmax_roc_loss_param = 212;
   optional SoftmaxWithDecayLossParameter softmax_decay_loss_param = 220;
@@ -1290,6 +1291,11 @@ message SmoothL1LossParameter {
   //   0.5 * (sigma * x) ** 2    -- if x < 1.0 / sigma / sigma
   //   |x| - 0.5 / sigma / sigma -- otherwise
   optional float sigma = 1 [default = 1];
+}
+
+// Message that stores parameters used by softmaxlayer
+message SoftmaxinterpolationParameter {
+  optional int32 axis = 1 [default = 1];
 }
 
 // Message that stores parameters used by SoftmaxLayer, SoftmaxWithLossLayer
