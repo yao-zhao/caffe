@@ -310,6 +310,19 @@ class BuildNet:
                 softmax = L.Softmax(self.bottom)
                 setattr(self.net, name+'prob', softmax)
 
+    def add_softmax_decay(self, loss_weight=1, name='softmax_decay_',
+                          stage=None, decay_rate=1.0):
+        if self.check_stage(stage):
+            if self.phase == 'train' or self.phase == 'test':
+                softmax = L.SoftmaxWithDecayLoss(self.bottom, self.label,
+                    loss_weight=loss_weight, rate=decay_rate)
+                    # softmax_decay_loss_param=dict(rate=decay_rate))
+                accuracy = L.Accuracy(self.bottom, self.label)
+                setattr(self.net, name+'loss', softmax)
+                setattr(self.net, 'accuracy', accuracy)
+            elif self.phase == 'deploy':
+                softmax = L.Softmax(self.bottom)
+                setattr(self.net, name+'prob', softmax)
 
     # add softmax
     def add_euclidean(self, loss_weight = 1, name = 'euclidean',\
