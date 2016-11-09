@@ -283,11 +283,11 @@ class BuildNet:
         self.index += 1
         return self.bottom
 
-    # add discretize label
-    def add_discrete_label(self, separator, stage = None):
-        if self.check_stage(stage):
-            self.label = L.Discretize(self.label,
-                discretize_param=dict(separator=separator));
+    # # add discretize label
+    # def add_discrete_label(self, separator, stage = None):
+    #     if self.check_stage(stage):
+    #         self.label = L.Discretize(self.label,
+    #             discretize_param=dict(separator=separator));
 
 # output layers
 ################################################################################
@@ -310,19 +310,29 @@ class BuildNet:
                 softmax = L.Softmax(self.bottom)
                 setattr(self.net, name+'prob', softmax)
 
-    def add_softmax_decay(self, loss_weight=1, name='softmax_decay_',
-                          stage=None, decay_rate=1.0):
+    def add_softmax_decay(self, separator, loss_weight=1, name='softmax_decay_',
+                          stage=None, decay_rate=1.0,):
         if self.check_stage(stage):
             if self.phase == 'train' or self.phase == 'test':
-                softmax = L.SoftmaxWithDecayLoss(self.bottom, self.label,
-                    loss_weight=loss_weight, rate=decay_rate)
-                    # softmax_decay_loss_param=dict(rate=decay_rate))
+                discrete_labels, bins = L.Discretize(self.label,
+                    separator=separator, ntop=2);
+                loss, softmax = L.SoftmaxWithDecayLoss(
+                    self.bottom, discrete_labels,
+                    loss_weight=[loss_weight, 0], rate=decay_rate, ntop=2)
                 accuracy = L.Accuracy(self.bottom, self.label)
-                setattr(self.net, name+'loss', softmax)
-                setattr(self.net, 'accuracy', accuracy)
+                predicted_labels = L.SoftmaxInterpolation(softmax, bins)
+                euclidean = L.EuclideanLoss(predicted_labels, self.label,
+                    loss_weight=0)
+                setattr(self.net, 'discrete_label', discrete_labels)
+                setattr(self.net, 'label_centers', bins)
+                setattr(self.net, name+'loss', loss)
+                setattr(self.net, name+'softmax', softmax)
+                setattr(self.net, name+'accuracy', accuracy)
+                setattr(self.net, name+'interpolated_label', predicted_labels)
+                setattr(self.net, name+'euclidean_loss', euclidean)
             elif self.phase == 'deploy':
                 softmax = L.Softmax(self.bottom)
-                setattr(self.net, name+'prob', softmax)
+                setattr(self.net, name+'softmax', softmax)
 
     # add softmax
     def add_euclidean(self, loss_weight = 1, name = 'euclidean',\
