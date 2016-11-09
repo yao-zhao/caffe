@@ -319,7 +319,7 @@ class BuildNet:
                 loss, softmax = L.SoftmaxWithDecayLoss(
                     self.bottom, discrete_labels,
                     loss_weight=[loss_weight, 0], rate=decay_rate, ntop=2)
-                accuracy = L.Accuracy(self.bottom, self.label)
+                accuracy = L.Accuracy(softmax, self.label)
                 predicted_labels = L.SoftmaxInterpolation(softmax, bins)
                 euclidean = L.EuclideanLoss(predicted_labels, self.label,
                     loss_weight=0)
