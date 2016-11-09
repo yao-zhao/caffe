@@ -10,29 +10,75 @@ namespace caffe {
 template <typename Dtype>
 void SoftmaxWithDecayLossLayer<Dtype>::LayerSetUp(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
-  SoftmaxWithLossLayer<Dtype>::LayerSetUp(bottom, top);
-  method_ = this->layer_param_->softmax_decay_loss_param()->method();
-  rate_ = this->layer_param_->softmax_decay_loss_param()->rate();
-  softmax_dim_ = bottom[0]->shape(softmax_axis_);
-  CHECK_NE(has_ignore_label_, true) << "doesn't alow ignore label";
-  CHECK_NE(weight_by_label_freqs_, true) << "doesn't alow label frequency"
+  LossLayer<Dtype>::LayerSetUp(bottom, top);
+  LayerParameter softmax_param(this->layer_param_);
+  softmax_param.set_type("Softmax");
+  softmax_layer_ = LayerRegistry<Dtype>::CreateLayer(softmax_param);
+  softmax_bottom_vec_.clear();
+  softmax_bottom_vec_.push_back(bottom[0]);
+  softmax_top_vec_.clear();
+  softmax_top_vec_.push_back(&prob_);
+  softmax_layer_->SetUp(softmax_bottom_vec_, softmax_top_vec_);
+  method_ = this->layer_param_.softmax_decay_loss_param().method();
+  rate_ = this->layer_param_.softmax_decay_loss_param().rate();
+  CHECK_NE(this->layer_param_.loss_param().has_ignore_label(), true)
+      << "doesn't alow ignore label";
+  CHECK_NE(this->layer_param_.loss_param().weight_by_label_freqs(), true)
+      << "doesn't alow label frequency";
 }
 
 template <typename Dtype>
 void SoftmaxWithDecayLossLayer<Dtype>::Reshape(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
-  SoftmaxWithLossLayer<Dtype>::Reshape(bottom, top);
+  LossLayer<Dtype>::Reshape(bottom, top);
+  softmax_layer_->Reshape(softmax_bottom_vec_, softmax_top_vec_);
+  softmax_axis_ =
+      bottom[0]->CanonicalAxisIndex(this->layer_param_.softmax_param().axis());
+  outer_num_ = bottom[0]->count(0, softmax_axis_);
+  inner_num_ = bottom[0]->count(softmax_axis_ + 1);
+  CHECK_EQ(outer_num_ * inner_num_, bottom[1]->count())
+      << "Number of labels must match number of predictions; "
+      << "e.g., if softmax axis == 1 and prediction shape is (N, C, H, W), "
+      << "label count (number of labels) must be N*H*W, "
+      << "with integer values in {0, 1, ..., C-1}.";
+  if (top.size() >= 2) {
+    // softmax output
+    top[1]->ReshapeLike(*bottom[0]);
+  }
   weights_.ReshapeLike(*bottom[0]);
-  label_idx_.ReshapeLike(*bottom[0]);
-  vector<int> dims_mid_inner(1, bottom[0]->count(softmax_axis_));
-  mid_inner_multiplier_.Reshape(dims_mid_inner);
-  caffe_set(mid_inner_multiplier_.count(), Dtype(1),
-      mid_inner_multiplier_.mutable_cpu_data());
-  Dtype* label_idx_data = label_idx_.mutable_cpu_data();
-  for (int i = 0; i < outer_num_; ++i) {
-    for (int j = 0; j < softmax_dim_; ++j) {
-      caffe_set(inner_num_, Dtype(j), label_idx_data);
-      label_idx_data += inner_num_;
+  softmax_dim_ = bottom[0]->shape(softmax_axis_);
+}
+
+template <typename Dtype>
+inline Dtype get_weight_gaussian_cpu(Dtype diff_label, Dtype rate) {
+  return exp(-(diff_label * diff_label) / (rate * rate));
+}
+
+template <typename Dtype>
+inline void forward_cpu_kernel(Dtype(*weight_func)(Dtype, Dtype),
+    const Dtype* prob_data, const Dtype* label_data, Dtype* weight_data,
+    const int outer_num, const int inner_num, const int softmax_dim_,
+    const Dtype rate, 
+    Dtype* loss) {
+  for (int i = 0; i < outer_num; ++i) {
+    for (int j = 0; j < inner_num; j++) {
+      const Dtype label_value = label_data[i * inner_num + j];
+      Dtype sum_weights = 0;
+      Dtype sum_loss = 0;
+      for (int l = 0; l < softmax_dim_; ++l) {
+        const int idx = (i * softmax_dim_ + l) * inner_num + j;
+        const Dtype weight = weight_func(Dtype(l) - label_value, rate);
+        sum_weights += weight;
+        sum_loss -= log(std::max(prob_data[idx], Dtype(FLT_MIN))) * weight;
+        weight_data[idx] = weight;
+      }
+      if (sum_weights > 0) {
+        *loss += sum_loss/sum_weights;
+        for (int l = 0; l < softmax_dim_; ++l) {
+          const int idx = (i * softmax_dim_ + l) * inner_num + j;
+          weight_data[idx] /= sum_weights;
+        }
+      }
     }
   }
 }
@@ -42,38 +88,23 @@ void SoftmaxWithDecayLossLayer<Dtype>::Forward_cpu(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   // The forward pass computes the softmax prob values.
   softmax_layer_->Forward(softmax_bottom_vec_, softmax_top_vec_);
-  Dtype* prob_data = prob_.cpu_data();
-  const Dtype* label_idx_data = label_idx_.cpu_data();
+  const Dtype* prob_data = prob_.cpu_data();
+  const Dtype* label_data = bottom[1]->cpu_data();
   Dtype* weight_data = weights_.mutable_cpu_data();
-  const int count = prob_.count();
-  // expand label data to channel dimension
-  Dtype* weight_iter = weights_.mutable_cpu_data();
-  const Dtype* label_iter = bottom[1]->cpu_data();
-  for (int i = 0; i < outer_num_; ++i) {
-    for (int j = 0; j < softmax_dim_; ++j) {
-      caffe_copy(inner_num_, label_iter, weight_iter);
-      weight_iter += inner_num_;
-      label_iter += inner_num_;
-    }
-  }
-  // calculate weight
+  Dtype loss = 0;
   switch (method_) {
     case SoftmaxWithDecayLossParameter_Decay_GAUSSIAN:
-    weight_data = caffe_sub(count, label_idx_data, weight_data, weight_data);
-    weight_data = caffe_sqr(count, weight_data, weight_data);
-    weight_data = caffe_cpu_scale(count, Dtype(-1), weight_data);
-    weight_data = caffe_exp(count, weight_data);
+    forward_cpu_kernel(get_weight_gaussian_cpu, prob_data, label_data,
+        weight_data, outer_num_, inner_num_, softmax_dim_, rate_, &loss);
     break;
     case SoftmaxWithDecayLossParameter_Decay_POWER:
     NOT_IMPLEMENTED;
     break;
     default:
     LOG(FATAL) << "Unknown decay method: "
-        << SoftmaxWithDecayLossParameter_Decay_Name(method_);
+        << method_;
   }
-  // weight the prob
-
-  top[0]->mutable_cpu_data()[0] = loss / get_normalizer(normalization_, count);
+  top[0]->mutable_cpu_data()[0] = loss / (outer_num_ * inner_num_);
   if (top.size() == 2) {
     top[1]->ShareData(prob_);
   }
@@ -90,26 +121,13 @@ void SoftmaxWithDecayLossLayer<Dtype>::Backward_cpu(
   if (propagate_down[0]) {
     Dtype* bottom_diff = bottom[0]->mutable_cpu_diff();
     const Dtype* prob_data = prob_.cpu_data();
-    caffe_copy(prob_.count(), prob_data, bottom_diff);
-    const Dtype* label = bottom[1]->cpu_data();
-    int dim = prob_.count() / outer_num_;
-    int count = 0;
-    for (int i = 0; i < outer_num_; ++i) {
-      for (int j = 0; j < inner_num_; ++j) {
-        const int label_value = static_cast<int>(label[i * inner_num_ + j]);
-        for (int l = 0; l < dim; ++l) {
-          const int idx = i * dim + label_value * inner_num + j;
-          weight_data[idx] = weight;
-        }
-          const int idx = i * dim + label_value * inner_num_ + j;
-          ++count;
-      }
-    }
-
+    const Dtype* weight_data = weights_.cpu_data();
+    int count = prob_.count();
+    // caffe_mul(count, prob_data, weight_data, bottom_diff);
+    caffe_sub(count, prob_data, weight_data, bottom_diff);
     // Scale gradient
-    Dtype loss_weight = top[0]->cpu_diff()[0] /
-                        get_normalizer(normalization_, count);
-    caffe_scal(prob_.count(), loss_weight, bottom_diff);
+    Dtype loss_weight = top[0]->cpu_diff()[0] / (outer_num_ * inner_num_);
+    caffe_scal(count, loss_weight, bottom_diff);
   }
 }
 

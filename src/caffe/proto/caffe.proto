@@ -1321,15 +1321,15 @@ message SoftmaxWithROCLossParameter {
 message SoftmaxWithDecayLossParameter {
   // decay options
   enum Decay {
-    GAUSSIAN = 0
-    POWER = 1
+    GAUSSIAN = 0;
+    POWER = 1;
   }
   // decal methods
-  optional Decay method = 1 [default = GAUSSIAN]
+  optional Decay method = 1 [default = GAUSSIAN];
   // decal rate
-  optional float rate = 2 [default = 1.0]
+  optional float rate = 2 [default = 1.0];
   // number of classes
-  optional int num_classes = 3 [default = 0]
+  optional uint32 num_classes = 3 [default = 0];
 }
 
 message SinHParameter {
