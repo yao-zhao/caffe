@@ -1,4 +1,66 @@
+# Added Features
 
+- **Cyclic operations**: Embed rotational symmetry to neural networks, check [original paper](https://arxiv.org/pdf/1602.02660.pdf) for details. New layers include: cyclic_pool_layer, cyclic_roll_layer, cyclic_slice_layer.
+
+- **Label Discretization**: Discretize continuous label (potentially unlinearly) to convert regression problems to classification problem. New lyaers include: discretize_layer.
+
+- **Gaussian Probability Loss**: A loss layer that takes two bottoms (one mean, one varirance) to maximize the likelihood of a gaussian distribution. Can be viewed as a generalized case for euclidean loss. New layers include: gaussian_loss_layer (lorentzian_loss_layer is similar).
+
+- **Data Augmentation**: multiple data augmentation on the fly using opencv3.1.0. check util/image_transformations.
+
+- **Ladder Net**: multiple layers from the [ladder network](https://arxiv.org/abs/1507.02672). New layers include: noise_layer, ladder_loss_layer, vanilla_ladder_combinator_layer.
+
+- **High-level Python Wrapper**: quickly build net in python. check python/build_net.py
+
+- **Draw Net**: draw net with another style. check python/draw_net2.py
+
+- **Rescale Label**: rescale labels in two symmetric opposite direction for regression task. New layers include: regression_label_layer.
+
+- **Sinh**: element wise sinh function. New layers include: sinh_layer.
+
+There are multiple other changes in existing modules.
+
+---
+
+# Caffe
+
+[![Build Status](https://travis-ci.org/BVLC/caffe.svg?branch=master)](https://travis-ci.org/BVLC/caffe)
+[![License](https://img.shields.io/badge/license-BSD-blue.svg)](LICENSE)
+
+Caffe is a deep learning framework made with expression, speed, and modularity in mind.
+It is developed by the Berkeley Vision and Learning Center ([BVLC](http://bvlc.eecs.berkeley.edu)) and community contributors.
+
+Check out the [project site](http://caffe.berkeleyvision.org) for all the details like
+
+- [DIY Deep Learning for Vision with Caffe](https://docs.google.com/presentation/d/1UeKXVgRvvxg9OUdh_UiC5G71UMscNPlvArsWER41PsU/edit#slide=id.p)
+- [Tutorial Documentation](http://caffe.berkeleyvision.org/tutorial/)
+- [BVLC reference models](http://caffe.berkeleyvision.org/model_zoo.html) and the [community model zoo](https://github.com/BVLC/caffe/wiki/Model-Zoo)
+- [Installation instructions](http://caffe.berkeleyvision.org/installation.html)
+
+and step-by-step examples.
+
+[![Join the chat at https://gitter.im/BVLC/caffe](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/BVLC/caffe?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
+Please join the [caffe-users group](https://groups.google.com/forum/#!forum/caffe-users) or [gitter chat](https://gitter.im/BVLC/caffe) to ask questions and talk about methods and models.
+Framework development discussions and thorough bug reports are collected on [Issues](https://github.com/BVLC/caffe/issues).
+
+Happy brewing!
+
+## License and Citation
+
+Caffe is released under the [BSD 2-Clause license](https://github.com/BVLC/caffe/blob/master/LICENSE).
+The BVLC reference models are released for unrestricted use.
+
+Please cite Caffe in your publications if it helps your research:
+
+    @article{jia2014caffe,
+      Author = {Jia, Yangqing and Shelhamer, Evan and Donahue, Jeff and Karayev, Sergey and Long, Jonathan and Girshick, Ross and Guadarrama, Sergio and Darrell, Trevor},
+      Journal = {arXiv preprint arXiv:1408.5093},
+      Title = {Caffe: Convolutional Architecture for Fast Feature Embedding},
+      Year = {2014}
+    }
+    
+ 
 ---
 
 # Microsoft branch
@@ -62,43 +124,3 @@ After you have built solution with Matlab support, in order to use it you have t
 
 ### Build
 Now, you should be able to build `.\windows\Caffe.sln`
-
----
-
-# Caffe
-
-[![Build Status](https://travis-ci.org/BVLC/caffe.svg?branch=master)](https://travis-ci.org/BVLC/caffe)
-[![License](https://img.shields.io/badge/license-BSD-blue.svg)](LICENSE)
-
-Caffe is a deep learning framework made with expression, speed, and modularity in mind.
-It is developed by the Berkeley Vision and Learning Center ([BVLC](http://bvlc.eecs.berkeley.edu)) and community contributors.
-
-Check out the [project site](http://caffe.berkeleyvision.org) for all the details like
-
-- [DIY Deep Learning for Vision with Caffe](https://docs.google.com/presentation/d/1UeKXVgRvvxg9OUdh_UiC5G71UMscNPlvArsWER41PsU/edit#slide=id.p)
-- [Tutorial Documentation](http://caffe.berkeleyvision.org/tutorial/)
-- [BVLC reference models](http://caffe.berkeleyvision.org/model_zoo.html) and the [community model zoo](https://github.com/BVLC/caffe/wiki/Model-Zoo)
-- [Installation instructions](http://caffe.berkeleyvision.org/installation.html)
-
-and step-by-step examples.
-
-[![Join the chat at https://gitter.im/BVLC/caffe](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/BVLC/caffe?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
-Please join the [caffe-users group](https://groups.google.com/forum/#!forum/caffe-users) or [gitter chat](https://gitter.im/BVLC/caffe) to ask questions and talk about methods and models.
-Framework development discussions and thorough bug reports are collected on [Issues](https://github.com/BVLC/caffe/issues).
-
-Happy brewing!
-
-## License and Citation
-
-Caffe is released under the [BSD 2-Clause license](https://github.com/BVLC/caffe/blob/master/LICENSE).
-The BVLC reference models are released for unrestricted use.
-
-Please cite Caffe in your publications if it helps your research:
-
-    @article{jia2014caffe,
-      Author = {Jia, Yangqing and Shelhamer, Evan and Donahue, Jeff and Karayev, Sergey and Long, Jonathan and Girshick, Ross and Guadarrama, Sergio and Darrell, Trevor},
-      Journal = {arXiv preprint arXiv:1408.5093},
-      Title = {Caffe: Convolutional Architecture for Fast Feature Embedding},
-      Year = {2014}
-    }
