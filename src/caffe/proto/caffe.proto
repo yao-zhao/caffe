@@ -307,7 +307,7 @@ message ParamSpec {
 // Update the next available ID when you add a new LayerParameter field.
 //
 // LayerParameter next available layer-specific ID: 147 (last added: recurrent_param)
-// LayerParameter next availabel layer-specific ID: 222 (last added: softmaxinterpolation)
+// LayerParameter next availabel layer-specific ID: 223 (last added: yololoss)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -422,6 +422,7 @@ message LayerParameter {
   optional TileParameter tile_param = 138;
   optional UpsampleParameter upsample_param = 202;
   optional WindowDataParameter window_data_param = 129;
+  optional YoloLossParameter yolo_loss_param = 222;
 }
 
 // Message that stores parameters used to apply transformation
@@ -1431,6 +1432,25 @@ message WindowDataParameter {
   // append root_folder to locate images
   optional string root_folder = 13 [default = ""];
 }
+
+
+// loss layer parameter for yolo loss
+message YoloLossParameter {
+  // // number of horizontal grid
+  // optional uint32 grid_h = 1 [default = 3];
+  // // number of vertical grid
+  // optional uint32 grid_w = 2 [default = 3];
+  // // number of bounding box per grid
+  // optional uint32 bounding_boxes = 3 [default = 2];
+  // // number of classes
+  // optional uint32 classes = 4 [default = 1];
+  // weight on grid with objects
+  optional float lambda_coord = 5 [default = 1.0];
+  // weight on grid without lobjects
+  optional float lambda_noobj = 6 [default = 1.0];
+}
+
+
 
 message MILDataParameter {
   // Specify the data source.
