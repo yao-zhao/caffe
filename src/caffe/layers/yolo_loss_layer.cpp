@@ -7,11 +7,14 @@
 
 namespace caffe {
 
+using std::min;
+using std::max;
+
 template <typename Dtype>
 void YoloLossLayer<Dtype>::LayerSetUp(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
   LossLayer<Dtype>::LayerSetUp(bottom, top);
-  has_class_prob_ = (bottom->count() == 3) ? true : false;
+  has_class_prob_ = (bottom.size() == 3) ? true : false;
   lambda_coord_ = this->layer_param_.yolo_loss_param().lambda_coord();
   lambda_noobj_ = this->layer_param_.yolo_loss_param().lambda_noobj();
 }
@@ -52,7 +55,7 @@ void YoloLossLayer<Dtype>::Reshape(
         << "and class prediction[2] has to match.";
   }
   // saves which bounding box it belongs to, use the closest one
-  vecter<int> Ii_dim;
+  vector<int> Ii_dim;
   Ii_dim.push_back(batchsize);
   Ii_dim.push_back(S_h_);
   Ii_dim.push_back(S_w_);
@@ -62,14 +65,13 @@ void YoloLossLayer<Dtype>::Reshape(
 template <typename Dtype>
 void YoloLossLayer<Dtype>::Forward_cpu(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
-  const int bottom_bbox_dim = B_ * S_h_ * S_w_;
   const int batchsize = bottom[0]->shape(0);
   const Dtype* bbox_data = bottom[0]->cpu_data();
-  Dtype* bbox_diff = bottom[0]->mutable_cpu_diff();
   const Dtype* label_data = bottom[1]->cpu_data();
-  const Dtype* grid_label_data = grid_label_.mutable_cpu_data();
   const Dtype delta_h = 1. / Dtype(S_h_);
   const Dtype delta_w = 1. / Dtype(S_w_);
+  Dtype* bbox_diff = bottom[0]->mutable_cpu_diff();
+  Dtype* grid_label_data = grid_label_.mutable_cpu_data();
   Dtype loss = Dtype(0);
   for (int ibatch = 0; ibatch < batchsize; ++ibatch) {
     for (int ih = 0; ih < S_h_; ++ih) {
@@ -97,6 +99,11 @@ void YoloLossLayer<Dtype>::Forward_cpu(
         }
         grid_label_data[Ii_index] = choose_label;
         if (choose_label >= 0.0) {
+          const int label_index = ((ibatch * maxnumbox_) + choose_label) * 5;
+          const Dtype label_x = label_data[label_index];
+          const Dtype label_y = label_data[label_index+1];
+          const Dtype label_w = label_data[label_index+2];
+          const Dtype label_h = label_data[label_index+3];
           // loop through bounding box
           Dtype iou = 0.0;
           int j = 0;
@@ -126,11 +133,6 @@ void YoloLossLayer<Dtype>::Forward_cpu(
           const Dtype bbox_y = bbox_data[bbox_index+1];
           const Dtype bbox_w = bbox_data[bbox_index+2];
           const Dtype bbox_h = bbox_data[bbox_index+3];
-          const int label_index = ((ibatch * maxnumbox_) + choose_label) * 5;
-          const Dtype label_x = label_data[label_index];
-          const Dtype label_y = label_data[label_index+1];
-          const Dtype label_w = label_data[label_index+2];
-          const Dtype label_h = label_data[label_index+3];
           bbox_diff[bbox_index] = lambda_coord_ * (bbox_x - label_x);
           bbox_diff[bbox_index+1] = lambda_coord_ * (bbox_y - label_y);
           bbox_diff[bbox_index+2] =
@@ -143,12 +145,11 @@ void YoloLossLayer<Dtype>::Forward_cpu(
           }
           // calculate diff confidence
           for (int ib = 0; ib < B_; ++ib) {
-            const Dtype bbox_c = bbox_data[(Ii_index * B_ + ib) * 5 + 4];
             const Dtype Ci = (j == ib) ? iou : Dtype(0);
             const Dtype lambda = (j == ib) ? lambda_coord_ : lambda_noobj_;
             const int bbox_index_ib = (Ii_index * B_ + ib) * 5 + 4;
             bbox_diff[bbox_index_ib] =
-                lambda * (bbox_data[bbox_index_ib] - iou);
+                lambda * (bbox_data[bbox_index_ib] - Ci);
             loss += bbox_diff[bbox_index_ib] * bbox_diff[bbox_index_ib] /
                 lambda / 2.0;
           }
@@ -163,7 +164,7 @@ void YoloLossLayer<Dtype>::Forward_cpu(
     for (int i = 0; i < batchsize * S_h_ * S_w_; ++i) {
       for (int c = 0; c < num_classes; ++c) {
         if (Dtype(c) == grid_label_data[i]) {
-          loss += - log(min(prob_data[i * num_classes + c], FLT_MIN));
+          loss += - log(min(prob_data[i * num_classes + c], Dtype(FLT_MIN)));
         }
       }
     }
@@ -185,9 +186,11 @@ void YoloLossLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& top,
     caffe_scal(bottom[0]->count(), loss_weight, bottom_diff);
   }
   if (propagate_down[2]) {
+    const int num_classes = bottom[2]->shape(3);
+    const int outer_dim = bottom[2]->count(0, 3);
+    const Dtype* grid_label_data = grid_label_.cpu_data();
     Dtype* prob_diff = bottom[2]->mutable_cpu_diff();
-    int num_classes = bottom[2]->shape(3);
-    for (int i = 0; i < batchsize * S_h_ * S_w_; ++i) {
+    for (int i = 0; i < outer_dim; ++i) {
       for (int c = 0; c < num_classes; ++c) {
         if (Dtype(c) == grid_label_data[i]) {
           prob_diff[i * num_classes + c] = -1;
