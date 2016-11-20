@@ -22,6 +22,7 @@ void YoloLossLayer<Dtype>::LayerSetUp(
 template <typename Dtype>
 void YoloLossLayer<Dtype>::Reshape(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
+  LossLayer<Dtype>::Reshape(bottom, top);
   // check bounding box prediction
   CHECK_EQ(bottom[0]->num_axes(), 5) <<
       "bounding box prediction bottom[0] must be a five dimension tensor";

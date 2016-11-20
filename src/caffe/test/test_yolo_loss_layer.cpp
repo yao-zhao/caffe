@@ -51,7 +51,7 @@ class YoloLossLayerTest : public MultiDeviceTest<TypeParam> {
                       .5, .5, .5, .5, -1,
                      };
     blob_bottom_vec_.clear();
-    for (int i = 0; i < blob_bottom_box_->count(); ++i) {
+    for (int i = 0; i < blob_bottom_label_->count(); ++i) {
       blob_bottom_label_->mutable_cpu_data()[i] = input2[i];
     }
     blob_bottom_vec_.push_back(blob_bottom_box_);
