@@ -1437,9 +1437,11 @@ message WindowDataParameter {
 // loss layer parameter for yolo loss
 message YoloLossParameter {
   // weight on grid with objects
-  optional float lambda_coord = 5 [default = 1.0];
+  optional float lambda_coord = 1 [default = 1.0];
   // weight on grid without lobjects
-  optional float lambda_noobj = 6 [default = 1.0];
+  optional float lambda_noobj = 2 [default = 1.0];
+  // minimal denominator for sqrt w and h
+  optional float eps = 3 [default = 1e-4];
 }
 
 
