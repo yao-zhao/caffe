@@ -51,7 +51,6 @@ class SoftmaxWithDecayLossLayer : public LossLayer<Dtype> {
   int softmax_dim_;
   Dtype rate_;
   Blob<Dtype> weights_;
-
 };
 
 }  // namespace caffe

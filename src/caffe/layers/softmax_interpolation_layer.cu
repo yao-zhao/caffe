@@ -14,7 +14,7 @@ __global__ void SoftmaxInterpolationGPUForward(const int n,
     const int j = index % inner_dim;
     Dtype sum = 0;
     for (int c = 0; c < softmax_dim; c++) {
-      sum += bottom_data[(i * softmax_dim + c) * inner_dim + j] * 
+      sum += bottom_data[(i * softmax_dim + c) * inner_dim + j] *
           interpolation_data[c];
     }
     top_data[index] = sum;

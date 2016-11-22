@@ -59,7 +59,7 @@ template <typename Dtype>
 inline void forward_cpu_kernel(Dtype(*weight_func)(Dtype, Dtype),
     const Dtype* prob_data, const Dtype* label_data, Dtype* weight_data,
     const int outer_num, const int inner_num, const int softmax_dim_,
-    const Dtype rate, 
+    const Dtype rate,
     Dtype* loss) {
   for (int i = 0; i < outer_num; ++i) {
     for (int j = 0; j < inner_num; j++) {
