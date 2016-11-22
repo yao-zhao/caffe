@@ -33,11 +33,15 @@ class YoloLossLayerTest : public MultiDeviceTest<TypeParam> {
     // blob_bottom_vec_.push_back(blob_bottom_label_);
     // blob_top_vec_.push_back(blob_top_loss_);
   }
-
-  void ManualSetup() {
+  void ManualSetup1() {
     int box_dim[] = {1, 3, 3, 1, 5};
     blob_bottom_box_->Reshape(*(new vector<int>(box_dim, box_dim+5)));
     Dtype input1[] = {.5, .5, .5, .5, 1.0,
+                      .5, .5, .5, .5, 1.0,
+                      .5, .5, .5, .5, 1.0,
+                      .5, .5, .5, .5, 1.0,
+                      .5, .5, .5, .5, 1.0,
+                      .5, .5, .5, .5, 1.0,
                       .5, .5, .5, .5, 1.0,
                       .5, .5, .5, .5, 1.0,
                       .5, .5, .5, .5, 1.0,
@@ -49,6 +53,36 @@ class YoloLossLayerTest : public MultiDeviceTest<TypeParam> {
     blob_bottom_label_->Reshape(*(new vector<int>(label_dim, label_dim+3)));
     Dtype input2[] = {2/3., 2/3., 2/3., 2/3., 0,
                       .5, .5, .5, .5, -1,
+                     };
+    blob_bottom_vec_.clear();
+    for (int i = 0; i < blob_bottom_label_->count(); ++i) {
+      blob_bottom_label_->mutable_cpu_data()[i] = input2[i];
+    }
+    blob_bottom_vec_.push_back(blob_bottom_box_);
+    blob_bottom_vec_.push_back(blob_bottom_label_);
+    blob_top_vec_.clear();
+    blob_top_vec_.push_back(blob_top_loss_);
+  }
+  void ManualSetup2() {
+    int box_dim[] = {1, 3, 3, 1, 5};
+    blob_bottom_box_->Reshape(*(new vector<int>(box_dim, box_dim+5)));
+    Dtype input1[] = {.5, .5, .5, .5, .8,
+                      .5, .5, .5, .5, .8,
+                      .5, .5, .5, .5, .8,
+                      .5, .5, .5, .5, .8,
+                      .5, .5, .5, .5, .8,
+                      .5, .5, .5, .5, .8,
+                      .5, .5, .5, .5, .8,
+                      .5, .5, .5, .5, .8,
+                      .5, .5, .5, .5, .8,
+                     };
+    for (int i = 0; i < blob_bottom_box_->count(); ++i) {
+      blob_bottom_box_->mutable_cpu_data()[i] = input1[i];
+    }
+    int label_dim[] = {1, 2, 5};
+    blob_bottom_label_->Reshape(*(new vector<int>(label_dim, label_dim+3)));
+    Dtype input2[] = {.51, .51, .25, .25, 0,
+                      .5, .5, .1, .1, -1,
                      };
     blob_bottom_vec_.clear();
     for (int i = 0; i < blob_bottom_label_->count(); ++i) {
@@ -79,59 +113,59 @@ TYPED_TEST(YoloLossLayerTest, TestSetup) {
   typedef typename TypeParam::Dtype Dtype;
   LayerParameter layer_param;
   YoloLossLayer<Dtype> layer(layer_param);
-  this->ManualSetup();
+  this->ManualSetup1();
   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
 }
 
+TYPED_TEST(YoloLossLayerTest, TestForward) {
+  typedef typename TypeParam::Dtype Dtype;
+  LayerParameter layer_param;
+  layer_param.mutable_yolo_loss_param()->set_lambda_coord(5.0);
+  layer_param.mutable_yolo_loss_param()->set_lambda_noobj(0.25);
+  YoloLossLayer<Dtype> layer(layer_param);
+  this->ManualSetup2();
+  layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
+  layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
+  Dtype loss = 8*0.25*pow(0.8, 2)/2.+5.0*(2*pow(sqrt(.5)-sqrt(.25), 2)
+    +pow(0.8-0.25, 2)+2*pow(0.01, 2))/2.;
+  EXPECT_NEAR(this->blob_top_loss_->cpu_data()[0], loss, 1e-6);
+}
+
+TYPED_TEST(YoloLossLayerTest, TestBackward) {
+  typedef typename TypeParam::Dtype Dtype;
+  LayerParameter layer_param;
+  layer_param.mutable_yolo_loss_param()->set_lambda_coord(5.0);
+  layer_param.mutable_yolo_loss_param()->set_lambda_noobj(0.25);
+  YoloLossLayer<Dtype> layer(layer_param);
+  this->ManualSetup2();
+  layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
+  layer.Forward(this->blob_bottom_vec_, this->blob_top_vec_);
+  this->blob_top_loss_->mutable_cpu_diff()[0] = 2;
+  vector<bool> propagate_down;
+  propagate_down.push_back(true);
+  propagate_down.push_back(false);
+  layer.Backward(this->blob_top_vec_, propagate_down, this->blob_bottom_vec_);
+  // for (int i = 0; i < this->blob_bottom_box_->count(0, 4); ++i) {
+  //   for (int j = 0; j < 5; ++j) {
+  //     cout << " " << this->blob_bottom_box_->cpu_diff()[5*i+j] << " ";
+  //   }
+  //   cout << "\n";
+  // }
+}
+
+// gradient test shouldn't work: because ground truth confidence
+// is calculated by iou, so that label is input dependent.
+// but we don't want the net to create a label that is more wrong
+// so that the result can be equally wrong as predicted
+// so estimated gradient is wrong! confidence error backproped to x,y,w,h
 // TYPED_TEST(YoloLossLayerTest, TestGradient) {
 //   typedef typename TypeParam::Dtype Dtype;
 //   LayerParameter layer_param;
-//   SoftmaxWithLossLayer<Dtype> layer(layer_param);
-//   GradientChecker<Dtype> checker(1e-2, 1e-2, 1701);
-//   checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
-//       this->blob_top_vec_, 0);
-// }
-
-// TYPED_TEST(YoloLossLayerTest, TestForwardIgnoreLabel) {
-//   typedef typename TypeParam::Dtype Dtype;
-//   LayerParameter layer_param;
-//   layer_param.mutable_loss_param()->set_normalize(false);
-//   // First, compute the loss with all labels
-//   scoped_ptr<SoftmaxWithLossLayer<Dtype> > layer(
-//       new SoftmaxWithLossLayer<Dtype>(layer_param));
-//   layer->SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
-//   layer->Forward(this->blob_bottom_vec_, this->blob_top_vec_);
-//   Dtype full_loss = this->blob_top_loss_->cpu_data()[0];
-//   // Now, accumulate the loss, ignoring each label in {0, ..., 4} in turn.
-//   Dtype accum_loss = 0;
-//   for (int label = 0; label < 5; ++label) {
-//     layer_param.mutable_loss_param()->set_ignore_label(label);
-//     layer.reset(new SoftmaxWithLossLayer<Dtype>(layer_param));
-//     layer->SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
-//     layer->Forward(this->blob_bottom_vec_, this->blob_top_vec_);
-//     accum_loss += this->blob_top_loss_->cpu_data()[0];
-//   }
-//   // Check that each label was included all but once.
-//   EXPECT_NEAR(4 * full_loss, accum_loss, 1e-4);
-// }
-
-// TYPED_TEST(YoloLossLayerTest, TestGradientIgnoreLabel) {
-//   typedef typename TypeParam::Dtype Dtype;
-//   LayerParameter layer_param;
-//   // labels are in {0, ..., 4}, so we'll ignore about a fifth of them
-//   layer_param.mutable_loss_param()->set_ignore_label(0);
-//   SoftmaxWithLossLayer<Dtype> layer(layer_param);
-//   GradientChecker<Dtype> checker(1e-2, 1e-2, 1701);
-//   checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
-//       this->blob_top_vec_, 0);
-// }
-
-// TYPED_TEST(YoloLossLayerTest, TestGradientUnnormalized) {
-//   typedef typename TypeParam::Dtype Dtype;
-//   LayerParameter layer_param;
-//   layer_param.mutable_loss_param()->set_normalize(false);
-//   SoftmaxWithLossLayer<Dtype> layer(layer_param);
-//   GradientChecker<Dtype> checker(1e-2, 1e-2, 1701);
+//   layer_param.mutable_yolo_loss_param()->set_lambda_coord(5.0);
+//   layer_param.mutable_yolo_loss_param()->set_lambda_noobj(0.25);
+//   YoloLossLayer<Dtype> layer(layer_param);
+//   this->ManualSetup2();
+//   GradientChecker<Dtype> checker(1e-3, 1e-3, 1701);
 //   checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
 //       this->blob_top_vec_, 0);
 // }

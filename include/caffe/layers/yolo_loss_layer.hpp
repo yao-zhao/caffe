@@ -39,13 +39,13 @@ class YoloLossLayer : public LossLayer<Dtype> {
  protected:
   virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top);
-  // virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
-  //     const vector<Blob<Dtype>*>& top);
+// virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+//     const vector<Blob<Dtype>*>& top);
 
   virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
       const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
-  // virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
-  //     const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+// virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
+//     const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
 
   /// yolo params
   int S_h_, S_w_, B_, C_;
@@ -57,6 +57,10 @@ class YoloLossLayer : public LossLayer<Dtype> {
   Dtype lambda_coord_, lambda_noobj_;
   /// grid label
   Blob<Dtype> grid_label_;
+  /// minimal denominator for sqrt w and h
+  Dtype eps_;
+  /// diff
+  Blob<Dtype> diff_;
 };
 
 }  // namespace caffe
