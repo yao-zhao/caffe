@@ -1,7 +1,8 @@
 # Added Features
 
-- **YOLO layers**: real time object detection, check [original paper](https://arxiv.org/pdf/1506.02640v5.pdf) for details. Currently only support cpu computation on the loss layer.
-New layers include: yolo_loss_layer, image_box_data_layer, dense_image_box_data_layer.
+- **Bounding Box input layers** Read bounding box label files. New layers include: image_box_data_layer, dense_image_box_data_layer.
+
+- **YOLO layers**: real time object detection, check [original paper](https://arxiv.org/pdf/1506.02640v5.pdf) for details. Currently only support cpu computation on the loss layer. New layers include: yolo_loss_layer
 
 - **Cyclic operations**: Embed rotational symmetry to neural networks, check [original paper](https://arxiv.org/pdf/1602.02660.pdf) for details. New layers include: cyclic_pool_layer, cyclic_roll_layer, cyclic_slice_layer.
 
@@ -9,7 +10,7 @@ New layers include: yolo_loss_layer, image_box_data_layer, dense_image_box_data_
 
 - **Gaussian Probability Loss**: A loss layer that takes two bottoms (one mean, one varirance) to maximize the likelihood of a gaussian distribution. Can be viewed as a generalized case for euclidean loss. New layers include: gaussian_loss_layer (lorentzian_loss_layer is similar).
 
-- **Data Augmentation**: multiple data augmentation on the fly using opencv3.1.0. check util/image_transformations.
+- **Data Augmentation**: multiple data augmentation on the fly using opencv3.1.0. check util/image_transformations. Functions including: rotation, scaling jitter, contrast jitter, perspective transformation, periodic transformation, more cropping options.
 
 - **Ladder Net**: multiple layers from the [ladder network](https://arxiv.org/abs/1507.02672). New layers include: noise_layer, ladder_loss_layer, vanilla_ladder_combinator_layer.
 
@@ -19,9 +20,9 @@ New layers include: yolo_loss_layer, image_box_data_layer, dense_image_box_data_
 
 - **Rescale Label**: rescale labels in two symmetric opposite direction for regression task. New layers include: regression_label_layer.
 
-- **Sinh**: element wise sinh function. New layers include: sinh_layer.
+- **Functions**: element wise sinh function. New layers include: sinh_layer.
 
-There are multiple other changes in existing modules.
+- **others**: multiple other changes in existing modules.
 
 ---
 
