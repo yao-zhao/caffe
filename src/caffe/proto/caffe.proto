@@ -306,8 +306,10 @@ message ParamSpec {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available layer-specific ID: 147 (last added: recurrent_param)
-// LayerParameter next availabel layer-specific ID: 223 (last added: yololoss)
+// LayerParameter next available layer-specific ID: 147
+// (last added: recurrent_param)
+// LayerParameter next availabel layer-specific ID: 224
+// (last added: imageboxdata)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -384,6 +386,7 @@ message LayerParameter {
   optional HDF5OutputParameter hdf5_output_param = 113;
   optional HingeLossParameter hinge_loss_param = 114;
   optional ImageDataParameter image_data_param = 115;
+  optional ImageBoxDataParameter image_box_data_param = 223;
   optional InfogainLossParameter infogain_loss_param = 116;
   optional InnerProductParameter inner_product_param = 117;
   optional InputParameter input_param = 143;
@@ -907,6 +910,30 @@ message ImageDataParameter {
   // rescale the label
   optional float label_scale = 13 [default = 1.0];
 }
+
+message ImageBoxDataParameter {
+  // Specify the data source.
+  optional string source = 1;
+  // root folder of the net
+  optional string root_folder = 12 [default = ""];
+  // Specify the batch size.
+  optional uint32 batch_size = 2 [default = 1];
+  // The rand_skip variable is for the data layer to skip a few data points
+  // to avoid all asynchronous sgd clients to start at the same point. The skip
+  // point would be set as rand_skip * rand(0,1). Note that rand_skip should not
+  // be larger than the number of keys in the database.
+  optional uint32 rand_skip = 3 [default = 0];
+  // Whether or not ImageLayer should shuffle the list of files at every epoch.
+  optional bool shuffle = 4 [default = false];
+  // It will also resize images if new_height or new_width are not zero.
+  optional uint32 new_height = 5 [default = 0];
+  optional uint32 new_width = 6 [default = 0];
+  // Specify if the images are color or gray
+  optional bool is_color = 7 [default = true];
+  // max number of bounding box
+  optional uint32 max_num_box = 8 [default = 1];
+}
+
 
 message InfogainLossParameter {
   // Specify the infogain matrix source.

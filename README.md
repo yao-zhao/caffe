@@ -1,5 +1,8 @@
 # Added Features
 
+- **YOLO layers**: real time object detection, check [original paper](https://arxiv.org/pdf/1506.02640v5.pdf) for details. Currently only support cpu computation on the loss layer.
+New layers include: yolo_loss_layer, image_box_data_layer, dense_image_box_data_layer.
+
 - **Cyclic operations**: Embed rotational symmetry to neural networks, check [original paper](https://arxiv.org/pdf/1602.02660.pdf) for details. New layers include: cyclic_pool_layer, cyclic_roll_layer, cyclic_slice_layer.
 
 - **Label Discretization**: Discretize continuous label (potentially unlinearly) to convert regression problems to classification problem. New lyaers include: discretize_layer.
