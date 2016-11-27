@@ -46,6 +46,7 @@ class Solver {
   void Init(const SolverParameter& param);
   void InitTrainNet();
   void InitTestNets();
+  void TestAll();
 
   // Client of the Solver optionally may call this in order to set the function
   // that the solver uses to see what action it should take (e.g. snapshot or
@@ -101,7 +102,6 @@ class Solver {
   string SnapshotToBinaryProto();
   string SnapshotToHDF5();
   // The test routine
-  void TestAll();
   void Test(const int test_net_id = 0);
   virtual void SnapshotSolverState(const string& model_filename) = 0;
   virtual void RestoreSolverStateFromHDF5(const string& state_file) = 0;
