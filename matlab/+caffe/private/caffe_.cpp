@@ -247,6 +247,14 @@ static void solver_restore(MEX_ARGS) {
   mxFree(snapshot_file);
 }
 
+// Usage: caffe_('solver_snapshot', hSolver)
+static void solver_snapshot(MEX_ARGS) {
+  mxCHECK(nrhs == 1 && mxIsStruct(prhs[0]),
+      "Usage: caffe_('solver_snapshot', hSolver)");
+  Solver<float>* solver = handle_to_ptr<Solver<float> >(prhs[0]);
+  solver->Snapshot();
+}
+
 // Usage: caffe_('solver_solve', hSolver)
 static void solver_solve(MEX_ARGS) {
   mxCHECK(nrhs == 1 && mxIsStruct(prhs[0]),
@@ -541,6 +549,7 @@ static handler_registry handlers[] = {
   { "solver_get_iter",    solver_get_iter },
   { "solver_get_max_iter", solver_get_max_iter },
   { "solver_restore",     solver_restore  },
+  { "solver_snapshot",    solver_snapshot },
   { "solver_solve",       solver_solve    },
   { "solver_step",        solver_step     },
   { "get_net",            get_net         },
