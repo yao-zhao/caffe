@@ -24,6 +24,10 @@
 
 - **others**: multiple other changes in existing modules.
 
+# Note
+
+This branch only works in ubuntu 16.04. remove commit *7d6184730be3791fe2e9b5f1dbf209dae44d1047* for 14.04 compatibility.
+
 ---
 
 # Caffe
