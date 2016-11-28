@@ -228,6 +228,14 @@ static void solver_get_iter(MEX_ARGS) {
   plhs[0] = mxCreateDoubleScalar(solver->iter());
 }
 
+// Usage: caffe_('solver_get_max_iter', hSolver)
+static void solver_get_max_iter(MEX_ARGS) {
+  mxCHECK(nrhs == 1 && mxIsStruct(prhs[0]),
+      "Usage: caffe_('solver_get_max_iter', hSolver)");
+  Solver<float>* solver = handle_to_ptr<Solver<float> >(prhs[0]);
+  plhs[0] = mxCreateDoubleScalar(solver->max_iter());
+}
+
 // Usage: caffe_('solver_restore', hSolver, snapshot_file)
 static void solver_restore(MEX_ARGS) {
   mxCHECK(nrhs == 2 && mxIsStruct(prhs[0]) && mxIsChar(prhs[1]),
@@ -531,6 +539,7 @@ static handler_registry handlers[] = {
   { "get_solver",         get_solver      },
   { "solver_get_attr",    solver_get_attr },
   { "solver_get_iter",    solver_get_iter },
+  { "solver_get_max_iter", solver_get_max_iter },
   { "solver_restore",     solver_restore  },
   { "solver_solve",       solver_solve    },
   { "solver_step",        solver_step     },
