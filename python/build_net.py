@@ -105,6 +105,25 @@ class BuildNet:
 # input layers
 ################################################################################
     # set data layer
+    def add_input(self, transformer_dict = None, batch_size = 32,
+                 test_batch_size = None, data_dim = [1, 1, 1], label_dim = [1]):
+        if test_batch_size is None:
+            test_batch_size = batch_size
+        if self.phase == 'train':
+            dim0 = batch_size
+        elif self.phase == 'test':
+            dim0 = test_batch_size
+        elif self.phase == 'deploy':
+            dim0 = 1
+        self.bottom = L.Input(input_param =
+                dict(shape = dict(dim = [dim0]+data_dim)))
+        self.label = L.Input(input_param =
+                dict(shape = dict(dim = [dim0]+label_dim)))
+        self.net.data = self.bottom
+        if not self.phase == 'deploy':
+            self.net.label = self.label
+        return self.bottom
+
     def add_lmdb(self, transformer_dict = None, batch_size = 32,
                  test_batch_size = None,
                  backend = P.Data.LMDB, source_path = 'data/'):
@@ -310,6 +329,7 @@ class BuildNet:
                 softmax = L.Softmax(self.bottom)
                 setattr(self.net, name+'prob', softmax)
 
+
     def add_softmax_decay(self, separator, loss_weight=1, name='softmax_decay_',
                           stage=None, decay_rate=1.0,):
         if self.check_stage(stage):
@@ -409,8 +429,8 @@ class BuildNet:
 # common building components
 ################################################################################
     # convolutional layer 
-    def add_conv(self, num_output, lr = 1, kernel_size = 3, weight_filler=None,
-        pad = 1, stride = 1, stage = None, bias_term=False):
+    def add_conv(self, num_output, lr=1, kernel_size=3, weight_filler=None,
+        pad=1, stride=1, stage=None, bias_term=False):
         if self.check_stage(stage):
             if weight_filler is None:
                 weight_filler = dict(type = 'xavier')
@@ -420,6 +440,29 @@ class BuildNet:
                     stride = stride, num_output = num_output,
                     weight_filler = weight_filler,
                     param = dict(lr_mult = lr), bias_term = bias_term,
+                    bias_filler=dict(type='constant', value=0))
+            elif self.phase == 'deploy':
+                self.bottom = L.Convolution(self.bottom,
+                    kernel_size = kernel_size, pad = pad,
+                    stride = stride, num_output = num_output,
+                    bias_term = bias_term)
+            else:
+                print("phase not supported")
+            setattr(self.net, 'conv'+str(self.index), self.bottom)
+        return self.bottom
+
+    # 1d convolutional layer
+    def add_conv_1d(self, num_output, lr=1, kernel_size=3, weight_filler=None,
+        pad=1, stride=1, stage=None, bias_term=False):
+        if self.check_stage(stage):
+            if weight_filler is None:
+                weight_filler = dict(type = 'xavier')
+            if self.phase == 'train' or self.phase == 'test':
+                self.bottom = L.Convolution(self.bottom,
+                    kernel_h=kernel_size, kernel_w=1,
+                    pad_h=pad, pad_w=0, stride_h=stride, stride_w=1,
+                    num_output=num_output, weight_filler=weight_filler,
+                    param=dict(lr_mult=lr), bias_term=bias_term,
                     bias_filler=dict(type='constant', value=0))
             elif self.phase == 'deploy':
                 self.bottom = L.Convolution(self.bottom,
@@ -535,6 +578,13 @@ class BuildNet:
         self.index += 1
         return self.bottom
 
+    def add_softmax_op(self, loss_weight = 1, stage = None):
+        if self.check_stage(stage):
+            name = 'softmax'+str(self.index)
+            self.bottom = L.Softmax(self.bottom)
+            setattr(self.net, name, self.bottom)
+        return self.bottom
+
 # cyclic functions
 ################################################################################
     def add_cslice(self, stage = None):
@@ -571,8 +621,8 @@ class BuildNet:
         stage_str = str(len(self.solvers))
         solver.train_net = self.model_path+'train_'+stage_str+'.prototxt'
         solver.test_net.append(self.model_path+'test_'+stage_str+'.prototxt')
-        solver.test_interval = test_interval
-        solver.test_iter.append(test_iter)
+        solver.test_interval = int(test_interval)
+        solver.test_iter.append(int(test_iter))
         solver.max_iter = int(max_iter)
         solver.iter_size = int(iter_size)
         solver.type = "SGD"
