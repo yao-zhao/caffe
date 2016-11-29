@@ -106,7 +106,8 @@ class BuildNet:
 ################################################################################
     # set data layer
     def add_input(self, transformer_dict = None, batch_size = 32,
-                 test_batch_size = None, data_dim = [1, 1, 1], label_dim = [1]):
+                 test_batch_size = None, data_dim = [1, 1, 1],
+                 label_dims = [[1]]):
         if test_batch_size is None:
             test_batch_size = batch_size
         if self.phase == 'train':
@@ -117,11 +118,13 @@ class BuildNet:
             dim0 = 1
         self.bottom = L.Input(input_param =
                 dict(shape = dict(dim = [dim0]+data_dim)))
-        self.label = L.Input(input_param =
-                dict(shape = dict(dim = [dim0]+label_dim)))
         self.net.data = self.bottom
-        if not self.phase == 'deploy':
-            self.net.label = self.label
+        numlabels = len(label_dims)
+        for ilabel in range(numlabels):
+            if not self.phase == 'deploy':
+                label = L.Input(input_param =
+                    dict(shape = dict(dim = [dim0]+label_dims[ilabel])))
+                setattr(self.net, 'label'+str(ilabel), label)
         return self.bottom
 
     def add_lmdb(self, transformer_dict = None, batch_size = 32,
@@ -311,7 +314,7 @@ class BuildNet:
 # output layers
 ################################################################################
     def add_softmax(self, loss_weight = 1, name = 'softmax', stage = None,
-                    class_weights = None):
+                    class_weights = None, label = None):
         if self.check_stage(stage):
             if class_weights is None:
                 loss_param = dict(weight_by_label_freqs = False)
@@ -319,10 +322,14 @@ class BuildNet:
                 loss_param = dict(weight_by_label_freqs = True,
                     class_weighting = class_weights)
             if self.phase == 'train' or self.phase == 'test':
-                softmax = L.SoftmaxWithLoss(self.bottom, self.label,
+                if not label:
+                    label = self.label
+                else:
+                    label = getattr(self.net, label)
+                softmax = L.SoftmaxWithLoss(self.bottom, label,
                                             loss_weight = loss_weight,
                                             loss_param = loss_param)
-                accuracy = L.Accuracy(self.bottom, self.label)
+                accuracy = L.Accuracy(self.bottom, label)
                 setattr(self.net, name+'loss', softmax)
                 setattr(self.net, 'accuracy', accuracy)
             elif self.phase == 'deploy':
@@ -466,8 +473,9 @@ class BuildNet:
                     bias_filler=dict(type='constant', value=0))
             elif self.phase == 'deploy':
                 self.bottom = L.Convolution(self.bottom,
-                    kernel_size = kernel_size, pad = pad,
-                    stride = stride, num_output = num_output,
+                    kernel_h=kernel_size, kernel_w=1,
+                    pad_h=pad, pad_w=0, stride_h=stride, stride_w=1,
+                    num_output = num_output,
                     bias_term = bias_term)
             else:
                 print("phase not supported")
