@@ -100,12 +100,12 @@ void YoloLossLayer<Dtype>::Forward_cpu(
             // const Dtype label_w = label_data[label_index+2];
             // const Dtype label_h = label_data[label_index+3];
             const Dtype dist2_new = diff_x * diff_x + diff_y * diff_y;
-            // only if the CENTER of the label box is in that grid
+            // only if the CENTER of the label box is in that grid: ENABLED
             if ((fabs(diff_x) < (delta_w / 2.0)) &&
                 (fabs(diff_y) < (delta_h / 2.0)) &&
-                (dist2_new < dist2)) {
             // if ((fabs(diff_x) < (label_w / 2.0)) &&
             //     (fabs(diff_y) < (label_h / 2.0)) &&
+                (dist2_new < dist2)) {
               choose_label = Dtype(ilabel);
               dist2 = dist2_new;
             }
