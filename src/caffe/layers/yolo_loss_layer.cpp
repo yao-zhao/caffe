@@ -83,8 +83,10 @@ void YoloLossLayer<Dtype>::Forward_cpu(
   for (int ibatch = 0; ibatch < batchsize; ++ibatch) {
     for (int ih = 0; ih < S_h_; ++ih) {
       const Dtype center_h = delta_h * (Dtype(ih) + 0.5);
+      const Dtype start_h = delta_h * Dtype(ih);
       for (int iw = 0; iw < S_w_; ++iw) {
         const Dtype center_w = delta_w * (Dtype(iw) + 0.5);
+        const Dtype start_w = delta_w * Dtype(iw);
         const int Ii_index = (((ibatch * S_h_) + ih) * S_w_ + iw);
         // assign the closest bounding box label to grid
         Dtype choose_label = -1.0;
@@ -95,12 +97,15 @@ void YoloLossLayer<Dtype>::Forward_cpu(
           if (label_C >= 0) {
             const Dtype diff_x = label_data[label_index] - center_w;
             const Dtype diff_y = label_data[label_index+1] - center_h;
-            const Dtype label_w = label_data[label_index+2];
-            const Dtype label_h = label_data[label_index+3];
+            // const Dtype label_w = label_data[label_index+2];
+            // const Dtype label_h = label_data[label_index+3];
             const Dtype dist2_new = diff_x * diff_x + diff_y * diff_y;
-            if ((fabs(diff_x) < (label_w / 2.0)) &&
-                (fabs(diff_y) < (label_h / 2.0)) &&
+            // only if the CENTER of the label box is in that grid
+            if ((fabs(diff_x) < (delta_w / 2.0)) &&
+                (fabs(diff_y) < (delta_h / 2.0)) &&
                 (dist2_new < dist2)) {
+            // if ((fabs(diff_x) < (label_w / 2.0)) &&
+            //     (fabs(diff_y) < (label_h / 2.0)) &&
               choose_label = Dtype(ilabel);
               dist2 = dist2_new;
             }
@@ -118,8 +123,8 @@ void YoloLossLayer<Dtype>::Forward_cpu(
           int j = 0;
           for (int ib = 0; ib < B_; ++ib) {
             const int bbox_index = (Ii_index * B_ + ib) * 5;
-            const Dtype bbox_x = bbox_data[bbox_index];
-            const Dtype bbox_y = bbox_data[bbox_index+1];
+            const Dtype bbox_x = start_w + bbox_data[bbox_index] * delta_w;
+            const Dtype bbox_y = start_h + bbox_data[bbox_index+1] * delta_h;
             const Dtype bbox_w = bbox_data[bbox_index+2];
             const Dtype bbox_h = bbox_data[bbox_index+3];
             Dtype min_w = (bbox_w + label_w) / Dtype(2)
@@ -138,8 +143,8 @@ void YoloLossLayer<Dtype>::Forward_cpu(
           // calculate diff for jth box
           const int Iij_index = Ii_index * B_ + j;
           const int bbox_index = Iij_index * 5;
-          const Dtype bbox_x = bbox_data[bbox_index];
-          const Dtype bbox_y = bbox_data[bbox_index+1];
+          const Dtype bbox_x = start_w + bbox_data[bbox_index] * delta_w;
+          const Dtype bbox_y = start_h + bbox_data[bbox_index+1] * delta_h;
           const Dtype bbox_w_sqrt = sqrt(bbox_data[bbox_index+2]);
           const Dtype bbox_h_sqrt = sqrt(bbox_data[bbox_index+3]);
           bbox_diff[bbox_index] = lambda_coord_ * (bbox_x - label_x);
