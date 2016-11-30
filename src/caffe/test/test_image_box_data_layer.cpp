@@ -94,7 +94,7 @@ TYPED_TEST(ImageBoxDataLayerTest, TestRead) {
       label_data += 5;
     }
   }
-};
+}
 
 }  // namespace caffe
 #endif  // USE_OPENCV

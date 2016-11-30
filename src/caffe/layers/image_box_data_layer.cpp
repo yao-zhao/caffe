@@ -23,7 +23,8 @@ ImageBoxDataLayer<Dtype>::~ImageBoxDataLayer<Dtype>() {
 }
 
 template <typename Dtype>
-void ImageBoxDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
+void ImageBoxDataLayer<Dtype>::DataLayerSetUp(
+      const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
   const int new_height = this->layer_param_.image_box_data_param().new_height();
   const int new_width  = this->layer_param_.image_box_data_param().new_width();
