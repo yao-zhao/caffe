@@ -47,6 +47,7 @@ void ImageBoxDataLayer<Dtype>::DataLayerSetUp(
   size_t pos;
   while (std::getline(infile, line)) {
     pos = line.find_last_of(' ');
+    line = line.substr(0, line.size()-1);
     lines_.push_back(std::make_pair(line.substr(0, pos), line.substr(pos + 1)));
   }
 
@@ -162,18 +163,23 @@ void ImageBoxDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
   // Read the file with filenames and labels
   std::ifstream label_file((root_folder + lines_[lines_id_].second).c_str());
   string label_line;
+
   int label_offset = item_id * max_num_box * 5;
   for (int box_id = 0; box_id < max_num_box; ++box_id) {
     if (std::getline(label_file, label_line)) {
-      char *cstr = new char [label_line.length()+1];
-      std::strcpy(cstr, label_line.c_str());
-      char *token = std::strtok(cstr, " ");
+      label_line.replace(label_line.size(), 1, " ");
+      size_t pos_start = 0;
+      size_t pos_end = 0;
       for (int j = 0; j < 5; ++j) {
-        if (token == NULL) {
+        pos_end = label_line.find(' ', pos_start);
+        if (pos_end) {
+          prefetch_label[label_offset+j] =
+              static_cast<Dtype>(atof(
+              label_line.substr(pos_start, pos_end-pos_start).c_str()));
+          pos_start = pos_end + 1;
+        } else {
           LOG(FATAL) << "wrong bounding box label";
         }
-        prefetch_label[label_offset+j] = static_cast<Dtype>(atof(token));
-        token = std::strtok(NULL, " ");
       }
     } else {
       prefetch_label[label_offset+4] = -1;
