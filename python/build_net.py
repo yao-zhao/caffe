@@ -217,6 +217,52 @@ class BuildNet:
         return self.bottom
 
     # set image data layer
+    def add_image_box(self, batch_size=32, max_num_box=8,
+            source_path='data/', root_folder='data/', test_batch_size=None,
+            source_train='train.txt', source_test ='val.txt',
+            shuffle = True, test_shuffle=False,
+            is_color = True, height = None, width = None):
+        if test_batch_size is None:
+            test_batch_size = batch_size
+        # probe image data dimension
+        tmpnet = caffe.NetSpec()
+        tmpnet.data, tmpnet.label = L.ImageBoxData(
+            source = source_path+source_train,
+            root_folder = root_folder, is_color = is_color,
+            batch_size = 1, ntop = 2)
+        with open('tmpnet.prototxt', 'w+') as f:
+            f.write(str(tmpnet.to_proto()))
+        nb, nc, h, w = caffe.Net('tmpnet.prototxt', caffe.TRAIN).\
+            blobs['data'].data.shape
+        os.remove('tmpnet.prototxt')
+        # add layer
+        if self.phase == 'train':
+            source = source_path+source_train
+        elif self.phase == 'test':
+            source = source_path+source_test
+            shuffle = test_shuffle
+            batch_size = test_batch_size
+        if self.phase == 'train' or self.phase == 'test':
+            if height and width:
+                self.bottom, self.label = L.ImageBoxData(
+                    batch_size=batch_size, max_num_box=max_num_box,
+                    source=source_path+source_train, root_folder=root_folder,
+                    is_color=is_color, shuffle=shuffle, ntop=2,
+                    new_height = height, new_width = width)
+            else:
+                self.bottom, self.label = L.ImageBoxData(
+                    batch_size=batch_size, max_num_box=max_num_box,
+                    source=source_path+source_train, root_folder=root_folder,
+                    is_color=is_color, shuffle=shuffle, ntop=2)
+        elif self.phase == 'deploy':
+            self.bottom = L.Input(input_param=dict(
+                shape=dict(dim=[1, nc, h, w])))
+        self.net.data = self.bottom
+        if not self.phase == 'deploy':
+            self.net.label = self.label
+        return self.bottom
+
+    # set image data layer
     def add_dense_image(self, transformer_dict = dict(), batch_size = 32,
                 test_batch_size = None, deploy_batch_size = 1,
                 source_path = 'data/', root_folder = 'data/',
@@ -313,6 +359,44 @@ class BuildNet:
 
 # output layers
 ################################################################################
+    # add yolo layer
+    def add_yolo(self, S_h, S_w, B, C=1,
+            lr=1, weight_filler=dict(type='gaussian', std=0.1),
+            lambda_coord=5, lambda_noobj=0.5,
+            loss_weight=1, name='yolo', stage=None, label='label'):
+        if self.check_stage(stage):
+            base = self.bottom
+            boxpre = L.InnerProduct(base, num_output=S_h*S_w*B*5,
+                    param=[dict(lr_mult=lr), dict(lr_mult=lr)],
+                    weight_filler=weight_filler,
+                    bias_filler=dict(type='constant', value=0))
+            boxsigmoid = L.Sigmoid(boxpre, in_place=True)
+            box = L.Reshape(boxsigmoid, shape=dict(dim=[S_h, S_w, B, 5]), axis=1)
+            setattr(self.net, 'yolo_box_pre', boxpre)
+            setattr(self.net, 'yolo_box_sigmoid', boxsigmoid)
+            setattr(self.net, 'yolo_box', box)
+            if C > 1 :
+                cprobpre = L.InnerProduct(base, numoutput=S_h*S_w*C,
+                    param=[dict(lr_mult=lr), dict(lr_mult=lr)],
+                    weight_filler=dict(type='xavier'),
+                    bias_filler=dict(type='constant', value=0))
+                cprob = L.Reshape(Cpre, shape=dict(dim=[S_h, S_w, C]), axis=1)
+                cprobsoftmax = L.Softmax(C, axis=3, in_place=True)
+                setattr(self.net, 'yolo_class_pre', cprobpre)
+                setattr(self.net, 'yolo_class', cprob)
+                setattr(self.net, 'yolo_class_softmax', cprobsoftmax)
+            if self.phase == 'train' or self.phase == 'test':
+                label = getattr(self.net, label)
+                if C == 1 :
+                    loss = L.YoloLoss(box, label,
+                        lambda_coord=lambda_coord, lambda_noobj=lambda_noobj)
+                elif C > 1:
+                    loss = L.YoloLoss(box, label, cprob,
+                        lambda_coord=lambda_coord, lambda_noobj=lambda_noobj)
+                setattr(self.net, 'yolo_loss', loss)
+
+
+    # add softmax layer
     def add_softmax(self, loss_weight = 1, name = 'softmax', stage = None,
                     class_weights = None, label = None):
         if self.check_stage(stage):
@@ -336,7 +420,7 @@ class BuildNet:
                 softmax = L.Softmax(self.bottom)
                 setattr(self.net, name+'prob', softmax)
 
-
+    # add softmax decay layer
     def add_softmax_decay(self, separator, loss_weight=1, name='softmax_decay_',
                           stage=None, decay_rate=1.0,):
         if self.check_stage(stage):
