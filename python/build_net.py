@@ -277,6 +277,7 @@ class BuildNet:
         tmpnet = caffe.NetSpec()
         tmpnet.data, tmpnet.label = L.DenseImageData(
             source = source_path+source_train,
+            transform_param = transformer_dict,
             root_folder = root_folder, is_color = is_color,
             batch_size = 1, ntop = 2)
         with open('tmpnet.prototxt', 'w+') as f:
