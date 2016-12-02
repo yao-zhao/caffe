@@ -38,7 +38,7 @@ class BuildNet:
 
     # reset net
     def reset(self, phase = 'train', stage = None):
-        self.index = 1
+        self.index = 0
         self.net = None
         self.net = caffe.NetSpec()
         self.solvers = []
@@ -48,6 +48,7 @@ class BuildNet:
         self.label = None
         self.phase = phase
         self.unpool_array = []
+        self.shortcut_array = []
         self.func(self)
 
     # check stage
@@ -63,7 +64,13 @@ class BuildNet:
         self.add_batchnorm(stage = stage)
         self.add_scale(lr = lr, stage = stage)
         self.add_relu(stage = stage)
-        self.index += 1
+
+    # add a typical block
+    def add_deconv_block(self, num_output, lr = 1, stage = None):
+        self.add_deconv(num_output, lr = lr, stage = stage)
+        self.add_batchnorm(stage = stage)
+        self.add_scale(lr = lr, stage = stage)
+        self.add_relu(stage = stage)
 
     # add a prelu block
     def add_prelu_block(self, num_output, lr = 1, stage = None):
@@ -71,7 +78,6 @@ class BuildNet:
         self.add_batchnorm(stage = stage)
         self.add_scale(lr = lr, stage = stage)
         self.add_prelu(stage = stage)
-        self.index += 1
 
     # add a conv pool block
     def add_convpool_block(self, num_output, lr = 1, stage = None):
@@ -79,7 +85,6 @@ class BuildNet:
         self.add_batchnorm(stage = stage)
         self.add_scale(lr = lr, stage = stage)
         self.add_relu(stage = stage)
-        self.index += 1
 
     # add a prelu conv pool block
     def add_prelu_convpool_block(self, num_output, lr = 1, stage = None):
@@ -87,7 +92,6 @@ class BuildNet:
         self.add_batchnorm(stage = stage)
         self.add_scale(lr = lr, stage = stage)
         self.add_prelu(stage = stage)
-        self.index += 1
 
     # add bottle neck block
     def add_bottleneck_block(self, num_output, num_bottleneck=None,
@@ -166,6 +170,7 @@ class BuildNet:
         tmpnet = caffe.NetSpec()
         tmpnet.data, tmpnet.label = L.ImageData(
             source = source_path+source_train,
+            transform_param = transformer_dict,
             root_folder = root_folder, is_color = is_color,
             batch_size = 1, ntop = 2)
         with open('tmpnet.prototxt', 'w+') as f:
@@ -228,6 +233,7 @@ class BuildNet:
         tmpnet = caffe.NetSpec()
         tmpnet.data, tmpnet.label = L.ImageBoxData(
             source = source_path+source_train,
+            transform_param = transformer_dict,
             root_folder = root_folder, is_color = is_color,
             batch_size = 1, ntop = 2)
         with open('tmpnet.prototxt', 'w+') as f:
@@ -314,6 +320,7 @@ class BuildNet:
     # add pooling layer of 2
     def add_maxpool_2(self, stage = None, use_unpool = False):
         if self.check_stage(stage):
+            self.increase_index()
             if use_unpool is False:
                 self.bottom = L.Pooling(self.bottom,
                     kernel_size = 2, stride = 2, pool = P.Pooling.MAX)
@@ -323,33 +330,32 @@ class BuildNet:
                     kernel_size = 2, stride = 2, pool = P.Pooling.MAX, ntop = 2)
                 setattr(self.net, 'pool'+str(self.index), self.bottom)
                 self.unpool_array.append(unpool)
-        self.index += 1
         return self.bottom
 
     # add final mean pool
     def add_meanpool_final(self, stage = None):
         if self.check_stage(stage):
+            self.increase_index()
             self.bottom = L.Pooling(self.bottom, global_pooling = True,
                 stride = 1, pool = P.Pooling.AVE)
             setattr(self.net, 'pool'+str(self.index), self.bottom)
-        self.index += 1
         return self.bottom
 
     # add final mean pool
     def add_maxpool_final(self, stage = None):
         if self.check_stage(stage):
+            self.increase_index()
             self.bottom = L.Pooling(self.bottom, global_pooling = True,
                 stride = 1, pool = P.Pooling.MAX)
             setattr(self.net, 'pool'+str(self.index), self.bottom)
-        self.index += 1
         return self.bottom
 
     # add upsample layers
     def add_upsample(self, stage = None):
         if self.check_stage(stage):
+            self.increase_index()
             self.bottom = L.Upsample(self.bottom, self.unpool_array.pop(),
                 scale = 2)
-        self.index += 1
         return self.bottom
 
     # # add discretize label
@@ -524,14 +530,17 @@ class BuildNet:
     def add_conv(self, num_output, lr=1, kernel_size=3, weight_filler=None,
         pad=1, stride=1, stage=None, bias_term=False):
         if self.check_stage(stage):
+            self.increase_index()
             if weight_filler is None:
                 weight_filler = dict(type = 'xavier')
             if self.phase == 'train' or self.phase == 'test':
-                self.bottom = L.Convolution(self.bottom,
+                param = [dict(lr_mult = lr), dict(lr_mult = lr)] \
+                    if bias_term else [dict(lr_mult = lr)]
+                self.bottom = L.Convolution(self.bottom, param = param,
                     kernel_size = kernel_size, pad = pad,
                     stride = stride, num_output = num_output,
                     weight_filler = weight_filler,
-                    param = dict(lr_mult = lr), bias_term = bias_term,
+                    bias_term = bias_term,
                     bias_filler=dict(type='constant', value=0))
             elif self.phase == 'deploy':
                 self.bottom = L.Convolution(self.bottom,
@@ -543,10 +552,37 @@ class BuildNet:
             setattr(self.net, 'conv'+str(self.index), self.bottom)
         return self.bottom
 
+    # deconvolutional layer
+    def add_deconv(self, num_output, lr=1, kernel_size=3, weight_filler=None,
+        pad=1, stride=2, stage=None, bias_term=False):
+        if self.check_stage(stage):
+            self.increase_index()
+            if weight_filler is None:
+                weight_filler = dict(type = 'xavier')
+            if self.phase == 'train' or self.phase == 'test':
+                param = [dict(lr_mult = lr), dict(lr_mult = lr)] \
+                    if bias_term else [dict(lr_mult = lr)]
+                self.bottom = L.Deconvolution(self.bottom, param = param,
+                    convolution_param = dict(
+                    kernel_size = kernel_size, pad = pad,
+                    stride = stride, num_output = num_output,
+                    weight_filler = weight_filler,
+                     bias_term = bias_term,
+                    bias_filler=dict(type='constant', value=0)))
+            elif self.phase == 'deploy':
+                self.bottom = L.Deconvolution(self.bottom,
+                    convolution_param = dict(
+                    kernel_size = kernel_size, pad = pad,
+                    stride = stride, num_output = num_output,
+                    bias_term = bias_term))
+            setattr(self.net, 'deconv'+str(self.index), self.bottom)
+        return self.bottom
+
     # 1d convolutional layer
     def add_conv_1d(self, num_output, lr=1, kernel_size=3, weight_filler=None,
         pad=1, stride=1, stage=None, bias_term=False):
         if self.check_stage(stage):
+            self.increase_index()
             if weight_filler is None:
                 weight_filler = dict(type = 'xavier')
             if self.phase == 'train' or self.phase == 'test':
@@ -652,6 +688,7 @@ class BuildNet:
     def add_fc(self, num_output, lr = 1, bias_value = 0,
             weight_filler=dict(type='xavier'), name = None, stage = None):
         if self.check_stage(stage):
+            self.increase_index()
             if not name:
                 name = 'fc'+str(self.index)
             if self.phase == 'train' or self.phase == 'test':
@@ -664,11 +701,6 @@ class BuildNet:
                 self.bottom = L.InnerProduct(self.bottom,
                     num_output = num_output)
             setattr(self.net, name, self.bottom)
-            # if dropout > 0:
-            #     self.bottom = L.Dropout(self.bottom, dropout_ratio = dropout,
-            #         in_place = True)
-            #     setattr(self.net, 'dropout'+str(self.index), self.bottom)
-        self.index += 1
         return self.bottom
 
     def add_softmax_op(self, loss_weight = 1, stage = None):
@@ -682,24 +714,36 @@ class BuildNet:
 ################################################################################
     def add_cslice(self, stage = None):
         if self.check_stage(stage):
+            self.increase_index()
             self.bottom = L.CyclicSlice(self.bottom)
             setattr(self.net, 'cslice'+str(self.index), self.bottom)
-        self.index += 1
         return self.bottom
 
     def add_croll(self, stage = None):
         if self.check_stage(stage):
+            self.increase_index()
             self.bottom = L.CyclicRoll(self.bottom)
             setattr(self.net, 'croll'+str(self.index), self.bottom)
-        self.index += 1
         return self.bottom
 
     def add_cpool(self, stage = None):
         if self.check_stage(stage):
+            self.increase_index()
             self.bottom = L.CyclicPool(self.bottom, pool = P.CyclicPool.AVE)
             setattr(self.net, 'cpool'+str(self.index), self.bottom)
-        self.index += 1
         return self.bottom
+
+# branch options
+################################################################################
+    def add_shortcut(self, stage=None):
+        if self.check_stage(stage):
+            self.shortcut_array.append(self.bottom)
+
+    def concat_shortcut(self, stage=None):
+        if self.check_stage(stage):
+            self.increase_index()
+            self.bottom = L.Concat(self.bottom, self.shortcut_array.pop())
+            setattr(self.net, 'concat'+str(self.index), self.bottom)
 
 # solvers
 ################################################################################
