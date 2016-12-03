@@ -274,7 +274,7 @@ class BuildNet:
                 source_path = 'data/', root_folder = 'data/',
                 source_train = 'train.txt', source_test = 'val.txt',
                 test_transformer_dict = None,
-                shuffle = True, is_color = True):
+                shuffle = True, is_color = True, test_shuffle = False):
         if test_batch_size is None:
             test_batch_size = batch_size
         if test_transformer_dict is None:
@@ -305,7 +305,7 @@ class BuildNet:
                         batch_size = test_batch_size,
                         source = source_path + source_test,
                         root_folder = root_folder, is_color = is_color,
-                        shuffle = False,
+                        shuffle = test_shuffle,
                         transform_param = test_transformer_dict, ntop = 2)
                         # include = dict(phase = caffe.TEST))
         elif self.phase == 'deploy':
@@ -553,8 +553,8 @@ class BuildNet:
         return self.bottom
 
     # deconvolutional layer
-    def add_deconv(self, num_output, lr=1, kernel_size=3, weight_filler=None,
-        pad=1, stride=2, stage=None, bias_term=False):
+    def add_deconv(self, num_output, lr=1, kernel_size=2, weight_filler=None,
+        pad=0, stride=2, stage=None, bias_term=False):
         if self.check_stage(stage):
             self.increase_index()
             if weight_filler is None:
