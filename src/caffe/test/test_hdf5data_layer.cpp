@@ -1,7 +1,11 @@
 #include <string>
 #include <vector>
 
+#ifdef USE_16_04
 #include "hdf5/serial/hdf5.h"
+#else
+#include "hdf5.h"
+#endif
 
 #include "gtest/gtest.h"
 

@@ -3,8 +3,13 @@
 
 #include <string>
 
+#ifdef USE_16_04
 #include "hdf5/serial/hdf5.h"
 #include "hdf5/serial/hdf5_hl.h"
+#else
+#include "hdf5.h"
+#include "hdf5_hl.h"
+#endif
 
 #include "caffe/blob.hpp"
 

@@ -24,9 +24,7 @@
 
 - **others**: multiple other changes in existing modules.
 
-# Note
-
-This branch only works in ubuntu 16.04. remove commit *7d6184730be3791fe2e9b5f1dbf209dae44d1047* for 14.04 compatibility.
+- **support for both ubuntu 16.04 and 14.04** set tag USE_16_04 :=1 in Makefile.config to use under ubuntu 16.04
 
 ---
 

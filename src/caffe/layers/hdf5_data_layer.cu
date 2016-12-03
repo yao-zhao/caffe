@@ -6,8 +6,13 @@ TODO:
 #include <stdint.h>
 #include <vector>
 
+#ifdef USE_16_04
 #include "hdf5/serial/hdf5.h"
 #include "hdf5/serial/hdf5_hl.h"
+#else
+#include "hdf5.h"
+#include "hdf5_hl.h"
+#endif
 
 #include "caffe/layers/hdf5_data_layer.hpp"
 
