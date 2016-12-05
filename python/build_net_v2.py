@@ -49,15 +49,12 @@ class BuildNet:
         self.phase = phase
         self.unpool_array = []
         self.shortcut_array = []
-        self.adversarial_stage = 'discrimitive'
-        self.input_dim = []
         self.func(self)
 
     # check stage
     def check_stage(self, stage):
         return stage is None or self.stage is None or \
                 np.any(np.equal(stage, self.stage))
-
 
 # function groups
 ################################################################################
@@ -111,27 +108,68 @@ class BuildNet:
 
 # input layers
 ################################################################################
-    def choose_input_param(batch_size, test_batch_size,\
-            transformer_dict, test_transformer_dict ,\
-            source_path, source_train, source_test, shuffle, test_shuffle)
+    # set data layer
+    def add_input(self, transformer_dict = None, batch_size = 32,
+                 test_batch_size = None, data_dim = [1, 1, 1],
+                 label_dims = [[1]]):
+        if test_batch_size is None:
+            test_batch_size = batch_size
         if self.phase == 'train':
-            source = source_path + source_train
-        if self.phase == 'test':
-            if test_batch_size is not None:
-                batch_size = test_batch_size
-            if test_transformer_dict is not None:
-                transformer_dict = test_transformer_dict
-            shuffle = test_shuffle
-            source = source_path + source_test
-        if self.phase == 'deploy'
-            batch_size = 1
-        return batch_size, transformer_dict, source, shuffle
+            dim0 = batch_size
+        elif self.phase == 'test':
+            dim0 = test_batch_size
+        elif self.phase == 'deploy':
+            dim0 = 1
+        self.bottom = L.Input(input_param =
+                dict(shape = dict(dim = [dim0]+data_dim)))
+        self.net.data = self.bottom
+        numlabels = len(label_dims)
+        for ilabel in range(numlabels):
+            if not self.phase == 'deploy':
+                label = L.Input(input_param =
+                    dict(shape = dict(dim = [dim0]+label_dims[ilabel])))
+                setattr(self.net, 'label'+str(ilabel), label)
+        return self.bottom
 
-    def probe_input_dim(self, inputfuc, source, root_folder,\
-            is_color, transformer_dict):
+    def add_lmdb(self, transformer_dict = None, batch_size = 32,
+                 test_batch_size = None,
+                 backend = P.Data.LMDB, source_path = 'data/'):
+        if test_batch_size is None:
+            test_batch_size = batch_size
+        if self.phase == 'train':
+            self.bottom, self.label = L.Data(batch_size = batch_size, 
+                    backend = backend, source = source_path + 'train_lmdb',
+                    transform_param = transformer_dict,
+                    ntop = 2, include = dict(phase = caffe.TRAIN))
+        elif self.phase == 'test':
+            self.bottom, self.label = L.Data(batch_size = test_batch_size,
+                    backend = backend, source = source_path + 'val_lmdb',
+                    transform_param = transformer_dict,
+                    ntop = 2, include = dict(phase = caffe.TEST))
+        elif self.phase == 'deploy':
+            self.bottom = L.Input(input_param = dict(shape = dict(dim =
+                                 [deploy_batch_size, nc, height, width])))
+        self.net.data = self.bottom
+        if not self.phase == 'deploy':
+            self.net.label = self.label
+        return self.bottom
+
+    # set image data layer
+    def add_image(self, transformer_dict = None, batch_size = 32,
+                 test_batch_size = None, deploy_batch_size = 1,
+                 source_path = 'data/', root_folder = 'data/',
+                 source_train = 'train.txt', source_test = 'val.txt',
+                 label_scale = 1, test_transformer_dict = None,
+                 shuffle = True, test_shuffle=False,
+                 is_color = True, height = None, width = None):
+        if test_batch_size is None:
+            test_batch_size = batch_size
+        if test_transformer_dict is None:
+            test_transformer_dict = transformer_dict
         # probe image data dimension
         tmpnet = caffe.NetSpec()
-        tmpnet.data, tmpnet.label = inputfuc(source = source,
+        tmpnet.data, tmpnet.label = L.ImageData(
+            source = source_path+source_train,
             transform_param = transformer_dict,
             root_folder = root_folder, is_color = is_color,
             batch_size = 1, ntop = 2)
@@ -140,89 +178,47 @@ class BuildNet:
         nb, nc, h, w = caffe.Net('tmpnet.prototxt', caffe.TRAIN).\
             blobs['data'].data.shape
         os.remove('tmpnet.prototxt')
-        return nb, nc, h, w
-
-    # set data layer
-    def add_input(self, transformer_dict = None, batch_size = 32,
-                 test_batch_size = None, data_dim = [1, 1, 1],
-                 label_dims = [[1]]):
-        if self.phase == 'test':
-            if test_batch_size is not None:
-                batch_size = test_batch_size
-        if self.phase == 'deploy'
-            batch_size = 1
-        self.bottom = L.Input(input_param =
-                dict(shape = dict(dim = [batch_size]+data_dim)))
-        self.net.data = self.bottom
-        numlabels = len(label_dims)
-        for ilabel in range(numlabels):
-            if not self.phase == 'deploy':
-                label = L.Input(input_param =
-                    dict(shape = dict(dim = [batch_size]+label_dims[ilabel])))
-                setattr(self.net, 'label'+str(ilabel), label)
-        self.input_dim = [batch_size]+data_dim
-        return self.bottom
-
-    def add_lmdb(self, transformer_dict = None, batch_size = 32,
-                 test_batch_size = None,
-                 backend = P.Data.LMDB, source_path = 'data/'):
-        # temporarily broken
-        # if test_batch_size is None:
-        #     test_batch_size = batch_size
-        # if self.phase == 'train':
-        #     self.bottom, self.label = L.Data(batch_size = batch_size, 
-        #             backend = backend, source = source_path + 'train_lmdb',
-        #             transform_param = transformer_dict,
-        #             ntop = 2, include = dict(phase = caffe.TRAIN))
-        # elif self.phase == 'test':
-        #     self.bottom, self.label = L.Data(batch_size = test_batch_size,
-        #             backend = backend, source = source_path + 'val_lmdb',
-        #             transform_param = transformer_dict,
-        #             ntop = 2, include = dict(phase = caffe.TEST))
-        # elif self.phase == 'deploy':
-        #     self.bottom = L.Input(input_param = dict(shape = dict(dim =
-        #                          [1, nc, height, width])))
-        # self.net.data = self.bottom
-        # if not self.phase == 'deploy':
-        #     self.net.label = self.label
-        # self.input_dim = [dim0]+data_dim
-        return self.bottom
-
-    # set image data layer
-    def add_image(self, transformer_dict = None, batch_size = 32,
-                 test_batch_size = None,
-                 source_path = 'data/', root_folder = 'data/',
-                 source_train = 'train.txt', source_test = 'val.txt',
-                 label_scale = 1, test_transformer_dict = None,
-                 shuffle = True, test_shuffle = False,
-                 is_color = True, height = None, width = None):
-        batch_size, transformer_dict, srouce, shuffle =\
-            choose_input_param(batch_size, test_batch_size,\
-            transformer_dict, test_transformer_dict ,\
-            source_path, source_train, source_test, shuffle, test_shuffle)
-        nb, nc, h, w = probe_input_dim(self, L.ImageData, source, root_folder,\
-            is_color, transformer_dict)
-        if self.phase == 'train' or self.phase == 'test':
+        # add layer
+        if self.phase == 'train':
             if height and width:
                 self.bottom, self.label = L.ImageData(batch_size = batch_size,
-                        source = source,
+                        source = source_path + source_train,
                         root_folder = root_folder, is_color = is_color,
                         shuffle = shuffle, label_scale = label_scale,
                         transform_param = transformer_dict, ntop = 2,
                         new_height = height, new_width = width)
+                        # include = dict(phase = caffe.TRAIN))
             else:
                 self.bottom, self.label = L.ImageData(batch_size = batch_size,
-                        source = source,
+                        source = source_path + source_train,
                         root_folder = root_folder, is_color = is_color,
                         shuffle = shuffle, label_scale = label_scale,
                         transform_param = transformer_dict, ntop = 2)
+                        # include = dict(phase = caffe.TRAIN))
+        elif self.phase == 'test':
+            if height and width:
+                self.bottom, self.label = L.ImageData(
+                        batch_size = test_batch_size,
+                        source = source_path + source_test,
+                        root_folder = root_folder, is_color = is_color,
+                        shuffle = test_shuffle, label_scale = label_scale,
+                        transform_param = test_transformer_dict, ntop = 2,
+                        new_height = height, new_width = width)
+                        # include = dict(phase = caffe.TEST))
+            else:
+                self.bottom, self.label = L.ImageData(
+                        batch_size = test_batch_size,
+                        source = source_path + source_test,
+                        root_folder = root_folder, is_color = is_color,
+                        shuffle = test_shuffle, label_scale = label_scale,
+                        transform_param = test_transformer_dict, ntop = 2)
+                        # include = dict(phase = caffe.TEST))
         elif self.phase == 'deploy':
             self.bottom = L.Input(input_param = dict(shape = dict(dim =
-                                 [batch_size, nc, h, w])))
+                                 [deploy_batch_size, nc, h, w])))
         self.net.data = self.bottom
         if not self.phase == 'deploy':
             self.net.label = self.label
-        self.input_dim = [batch_size, nc, h, w]
         return self.bottom
 
     # set image data layer
@@ -231,23 +227,38 @@ class BuildNet:
             source_train='train.txt', source_test ='val.txt',
             shuffle = True, test_shuffle=False,
             is_color = True, height = None, width = None):
-        batch_size, transformer_dict, srouce, shuffle =\
-            choose_input_param(batch_size, test_batch_size,\
-            transformer_dict, test_transformer_dict ,\
-            source_path, source_train, source_test, shuffle, test_shuffle)
-        nb, nc, h, w = probe_input_dim(self, L.add_image_box, source,\
-            root_folder, is_color, transformer_dict)
+        if test_batch_size is None:
+            test_batch_size = batch_size
+        # probe image data dimension
+        tmpnet = caffe.NetSpec()
+        tmpnet.data, tmpnet.label = L.ImageBoxData(
+            source = source_path+source_train,
+            transform_param = transformer_dict,
+            root_folder = root_folder, is_color = is_color,
+            batch_size = 1, ntop = 2)
+        with open('tmpnet.prototxt', 'w+') as f:
+            f.write(str(tmpnet.to_proto()))
+        nb, nc, h, w = caffe.Net('tmpnet.prototxt', caffe.TRAIN).\
+            blobs['data'].data.shape
+        os.remove('tmpnet.prototxt')
+        # add layer
+        if self.phase == 'train':
+            source = source_path+source_train
+        elif self.phase == 'test':
+            source = source_path+source_test
+            shuffle = test_shuffle
+            batch_size = test_batch_size
         if self.phase == 'train' or self.phase == 'test':
             if height and width:
                 self.bottom, self.label = L.ImageBoxData(
                     batch_size=batch_size, max_num_box=max_num_box,
-                    source=source, root_folder=root_folder,
+                    source=source_path+source_train, root_folder=root_folder,
                     is_color=is_color, shuffle=shuffle, ntop=2,
                     new_height = height, new_width = width)
             else:
                 self.bottom, self.label = L.ImageBoxData(
                     batch_size=batch_size, max_num_box=max_num_box,
-                    source=source, root_folder=root_folder,
+                    source=source_path+source_train, root_folder=root_folder,
                     is_color=is_color, shuffle=shuffle, ntop=2)
         elif self.phase == 'deploy':
             self.bottom = L.Input(input_param=dict(
@@ -255,37 +266,55 @@ class BuildNet:
         self.net.data = self.bottom
         if not self.phase == 'deploy':
             self.net.label = self.label
-        self.input_dim = [batch_size, nc, h, w]
         return self.bottom
 
     # set image data layer
     def add_dense_image(self, transformer_dict = dict(), batch_size = 32,
-                test_batch_size = None, 
+                test_batch_size = None, deploy_batch_size = 1,
                 source_path = 'data/', root_folder = 'data/',
                 source_train = 'train.txt', source_test = 'val.txt',
                 test_transformer_dict = None,
                 shuffle = True, is_color = True, test_shuffle = False):
-        batch_size, transformer_dict, srouce, shuffle =\
-            choose_input_param(batch_size, test_batch_size,\
-            transformer_dict, test_transformer_dict ,\
-            source_path, source_train, source_test, shuffle, test_shuffle)
-        nb, nc, h, w = probe_input_dim(self, L.DenseImageData,\
-            source, root_folder, is_color, transformer_dict)
-        if self.phase == 'train' or self.phase == 'test':
+        if test_batch_size is None:
+            test_batch_size = batch_size
+        if test_transformer_dict is None:
+            test_transformer_dict = transformer_dict
+        # probe image data dimension
+        tmpnet = caffe.NetSpec()
+        tmpnet.data, tmpnet.label = L.DenseImageData(
+            source = source_path+source_train,
+            transform_param = transformer_dict,
+            root_folder = root_folder, is_color = is_color,
+            batch_size = 1, ntop = 2)
+        with open('tmpnet.prototxt', 'w+') as f:
+            f.write(str(tmpnet.to_proto()))
+        nb, nc, h, w = caffe.Net('tmpnet.prototxt', caffe.TRAIN).\
+            blobs['data'].data.shape
+        os.remove('tmpnet.prototxt')
+        # add layer
+        if self.phase == 'train':
                 self.bottom, self.label = L.DenseImageData(
-                        batch_size = batch_size, source = source,
+                        batch_size = batch_size,
+                        source = source_path + source_train,
                         root_folder = root_folder, is_color = is_color,
                         shuffle = shuffle,
                         transform_param = transformer_dict, ntop = 2)
+                        # include = dict(phase = caffe.TRAIN))
+        elif self.phase == 'test':
+                self.bottom, self.label = L.DenseImageData(
+                        batch_size = test_batch_size,
+                        source = source_path + source_test,
+                        root_folder = root_folder, is_color = is_color,
+                        shuffle = test_shuffle,
+                        transform_param = test_transformer_dict, ntop = 2)
+                        # include = dict(phase = caffe.TEST))
         elif self.phase == 'deploy':
             self.bottom = L.Input(input_param = dict(shape = dict(dim =
-                                 [batch_size, nc, h, w])))
+                                 [deploy_batch_size, nc, h, w])))
         self.net.data = self.bottom
         if not self.phase == 'deploy':
             self.net.label = self.label
-        self.input_dim = [batch_size, nc, h, w]
         return self.bottom
-
 # pooling layers and upsample layers
 ################################################################################
     # add pooling layer of 2
@@ -343,7 +372,6 @@ class BuildNet:
             lambda_coord=5, lambda_noobj=0.5,
             loss_weight=1, name='yolo', stage=None, label='label'):
         if self.check_stage(stage):
-            lr = self.check_lr_mult(lr)
             base = self.bottom
             boxpre = L.InnerProduct(base, num_output=S_h*S_w*B*5,
                     param=[dict(lr_mult=lr), dict(lr_mult=lr)],
@@ -503,7 +531,6 @@ class BuildNet:
         pad=1, stride=1, stage=None, bias_term=False):
         if self.check_stage(stage):
             self.increase_index()
-            lr = self.check_lr_mult(lr)
             if weight_filler is None:
                 weight_filler = dict(type = 'xavier')
             if self.phase == 'train' or self.phase == 'test':
@@ -530,7 +557,6 @@ class BuildNet:
         pad=0, stride=2, stage=None, bias_term=False):
         if self.check_stage(stage):
             self.increase_index()
-            lr = self.check_lr_mult(lr)
             if weight_filler is None:
                 weight_filler = dict(type = 'xavier')
             if self.phase == 'train' or self.phase == 'test':
@@ -557,7 +583,6 @@ class BuildNet:
         pad=1, stride=1, stage=None, bias_term=False):
         if self.check_stage(stage):
             self.increase_index()
-            lr = self.check_lr_mult(lr)
             if weight_filler is None:
                 weight_filler = dict(type = 'xavier')
             if self.phase == 'train' or self.phase == 'test':
@@ -603,8 +628,7 @@ class BuildNet:
     # add scale function
     def add_scale(self, lr=1, stage=None):
         if self.check_stage(stage):
-           lr = self.check_lr_mult(lr)
-           if self.phase == 'train' or self.phase == 'test':
+            if self.phase == 'train' or self.phase == 'test':
                 self.bottom = L.Scale(self.bottom,
                       param = [dict(lr_mult = lr), dict(lr_mult = lr)],
                       bias_term = True, in_place = True,
@@ -633,7 +657,6 @@ class BuildNet:
     # Parameterized ReLU 
     def add_prelu(self, lr = 1, stage = None):
         if self.check_stage(stage):
-            lr = self.check_lr_mult(lr)
             self.bottom = L.PReLU(self.bottom, in_place = True, 
                   param = [dict(lr_mult = lr)])
             setattr(self.net, 'prelu'+str(self.index), self.bottom)
@@ -666,7 +689,6 @@ class BuildNet:
             weight_filler=dict(type='xavier'), name = None, stage = None):
         if self.check_stage(stage):
             self.increase_index()
-            lr = self.check_lr_mult(lr)
             if not name:
                 name = 'fc'+str(self.index)
             if self.phase == 'train' or self.phase == 'test':
@@ -724,41 +746,7 @@ class BuildNet:
             setattr(self.net, 'concat'+str(self.index), self.bottom)
 
 # adversarial net
-################################################################################
-    def set_adversarial_discrimitive():
-        self.adversarial_stage = 'discrimitive'
-    def set_adversarial_generative():
-        self.adversarial_stage = 'generative'
-
-    # modify lr
-    def check_lr_mult(self, lr_mult):
-        if self.adversarial_stage == 'generative':
-            lr_mult *= -1
-        return lr_mult
-
-    # mix adversarial and ground truth
-    def mix_adversarial(G, L, stage = None):
-        if self.check_stage(stage):
-            self.bottom = L.Concat(G, L, axis = 0)
-            setattr(self.net, 'adversarial_concat', self.bottom)
-            label0 = L.DummyData(shape = dict(dim = self.input_dim),\
-                data_filler = dict(type = 'Constant', value = 0))
-            label1 = L.DummyData(shape = dict(dim = self.input_dim),\
-                data_filler = dict(type = 'Constant', value = 1))
-            label = L.Concat(label0, label1, axis = 0)
-            setattr(self.net, 'label_real', label0)
-            setattr(self.net, 'label_gen', label1)
-            setattr(self.net, 'adversarial_label', label)
-            self.adversarial_label = label
-        return self.bottom
-
-    # pair up input and label
-    def pair_data_label(data, label, stage = None):
-        if self.check_stage(stage):
-            self.increase_index()
-            pair = L.Concat(data, label, axis = 1)
-            setattr(self.net, 'pair'+str(self.index), pair)
-            return pair
+    
 
 
 # solvers

@@ -308,8 +308,8 @@ message ParamSpec {
 //
 // LayerParameter next available layer-specific ID: 147
 // (last added: recurrent_param)
-// LayerParameter next availabel layer-specific ID: 224
-// (last added: imageboxdata)
+// LayerParameter next availabel layer-specific ID: 225
+// (last added: labelsoftmax)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -390,6 +390,7 @@ message LayerParameter {
   optional InfogainLossParameter infogain_loss_param = 116;
   optional InnerProductParameter inner_product_param = 117;
   optional InputParameter input_param = 143;
+  optional LabelSoftmaxParameter label_softmax_param = 224;
   optional LadderCombinatorParameter ladder_combinator_param = 205;
   optional LogParameter log_param = 134;
   optional LorentzianProbLossParameter lorentzian_prob_loss_param = 211;
@@ -965,6 +966,13 @@ message InputParameter {
   // Define 1 shape to set the same shape for every top.
   // Define no shape to defer to reshaping manually.
   repeated BlobShape shape = 1;
+}
+
+message LabelSoftmaxParameter {
+  // number of softmax classes
+  optional uint32 num_classes = 1 [default = 1];
+  // axis of the label
+  optional uint32 axis = 2 [default = 1];
 }
 
 message LadderCombinatorParameter {
