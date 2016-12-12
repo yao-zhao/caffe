@@ -15,7 +15,7 @@ __global__ void label_softmax_forward_kernel(const int count,
   CUDA_KERNEL_LOOP(index, count) {
     int n = index / inner_dim;
     int s = index % inner_dim;
-    out[(n*channels+static_cast<int>(label[index]))+s] = 1;
+    out[(n*channels+static_cast<int>(label[index]))*inner_dim+s] = 1;
   }
 }
 

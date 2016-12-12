@@ -29,9 +29,8 @@ template <typename Dtype>
 void LabelSoftmaxLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
   const Dtype* bottom_data = bottom[0]->cpu_data();
-  const int count = bottom[0]->count();
   Dtype* top_data = top[0]->mutable_cpu_data();
-  caffe_set(count, Dtype(0), top_data);
+  caffe_set(top[0]->count(), Dtype(0), top_data);
   for (int i = 0; i < outer_num_; ++i) {
     for (int j = 0; j < inner_num_; ++j) {
       const int label = static_cast<int>(bottom_data[i*inner_num_+j]);
