@@ -55,8 +55,10 @@ class BuildNet:
 
     # check stage
     def check_stage(self, stage):
-        return stage is None or self.stage is None or \
-                np.any(np.equal(stage, self.stage))
+        return (stage is None or self.stage is None or \
+                np.any(np.equal(stage, self.stage))) and \
+                (self.adversarial_stage is not 'discrimitive' \
+                or self.phase is not 'deploy')
 
 
 # function groups
@@ -111,9 +113,9 @@ class BuildNet:
 
 # input layers
 ################################################################################
-    def choose_input_param(batch_size, test_batch_size,\
+    def choose_input_param(self, batch_size, test_batch_size,\
             transformer_dict, test_transformer_dict ,\
-            source_path, source_train, source_test, shuffle, test_shuffle)
+            source_path, source_train, source_test, shuffle, test_shuffle):
         if self.phase == 'train':
             source = source_path + source_train
         if self.phase == 'test':
@@ -123,8 +125,9 @@ class BuildNet:
                 transformer_dict = test_transformer_dict
             shuffle = test_shuffle
             source = source_path + source_test
-        if self.phase == 'deploy'
+        if self.phase == 'deploy':
             batch_size = 1
+            source = source_path + source_train
         return batch_size, transformer_dict, source, shuffle
 
     def probe_input_dim(self, inputfuc, source, root_folder,\
@@ -149,7 +152,7 @@ class BuildNet:
         if self.phase == 'test':
             if test_batch_size is not None:
                 batch_size = test_batch_size
-        if self.phase == 'deploy'
+        if self.phase == 'deploy':
             batch_size = 1
         self.bottom = L.Input(input_param =
                 dict(shape = dict(dim = [batch_size]+data_dim)))
@@ -196,11 +199,11 @@ class BuildNet:
                  label_scale = 1, test_transformer_dict = None,
                  shuffle = True, test_shuffle = False,
                  is_color = True, height = None, width = None):
-        batch_size, transformer_dict, srouce, shuffle =\
-            choose_input_param(batch_size, test_batch_size,\
+        batch_size, transformer_dict, source, shuffle =\
+            self.choose_input_param(batch_size, test_batch_size,\
             transformer_dict, test_transformer_dict ,\
             source_path, source_train, source_test, shuffle, test_shuffle)
-        nb, nc, h, w = probe_input_dim(self, L.ImageData, source, root_folder,\
+        nb, nc, h, w = self.probe_input_dim(L.ImageData, source, root_folder,\
             is_color, transformer_dict)
         if self.phase == 'train' or self.phase == 'test':
             if height and width:
@@ -231,11 +234,11 @@ class BuildNet:
             source_train='train.txt', source_test ='val.txt',
             shuffle = True, test_shuffle=False,
             is_color = True, height = None, width = None):
-        batch_size, transformer_dict, srouce, shuffle =\
-            choose_input_param(batch_size, test_batch_size,\
+        batch_size, transformer_dict, source, shuffle =\
+            self.choose_input_param(batch_size, test_batch_size,\
             transformer_dict, test_transformer_dict ,\
             source_path, source_train, source_test, shuffle, test_shuffle)
-        nb, nc, h, w = probe_input_dim(self, L.add_image_box, source,\
+        nb, nc, h, w = self.probe_input_dim(L.add_image_box, source,\
             root_folder, is_color, transformer_dict)
         if self.phase == 'train' or self.phase == 'test':
             if height and width:
@@ -265,11 +268,11 @@ class BuildNet:
                 source_train = 'train.txt', source_test = 'val.txt',
                 test_transformer_dict = None,
                 shuffle = True, is_color = True, test_shuffle = False):
-        batch_size, transformer_dict, srouce, shuffle =\
-            choose_input_param(batch_size, test_batch_size,\
+        batch_size, transformer_dict, source, shuffle =\
+            self.choose_input_param(batch_size, test_batch_size,\
             transformer_dict, test_transformer_dict ,\
             source_path, source_train, source_test, shuffle, test_shuffle)
-        nb, nc, h, w = probe_input_dim(self, L.DenseImageData,\
+        nb, nc, h, w = self.probe_input_dim(L.DenseImageData,\
             source, root_folder, is_color, transformer_dict)
         if self.phase == 'train' or self.phase == 'test':
                 self.bottom, self.label = L.DenseImageData(
@@ -388,7 +391,8 @@ class BuildNet:
                 if not label:
                     label = self.label
                 else:
-                    label = getattr(self.net, label)
+                    if isinstance(label, str):
+                        label = getattr(self.net, label)
                 softmax = L.SoftmaxWithLoss(self.bottom, label,
                                             loss_weight = loss_weight,
                                             loss_param = loss_param)
@@ -603,8 +607,8 @@ class BuildNet:
     # add scale function
     def add_scale(self, lr=1, stage=None):
         if self.check_stage(stage):
-           lr = self.check_lr_mult(lr)
-           if self.phase == 'train' or self.phase == 'test':
+            lr = self.check_lr_mult(lr)
+            if self.phase == 'train' or self.phase == 'test':
                 self.bottom = L.Scale(self.bottom,
                       param = [dict(lr_mult = lr), dict(lr_mult = lr)],
                       bias_term = True, in_place = True,
@@ -725,9 +729,9 @@ class BuildNet:
 
 # adversarial net
 ################################################################################
-    def set_adversarial_discrimitive():
+    def set_adversarial_discrimitive(self):
         self.adversarial_stage = 'discrimitive'
-    def set_adversarial_generative():
+    def set_adversarial_generative(self):
         self.adversarial_stage = 'generative'
 
     # modify lr
@@ -737,28 +741,38 @@ class BuildNet:
         return lr_mult
 
     # mix adversarial and ground truth
-    def mix_adversarial(G, L, stage = None):
+    def mix_adversarial(self, G, R, stage = None):
         if self.check_stage(stage):
-            self.bottom = L.Concat(G, L, axis = 0)
-            setattr(self.net, 'adversarial_concat', self.bottom)
-            label0 = L.DummyData(shape = dict(dim = self.input_dim),\
-                data_filler = dict(type = 'Constant', value = 0))
-            label1 = L.DummyData(shape = dict(dim = self.input_dim),\
-                data_filler = dict(type = 'Constant', value = 1))
-            label = L.Concat(label0, label1, axis = 0)
-            setattr(self.net, 'label_real', label0)
-            setattr(self.net, 'label_gen', label1)
-            setattr(self.net, 'adversarial_label', label)
-            self.adversarial_label = label
+          if self.phase == 'train' or self.phase == 'test':
+              self.bottom = L.Concat(G, R, axis = 0)
+              setattr(self.net, 'adversarial_concat', self.bottom)
+              dim = self.input_dim
+              dim[2] = 1
+              dim[3] = 1
+              label0 = L.DummyData(shape = dict(dim = dim),\
+                  data_filler = dict(type = 'Constant', value = 0))
+              label1 = L.DummyData(shape = dict(dim = dim),\
+                  data_filler = dict(type = 'Constant', value = 1))
+              label = L.Concat(label0, label1, axis = 0)
+              setattr(self.net, 'label_real', label0)
+              setattr(self.net, 'label_gen', label1)
+              setattr(self.net, 'adversarial_label', label)
+              self.adversarial_label = label
         return self.bottom
 
     # pair up input and label
-    def pair_data_label(data, label, stage = None):
-        if self.check_stage(stage):
+    def pair_data_label(self, data, label, stage = None):
+        if self.check_stage(stage) and self.phase is not 'deploy':
             self.increase_index()
             pair = L.Concat(data, label, axis = 1)
             setattr(self.net, 'pair'+str(self.index), pair)
             return pair
+
+    # convert label to softmax label
+    def convert_label_softmax(self, stage = None):
+        if self.check_stage(stage) and self.phase is not 'deploy':
+          self.label = L.LabelSoftmax(self.label)
+          setattr(self.net, 'label_softmax', self.label)
 
 
 # solvers
