@@ -380,28 +380,40 @@ class BuildNet:
 
     # add softmax layer
     def add_softmax(self, loss_weight = 1, name = 'softmax', stage = None,
-                    class_weights = None, label = None):
+                    class_weights = None, label = None, has_output = False):
         if self.check_stage(stage):
             if class_weights is None:
                 loss_param = dict(weight_by_label_freqs = False)
             else:
                 loss_param = dict(weight_by_label_freqs = True,
                     class_weighting = class_weights)
+            if has_output:
+                self.increase_index()
             if self.phase == 'train' or self.phase == 'test':
                 if not label:
                     label = self.label
                 else:
                     if isinstance(label, str):
                         label = getattr(self.net, label)
-                softmax = L.SoftmaxWithLoss(self.bottom, label,
+                if has_output:
+                    loss, softmax = L.SoftmaxWithLoss(self.bottom, label,
+                              loss_weight = [loss_weight, 0],
+                              loss_param = loss_param, ntop = 2)
+                else:
+                    loss = L.SoftmaxWithLoss(self.bottom, label,
                                             loss_weight = loss_weight,
                                             loss_param = loss_param)
                 accuracy = L.Accuracy(self.bottom, label)
-                setattr(self.net, name+'loss', softmax)
-                setattr(self.net, 'accuracy', accuracy)
+                setattr(self.net, name+'loss'+str(self.index), loss)
+                setattr(self.net, 'accuracy'+str(self.index), accuracy)
             elif self.phase == 'deploy':
                 softmax = L.Softmax(self.bottom)
-                setattr(self.net, name+'prob', softmax)
+            if self.phase == 'deploy' or has_output:
+                setattr(self.net, name+'prob'+str(self.index), softmax)
+            if has_output:
+                self.bottom = softmax
+                return self.bottom
+
 
     # add softmax decay layer
     def add_softmax_decay(self, separator, loss_weight=1, name='softmax_decay_',
@@ -750,9 +762,9 @@ class BuildNet:
               dim[2] = 1
               dim[3] = 1
               label0 = L.DummyData(shape = dict(dim = dim),\
-                  data_filler = dict(type = 'Constant', value = 0))
+                  data_filler = dict(type = 'constant', value = 0))
               label1 = L.DummyData(shape = dict(dim = dim),\
-                  data_filler = dict(type = 'Constant', value = 1))
+                  data_filler = dict(type = 'constant', value = 1))
               label = L.Concat(label0, label1, axis = 0)
               setattr(self.net, 'label_real', label0)
               setattr(self.net, 'label_gen', label1)
@@ -769,9 +781,9 @@ class BuildNet:
             return pair
 
     # convert label to softmax label
-    def convert_label_softmax(self, stage = None):
+    def convert_label_softmax(self, num_classes, stage = None):
         if self.check_stage(stage) and self.phase is not 'deploy':
-          self.label = L.LabelSoftmax(self.label)
+          self.label = L.LabelSoftmax(self.label, num_classes = num_classes)
           setattr(self.net, 'label_softmax', self.label)
 
 
