@@ -31,7 +31,7 @@ class BuildNet:
 
     # change the bottom
     def set_bottom(self, name):
-        if type(name) in [str, unicode]:
+        if type(name) in ['str', 'unicode']:
             self.bottom = getattr(self.net, name)
         else:
             self.bottom = name
@@ -65,7 +65,7 @@ class BuildNet:
 ################################################################################
     # add a typical block
     def add_normal_block(self, num_output, lr = 1, stage = None):
-        self.add_conv(num_output, lr = lr, stage = stage)
+        self.add_conv(int(num_output), lr = lr, stage = stage)
         self.add_batchnorm(stage = stage)
         self.add_scale(lr = lr, stage = stage)
         self.add_relu(stage = stage)
