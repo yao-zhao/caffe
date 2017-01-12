@@ -529,8 +529,8 @@ class BuildNet:
                     kernel_size = kernel_size, pad = pad,
                     stride = stride, num_output = num_output,
                     weight_filler = weight_filler,
-                    bias_term = bias_term,
-                    bias_filler=dict(type='constant', value=0))
+                    bias_term = bias_term)
+                    # bias_filler=dict(type='constant', value=0))
             elif self.phase == 'deploy':
                 self.bottom = L.Convolution(self.bottom,
                     kernel_size = kernel_size, pad = pad,
