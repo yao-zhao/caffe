@@ -1,5 +1,7 @@
 # Added Features
 
+- **Generative Adversarial Training** experimental feature, testing.
+
 - **Bounding Box input layers** Read bounding box label files. New layers include: image_box_data_layer, dense_image_box_data_layer.
 
 - **YOLO layers**: real time object detection, check [original paper](https://arxiv.org/pdf/1506.02640v5.pdf) for details. Currently only support cpu computation on the loss layer. New layers include: yolo_loss_layer
