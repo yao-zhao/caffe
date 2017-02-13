@@ -878,7 +878,7 @@ class BuildNet:
                 'done\n')
 
     # save runfile
-    def save_runfile(self):
+    def save_runfile(self, weights):
         with open(self.model_path+'runfile.sh', 'w+') as f:
             self.gen_runfile_header(f)
             self.reset()
@@ -890,6 +890,8 @@ class BuildNet:
                     f.write(' \\\n--weights=models/'+self.name+
                             '/stage_'+str(stage-1)+'_iter_'+
                             str(self.stage_iters[stage-1])+'.caffemodel')
+                if stage == 0 and weights is not None:
+                    f.write(' \\\n--weights='+weights)
                 f.write(' \\\n2>&1 | tee ')
                 if stage > 0:
                     f.write('-a ')
@@ -919,8 +921,8 @@ class BuildNet:
             f.write('set +e\n')
 
     # save
-    def save(self):
+    def save(self, pretrained_weights = None):
         self.save_net()
         self.save_solver()
-        self.save_runfile()
+        self.save_runfile(pretrained_weights)
         self.save_checking()
