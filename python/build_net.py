@@ -49,7 +49,7 @@ class BuildNet:
         self.phase = phase
         self.unpool_array = []
         self.shortcut_array = []
-        self.adversarial_stage = 'discrimitive'
+        self.adversarial_stage = 'none'
         self.input_dim = []
         self.func(self)
 
