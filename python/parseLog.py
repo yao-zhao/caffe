@@ -14,9 +14,9 @@ def parseLog(filename):
     last_iteration = 0
     iteration = 0
     def addValue(dic, keyname, subkeyname, i, value):
-        if not dic.has_key(keyname):
+        if keyname not in dic.keys():
             dic[keyname] = {}
-        if not dic[keyname].has_key(subkeyname):
+        if subkeyname not in dic[keyname]:
             dic[keyname][subkeyname] = []
         dic[keyname][subkeyname].append((i+base_iteration, value))    
     # start parsing
